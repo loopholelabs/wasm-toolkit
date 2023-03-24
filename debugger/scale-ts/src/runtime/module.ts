@@ -26,7 +26,7 @@ let functionArgsIndex = 0;
 let functionHeader = "";
 let functionArgDetails: string[] = [];
 
-let showmem = false;
+let showmem = true;
 
 let memoryData: Uint8Array[] = [];
 
