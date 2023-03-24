@@ -125,12 +125,7 @@ export class Module {
     // Run this module, with an optional next module
     run(context: Context): Context {
 
-        // For now, send it in via stdin.
-        // TODO: Fix this...
-        const fd = openSync('example.in', 'r');
-
         const wasi = new WASI({
-            stdin: fd,
             args: [],
             env: {},
         });
