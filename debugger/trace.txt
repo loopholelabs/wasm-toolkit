@@ -1,0 +1,574 @@
+
+> @loopholelabs/scale-ts@0.1.0 build
+> tsc --build
+
+Loading ../http-handle-go-debug.wasm
+
+INPUT CONTEXT
+== Context ==
+Request method=GET, uri=http://something.com,proto=https, ip=1.2.3.4, len=100
+ Headers:  content=hello
+ Body: Hello world this is a request body
+Response code=200
+ Headers: 
+ Body: Response body
+Calling run
+Calling wasi.start
+--DEBUG-- ->$_start()
+--DEBUG--  ->$runtime.calculateHeapAddresses()
+--DEBUG--  <-$runtime.calculateHeapAddresses
+--DEBUG--  ->$__wasm_call_ctors()
+--DEBUG--  <-$__wasm_call_ctors
+--DEBUG-- <-$_start
+wasi.start took 1.00
+
+--DEBUG-- ->$resize(i32:138)
+--DEBUG--  ->$runtime.alloc(i32:138)
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:0)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:1)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:3)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:4)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:5)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:6)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:7)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:8)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:0, i32:1)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:1, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:2, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:3, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:4, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:5, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:6, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:7, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:8, i32:2)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--  <-$runtime.alloc i32:67376
+--DEBUG--  ->$runtime.sliceAppend(i32:65480, i32:67376, i32:0, i32:0, i32:138, i32:0)
+--DEBUG--  <-$runtime.sliceAppend
+--DEBUG-- <-$resize i32:67376
+--DEBUG-- ->$run()
+--DEBUG--  ->$runtime.alloc(i32:4)
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:9)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:9, i32:1)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--  <-$runtime.alloc i32:67520
+--DEBUG--  ->$runtime.alloc(i32:8)
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:10)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:10, i32:1)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--  <-$runtime.alloc i32:67536
+--DEBUG--  ->$github.com/loopholelabs/scale-signature-http.NewHttpRequest()
+--DEBUG--   ->$runtime.alloc(i32:64)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:11)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:12)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:13)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:14)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:11, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:12, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:13, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:14, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67552
+--DEBUG--  <-$github.com/loopholelabs/scale-signature-http.NewHttpRequest i32:67552
+--DEBUG--  ->$github.com/loopholelabs/scale-signature-http.NewHttpResponse()
+--DEBUG--   ->$runtime.alloc(i32:20)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:15)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:16)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:15, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:16, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67616
+--DEBUG--  <-$github.com/loopholelabs/scale-signature-http.NewHttpResponse i32:67616
+--DEBUG--  ->$_*github.com/loopholelabs/scale-signature-http.Context_.GuestContext(i32:67520)
+--DEBUG--  <-$_*github.com/loopholelabs/scale-signature-http.Context_.GuestContext i32:67520
+--DEBUG--  ->$runtime.alloc(i32:12)
+--DEBUG--   ->$_runtime.gcBlock_.state(i32:17)
+--DEBUG--   <-$_runtime.gcBlock_.state i32:0
+--DEBUG--   ->$_runtime.gcBlock_.setState(i32:17, i32:1)
+--DEBUG--   <-$_runtime.gcBlock_.setState
+--DEBUG--  <-$runtime.alloc i32:67648
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil(i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Error(i32:65024, i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Error
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil(i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Error(i32:65008, i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Error
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.String(i32:64992, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeString(i32:64648, i32:67376, i32:138, i32:138)
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64536, i32:67377, i32:137, i32:137)
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--    ->$runtime.alloc(i32:3)
+--DEBUG--     ->$_runtime.gcBlock_.state(i32:18)
+--DEBUG--     <-$_runtime.gcBlock_.state i32:0
+--DEBUG--     ->$_runtime.gcBlock_.setState(i32:18, i32:1)
+--DEBUG--     <-$_runtime.gcBlock_.setState
+--DEBUG--    <-$runtime.alloc i32:67664
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeString
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.String
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.String(i32:64976, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeString(i32:64648, i32:67382, i32:132, i32:132)
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64536, i32:67383, i32:131, i32:131)
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--    ->$runtime.alloc(i32:20)
+--DEBUG--     ->$_runtime.gcBlock_.state(i32:19)
+--DEBUG--     <-$_runtime.gcBlock_.state i32:0
+--DEBUG--     ->$_runtime.gcBlock_.state(i32:20)
+--DEBUG--     <-$_runtime.gcBlock_.state i32:0
+--DEBUG--     ->$_runtime.gcBlock_.setState(i32:19, i32:1)
+--DEBUG--     <-$_runtime.gcBlock_.setState
+--DEBUG--     ->$_runtime.gcBlock_.setState(i32:20, i32:2)
+--DEBUG--     <-$_runtime.gcBlock_.setState
+--DEBUG--    <-$runtime.alloc i32:67680
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeString
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.String
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.String(i32:64960, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeString(i32:64648, i32:67408, i32:106, i32:106)
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64536, i32:67409, i32:105, i32:105)
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--    ->$runtime.alloc(i32:5)
+--DEBUG--     ->$_runtime.gcBlock_.state(i32:21)
+--DEBUG--     <-$_runtime.gcBlock_.state i32:0
+--DEBUG--     ->$_runtime.gcBlock_.setState(i32:21, i32:1)
+--DEBUG--     <-$_runtime.gcBlock_.setState
+--DEBUG--    <-$runtime.alloc i32:67712
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeString
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.String
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.String(i32:64944, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeString(i32:64648, i32:67416, i32:98, i32:98)
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64536, i32:67417, i32:97, i32:97)
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--    ->$runtime.alloc(i32:7)
+--DEBUG--     ->$_runtime.gcBlock_.state(i32:22)
+--DEBUG--     <-$_runtime.gcBlock_.state i32:0
+--DEBUG--     ->$_runtime.gcBlock_.setState(i32:22, i32:1)
+--DEBUG--     <-$_runtime.gcBlock_.setState
+--DEBUG--    <-$runtime.alloc i32:67728
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeString
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.String
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Bytes(i32:64920, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64632, i32:67427, i32:87, i32:87)
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--   ->$runtime.alloc(i32:34)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:23)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:24)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:25)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:23, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:24, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:25, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67744
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Bytes
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil(i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Map(i32:64904, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64680, i32:67466, i32:48, i32:48)
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Map
+--DEBUG--  ->$runtime.hashmapMake(i32:1)
+--DEBUG--   ->$runtime.alloc(i32:108)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:26)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:27)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:28)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:29)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:30)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:31)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:32)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:26, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:27, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:28, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:29, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:30, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:31, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:32, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67792
+--DEBUG--   ->$runtime.alloc(i32:32)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:33)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:34)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:33, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:34, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67904
+--DEBUG--   ->$runtime.fastrand()
+--DEBUG--   <-$runtime.fastrand i32:1099321697
+--DEBUG--  <-$runtime.hashmapMake i32:67904
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.String(i32:64888, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeString(i32:64648, i32:67468, i32:46, i32:46)
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64536, i32:67469, i32:45, i32:45)
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--    ->$runtime.alloc(i32:7)
+--DEBUG--     ->$_runtime.gcBlock_.state(i32:35)
+--DEBUG--     <-$_runtime.gcBlock_.state i32:0
+--DEBUG--     ->$_runtime.gcBlock_.setState(i32:35, i32:1)
+--DEBUG--     <-$_runtime.gcBlock_.setState
+--DEBUG--    <-$runtime.alloc i32:67936
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeString
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.String
+--DEBUG--  ->$github.com/loopholelabs/scale-signature-http.NewHttpStringList()
+--DEBUG--   ->$runtime.alloc(i32:12)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:36)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:36, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67952
+--DEBUG--  <-$github.com/loopholelabs/scale-signature-http.NewHttpStringList i32:67952
+--DEBUG--  ->$_*github.com/loopholelabs/scale-signature-http.HttpStringList_.decode(i32:64880, i32:67952, i32:67648)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil(i32:67648)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil i32:0
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Error(i32:64624, i32:67648)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Error
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64600, i32:67480, i32:34, i32:34)
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--   ->$runtime.alloc(i32:8)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:37)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:37, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:67968
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Decoder_.String(i32:64584, i32:67648)
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.decodeString(i32:64520, i32:67482, i32:32, i32:32)
+--DEBUG--     ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64408, i32:67483, i32:31, i32:31)
+--DEBUG--     <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--     ->$runtime.alloc(i32:5)
+--DEBUG--      ->$_runtime.gcBlock_.state(i32:38)
+--DEBUG--      <-$_runtime.gcBlock_.state i32:0
+--DEBUG--      ->$_runtime.gcBlock_.setState(i32:38, i32:1)
+--DEBUG--      <-$_runtime.gcBlock_.setState
+--DEBUG--     <-$runtime.alloc i32:67984
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.decodeString
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Decoder_.String
+--DEBUG--  <-$_*github.com/loopholelabs/scale-signature-http.HttpStringList_.decode
+--DEBUG--  ->$runtime.hashmapStringSet(i32:67904, i32:67936, i32:7, i32:65040)
+--DEBUG--   ->$runtime.alloc(i32:8)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:39)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:39, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68000
+--DEBUG--   ->$runtime.hash32(i32:67936, i32:7, i32:1099321697, i32:64656)
+--DEBUG--   <-$runtime.hash32 i32:2113308565
+--DEBUG--   ->$runtime.hashmapSet(i32:67904, i32:68000, i32:65040, i32:2113308565)
+--DEBUG--   <-$runtime.hashmapSet
+--DEBUG--  <-$runtime.hashmapStringSet
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil(i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Error(i32:64864, i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Error
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Bytes(i32:64840, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64632, i32:67494, i32:20, i32:20)
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--   ->$runtime.alloc(i32:13)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:40)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:40, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68016
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Bytes
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil(i32:67648)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Nil i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Decoder_.Map(i32:64824, i32:67648)
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.decodeUint32(i32:64680, i32:67512, i32:2, i32:2)
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.decodeUint32
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Decoder_.Map
+--DEBUG--  ->$runtime.hashmapMake(i32:0)
+--DEBUG--   ->$runtime.alloc(i32:108)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:41)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:42)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:43)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:44)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:45)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:46)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:47)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:41, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:42, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:43, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:44, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:45, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:46, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:47, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68032
+--DEBUG--   ->$runtime.alloc(i32:32)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:48)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:49)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:48, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:49, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68144
+--DEBUG--   ->$runtime.fastrand()
+--DEBUG--   <-$runtime.fastrand i32:819704593
+--DEBUG--  <-$runtime.hashmapMake i32:68144
+--DEBUG--  ->$_*github.com/loopholelabs/scale-signature-http.Context_.Response(i32:67520)
+--DEBUG--   ->$runtime.alloc(i32:4)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:50)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:50, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68176
+--DEBUG--  <-$_*github.com/loopholelabs/scale-signature-http.Context_.Response i32:68176
+--DEBUG--  ->$_*github.com/loopholelabs/scale-signature-http.Context_.Response(i32:67520)
+--DEBUG--   ->$runtime.alloc(i32:4)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:51)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:51, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68192
+--DEBUG--  <-$_*github.com/loopholelabs/scale-signature-http.Context_.Response i32:68192
+--DEBUG--  ->$runtime.sliceAppend(i32:64776, i32:68016, i32:65994, i32:13, i32:13, i32:9)
+--DEBUG--   ->$runtime.alloc(i32:26)
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:52)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.state(i32:53)
+--DEBUG--    <-$_runtime.gcBlock_.state i32:0
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:52, i32:1)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--    ->$_runtime.gcBlock_.setState(i32:53, i32:2)
+--DEBUG--    <-$_runtime.gcBlock_.setState
+--DEBUG--   <-$runtime.alloc i32:68208
+--DEBUG--  <-$runtime.sliceAppend
+--DEBUG--  ->$_*github.com/loopholelabs/scale-signature-http.Context_.GuestContext(i32:67520)
+--DEBUG--  <-$_*github.com/loopholelabs/scale-signature-http.Context_.GuestContext i32:67520
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Reset()
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Reset
+--DEBUG--  ->$github.com/loopholelabs/polyglot-go.encodeString(i32:67664, i32:3)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:3)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64592, i32:66852, i32:64607, i32:2, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67664, i32:3)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:3
+--DEBUG--  <-$github.com/loopholelabs/polyglot-go.encodeString
+--DEBUG--  ->$github.com/loopholelabs/polyglot-go.encodeString(i32:67680, i32:20)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:20)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64592, i32:66852, i32:64607, i32:8, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67680, i32:20)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:20
+--DEBUG--  <-$github.com/loopholelabs/polyglot-go.encodeString
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66232, i32:1)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--  ->$runtime.sliceAppend(i32:64744, i32:66852, i32:65088, i32:30, i32:512, i32:1)
+--DEBUG--  <-$runtime.sliceAppend
+--DEBUG--  ->$runtime.sliceAppend(i32:64760, i32:66852, i32:65064, i32:31, i32:512, i32:1)
+--DEBUG--  <-$runtime.sliceAppend
+--DEBUG--  ->$github.com/loopholelabs/polyglot-go.encodeString(i32:67712, i32:5)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:5)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64592, i32:66852, i32:64607, i32:34, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67712, i32:5)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:5
+--DEBUG--  <-$github.com/loopholelabs/polyglot-go.encodeString
+--DEBUG--  ->$github.com/loopholelabs/polyglot-go.encodeString(i32:67728, i32:7)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:7)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64592, i32:66852, i32:64607, i32:42, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67728, i32:7)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:7
+--DEBUG--  <-$github.com/loopholelabs/polyglot-go.encodeString
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.encoder_.Bytes(i32:67744, i32:34)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66212, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:34)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64656, i32:66852, i32:64671, i32:52, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67744, i32:34)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:34
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.encoder_.Bytes
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.encoder_.Map(i32:1)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66204, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66208, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:1)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64656, i32:66852, i32:64671, i32:91, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.encoder_.Map
+--DEBUG--  ->$runtime.hashmapNext(i32:67904, i32:65040, i32:65064, i32:65088)
+--DEBUG--  <-$runtime.hashmapNext i32:1
+--DEBUG--  ->$github.com/loopholelabs/polyglot-go.encodeString(i32:67936, i32:7)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:7)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64592, i32:66852, i32:64607, i32:94, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67936, i32:7)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:7
+--DEBUG--  <-$github.com/loopholelabs/polyglot-go.encodeString
+--DEBUG--  ->$_*github.com/loopholelabs/scale-signature-http.HttpStringList_.internalEncode(i32:67952)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66200, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:1)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64624, i32:66852, i32:64639, i32:105, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeString(i32:67984, i32:5)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:5)
+--DEBUG--     ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--     <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--     ->$runtime.sliceAppend(i32:64560, i32:66852, i32:64575, i32:108, i32:512, i32:1)
+--DEBUG--     <-$runtime.sliceAppend
+--DEBUG--    <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:67984, i32:5)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:5
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeString
+--DEBUG--  <-$_*github.com/loopholelabs/scale-signature-http.HttpStringList_.internalEncode
+--DEBUG--  ->$runtime.hashmapNext(i32:67904, i32:65040, i32:65064, i32:65088)
+--DEBUG--  <-$runtime.hashmapNext i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66228, i32:1)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--  ->$runtime.sliceAppend(i32:64712, i32:66852, i32:65088, i32:115, i32:512, i32:1)
+--DEBUG--  <-$runtime.sliceAppend
+--DEBUG--  ->$runtime.sliceAppend(i32:64728, i32:66852, i32:65064, i32:116, i32:512, i32:1)
+--DEBUG--  <-$runtime.sliceAppend
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.encoder_.Bytes(i32:68208, i32:22)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66212, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:22)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64656, i32:66852, i32:64671, i32:119, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:68208, i32:22)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:22
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.encoder_.Bytes
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.encoder_.Map(i32:0)
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66204, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66216, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66208, i32:1)
+--DEBUG--   <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--   ->$github.com/loopholelabs/polyglot-go.encodeUint32(i32:0)
+--DEBUG--    ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Write(i32:66224, i32:1)
+--DEBUG--    <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Write i32:1
+--DEBUG--    ->$runtime.sliceAppend(i32:64656, i32:66852, i32:64671, i32:146, i32:512, i32:1)
+--DEBUG--    <-$runtime.sliceAppend
+--DEBUG--   <-$github.com/loopholelabs/polyglot-go.encodeUint32
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.encoder_.Map
+--DEBUG--  ->$runtime.hashmapNext(i32:68144, i32:65064, i32:65088, i32:65100)
+--DEBUG--  <-$runtime.hashmapNext i32:0
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Bytes(i32:64704)
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Bytes
+--DEBUG--  ->$_*github.com/loopholelabs/polyglot-go.Buffer_.Len()
+--DEBUG--  <-$_*github.com/loopholelabs/polyglot-go.Buffer_.Len i32:147
+--DEBUG-- <-$run i64:287127153672339
+Run returned
+Start:  1
+Resize: 2
+Run:    13
+TOTAL 16.00
+
+OUTPUT CONTEXT
+== Context ==
+Request method=GET, uri=http://something.com,proto=https, ip=1.2.3.4, len=100
+ Headers:  content=hello
+ Body: Hello world this is a request body
+Response code=200
+ Headers: 
+ Body: Response body-modified
