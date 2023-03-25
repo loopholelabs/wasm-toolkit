@@ -94,7 +94,7 @@ func (wm *WasmModule) Parse() {
 			t := NewType(e)
 			wm.Types = append(wm.Types, t)
 		} else {
-			panic(fmt.Sprintf("Unknown element %s", eType))
+			panic(fmt.Sprintf("Unknown element \"%s\"", eType))
 		}
 
 		// Skip over this element

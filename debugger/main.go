@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log"
 	"os"
@@ -13,13 +14,17 @@ func main() {
 
 	args := os.Args[1:]
 
-	// Just a single arg for now, the filename...
+	// Just a single arg for now, the input filename...
 
 	watfile := args[0]
 
 	log.Print("Loading mod...")
 	module := wasm.NewModule(watfile)
 	module.Parse()
+
+	log.Print("Loading debug.wat...")
+	debugModule := wasm.NewModule("debug.wat")
+	debugModule.Parse()
 
 	// Add some extra imports that we'll use to signal to the host about events.
 	// debug_sf - Start function
@@ -121,6 +126,78 @@ func main() {
 
 		f.Instructions = ins
 	}
+
+	// Hook memory.size and memory.grow
+	for _, f := range module.Funcs {
+		for _, i := range f.Instructions {
+			if i == "memory.size" {
+				i = "call $debug_memory.size"
+			} else if i == "memory.grow" {
+				i = "call $debug_memory.grow"
+			}
+		}
+	}
+
+	// Add the debug functions
+	for _, f := range debugModule.Funcs {
+		module.Funcs = append(module.Funcs, f)
+	}
+
+	// Add the debug globals
+	for _, g := range debugModule.Globals {
+		module.Globals = append(module.Globals, g)
+	}
+
+	// Add a page of memory for our debug info
+	debug_mem_size := 1
+	debug_mem_start := module.Memorys[0].Size << 16
+
+	module.Memorys[0].Size = module.Memorys[0].Size + debug_mem_size
+
+	module.Globals = append(module.Globals, wasm.NewGlobal(fmt.Sprintf("(global $debug_mem_size i32 (i32.const %d))", debug_mem_size)))
+	module.Globals = append(module.Globals, wasm.NewGlobal(fmt.Sprintf("(global $debug_start_mem (mut i32) (i32.const %d))", debug_mem_start)))
+
+	// Write the function names and build a table of addresses / sizes
+
+	functionNameTable := make([]byte, 0)
+	functionNameData := make([]byte, 0)
+	for _, f := range module.Funcs {
+		// First add the address and length to our table
+		bs := make([]byte, 4)
+		binary.LittleEndian.PutUint32(bs, uint32(len(functionNameData)))
+		functionNameTable = append(functionNameTable, bs...)
+		binary.LittleEndian.PutUint32(bs, uint32(len(f.Identifier)))
+		functionNameTable = append(functionNameTable, bs...)
+
+		// Now add the string onto our data
+		functionNameData = append(functionNameData, []byte(f.Identifier)...)
+	}
+
+	// Now we need to write these as data items...
+	allowed := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 "
+
+	debug_function_table_ptr := debug_mem_start
+	debug_function_table := ""
+	for _, v := range functionNameTable {
+		if strings.Index(allowed, string(rune(v))) == -1 {
+			debug_function_table = debug_function_table + fmt.Sprintf("\\%02x", v)
+		} else {
+			debug_function_table = debug_function_table + string(rune(v))
+		}
+	}
+
+	debug_function_data_ptr := debug_mem_start + len(functionNameTable)
+	debug_function_data := ""
+	for _, v := range functionNameData {
+		if strings.Index(allowed, string(rune(v))) == -1 {
+			debug_function_data = debug_function_data + fmt.Sprintf("\\%02x", v)
+		} else {
+			debug_function_data = debug_function_data + string(rune(v))
+		}
+	}
+
+	module.Datas = append(module.Datas, wasm.NewData(fmt.Sprintf("(data $debug_function_table (i32.const %d) \"%s\")", debug_function_table_ptr, debug_function_table)))
+	module.Datas = append(module.Datas, wasm.NewData(fmt.Sprintf("(data $debug_function_data (i32.const %d) \"%s\")", debug_function_data_ptr, debug_function_data)))
 
 	// Write out the new wat file
 	fmt.Printf(";; #### MERGED ####\n%s", module.Write())
