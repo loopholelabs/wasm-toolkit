@@ -23,6 +23,15 @@ func main() {
 	module := wasm.NewModule(watfile)
 	module.Parse()
 
+	// First of all, lets wrap imports in functions
+	for _, i := range module.Imports {
+		ff, callName := module.WrapImport(i)
+		// Add it on, and do any translations in other functions...
+		module.ReplaceInstruction(fmt.Sprintf("call %s", i.GetFuncName()), fmt.Sprintf("call %s", callName))
+		// NB Add it *after* so that the call inside the function doesn't get replaced.
+		module.Funcs = append(module.Funcs, ff)
+	}
+
 	// Go through each function, and add some debugging to it.
 	for findex, f := range module.Funcs {
 		ins := make([]string, 0)
@@ -144,7 +153,9 @@ func main() {
 		binary.LittleEndian.PutUint32(bs, uint32(len(f.Identifier)))
 		functionNameTable = append(functionNameTable, bs...)
 
-		functionNameMetrics = append(functionNameMetrics, make([]byte, 4)...) // For now, just single count per func.
+		functionNameMetrics = append(functionNameMetrics, make([]byte, 16)...)
+		// i32 Count
+		// i64 running time
 
 		// Now add the string onto our data
 		functionNameData = append(functionNameData, []byte(f.Identifier)...)
@@ -219,8 +230,8 @@ func main() {
 				constants[fmt.Sprintf("length.%s", dd.Identifier)] = length
 
 				data_ptr += length
-				// Align to 4
-				data_ptr = (data_ptr + 3) & 0xfffffffc
+				// Align to 8
+				data_ptr = (data_ptr + 7) & 0xfffffff8
 			}
 		}
 	}

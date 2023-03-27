@@ -147,8 +147,154 @@
     end
   )
 
-  (data $db_hex "0123456789ABCDEF")
+;; $db_format_i32 as dec into the buffer ($db_number_i32)
+  (func $db_format_i32_dec_nz (param $num i32)
+    (local $count i32)
+    (local $ptr i32)
+    (local $divide_val i32)
+    (local $in_number i32)
+    (local $store_value i32)
+
+    i32.const offset.$db_number_i32
+    global.get $debug_start_mem
+    i32.add
+    local.set $ptr
+
+    i32.const 1000000000
+    local.set $divide_val
+
+    i32.const 0
+    local.set $count
+
+    loop $ldb
+      ;; Work out the value to store...
+
+      local.get $ptr
+
+      local.get $num
+      local.get $divide_val
+      i32.div_u
+      i32.const 10
+      i32.rem_u
+      local.tee $store_value
+      i32.eqz
+      if (result i32)
+        local.get $in_number
+        if (result i32)
+          local.get $store_value
+        else
+          i32.const 0x10
+        end
+      else
+        i32.const 1
+        local.set $in_number
+        local.get $store_value
+      end
+
+      i32.const offset.$db_hex
+      i32.add
+      global.get $debug_start_mem
+      i32.add
+
+      i32.load8_u
+      i32.store8
+
+      local.get $ptr
+      i32.const 1
+      i32.add
+      local.set $ptr
+
+      local.get $divide_val
+      i32.const 10
+      i32.div_u
+      local.set $divide_val
+
+      local.get $count
+      i32.const 1
+      i32.add
+      local.tee $count
+      i32.const 10
+      i32.lt_u
+      br_if $ldb
+    end
+  )
+
+;; $db_format_i64 as dec into the buffer ($db_number_i64)
+  (func $db_format_i64_dec_nz (param $num i64)
+    (local $count i32)
+    (local $ptr i32)
+    (local $divide_val i64)
+    (local $in_number i32)
+    (local $store_value i32)
+
+    i32.const offset.$db_number_i64
+    global.get $debug_start_mem
+    i32.add
+    local.set $ptr
+
+    i64.const 1000000000000000000
+    local.set $divide_val
+
+    i32.const 0
+    local.set $count
+
+    loop $ldb
+      ;; Work out the value to store...
+
+      local.get $ptr
+
+      local.get $num
+      local.get $divide_val
+      i64.div_u
+      i64.const 10
+      i64.rem_u
+      i32.wrap_i64
+      local.tee $store_value
+      i32.eqz
+      if (result i32)
+        local.get $in_number
+        if (result i32)
+          local.get $store_value
+        else
+          i32.const 0x10
+        end
+      else
+        i32.const 1
+        local.set $in_number
+        local.get $store_value
+      end
+
+      i32.const offset.$db_hex
+      i32.add
+      global.get $debug_start_mem
+      i32.add
+
+      i32.load8_u
+      i32.store8
+
+      local.get $ptr
+      i32.const 1
+      i32.add
+      local.set $ptr
+
+      local.get $divide_val
+      i64.const 10
+      i64.div_u
+      local.set $divide_val
+
+      local.get $count
+      i32.const 1
+      i32.add
+      local.tee $count
+      i32.const 19
+      i32.lt_u
+      br_if $ldb
+    end
+  )
+
+  (data $db_hex "0123456789ABCDEF ")
   (data $db_number_i32 10)
+  (data $db_number_i64 19)
 
   (data $iovec 8)
   (data $bytes_written 4)

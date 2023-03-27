@@ -32,6 +32,15 @@ func NewImport(src string) *Import {
 	}
 }
 
+func (d *Import) GetFuncSignature() string {
+	if strings.HasPrefix(d.Import, "(func ") {
+		s := d.Import[6 : len(d.Import)-1] // Remove the '(func ' and the ')'
+		_, s = ReadToken(s)
+		return s
+	}
+	return ""
+}
+
 func (d *Import) GetFuncName() string {
 	name := ""
 	if strings.HasPrefix(d.Import, "(func ") {

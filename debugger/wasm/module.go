@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -44,6 +45,105 @@ func (wm *WasmModule) ReplaceConst(s string, i int) {
 			f.Instructions[index] = strings.Replace(i, s, news, -1)
 		}
 	}
+}
+
+func (wm *WasmModule) ReplaceInstruction(s string, t string) {
+	for _, f := range wm.Funcs {
+		for index, i := range f.Instructions {
+			if strings.Trim(i, Whitespace) == s {
+				f.Instructions[index] = t
+			}
+		}
+	}
+}
+
+// Wrap an import into an internal function
+func (wm *WasmModule) WrapImport(i *Import) (*Func, string) {
+	// Usually just (type 0)
+	sig := i.GetFuncSignature() // This could be (type 0) or (param...) (result) etc
+	typeParams := ""
+
+	fun_name1 := i.Identifier1
+	if strings.HasPrefix(fun_name1, "\"") {
+		fun_name1 = fun_name1[1 : len(fun_name1)-1]
+	}
+	fun_name2 := i.Identifier2
+	if strings.HasPrefix(fun_name2, "\"") {
+		fun_name2 = fun_name2[1 : len(fun_name2)-1]
+	}
+
+	funName := fmt.Sprintf("$import.%s.%s", fun_name1, fun_name2)
+
+	code := make([]string, 0)
+
+	pindex := 0
+
+	var e string
+	for {
+		sig = strings.Trim(sig, Whitespace) // Skip to next bit
+		if len(sig) == 0 {
+			break
+		}
+		e, sig = ReadElement(sig)
+		if e[0] != '(' {
+			panic("Not element")
+		}
+		eType, _ := ReadToken(e[1:])
+		if eType == "type" {
+			v := e[6 : len(e)-1]
+			i, err := strconv.Atoi(v)
+			if err != nil {
+				panic("Invalid type val")
+			}
+			ty := wm.Types[i]
+			// Strip the func
+			if strings.HasPrefix(ty.Type, "(func ") {
+				params := ty.Type[6 : len(ty.Type)-1]
+				typeParams = params
+				// Now parse it and move it over to the function...
+
+				for {
+					params = strings.Trim(params, Whitespace) // Skip to next bit
+					if len(params) == 0 {
+						break
+					}
+					var pa string
+					pa, params = ReadElement(params)
+					if strings.HasPrefix(pa, "(param ") {
+						bits := pa[7 : len(pa)-1]
+						words := strings.Fields(bits)
+
+						for _, w := range words {
+							if w == "i32" {
+								code = append(code, fmt.Sprintf("local.get %d", pindex))
+								pindex++
+							} else if w == "i64" {
+								code = append(code, fmt.Sprintf("local.get %d", pindex))
+								pindex++
+							} else if w == "f32" {
+								code = append(code, fmt.Sprintf("local.get %d", pindex))
+								pindex++
+							} else if w == "f64" {
+								code = append(code, fmt.Sprintf("local.get %d", pindex))
+								pindex++
+							}
+						}
+					}
+				}
+			}
+		} else if eType == "param" {
+			fmt.Printf("DEBUG param %s", e)
+			panic("Can't do yet")
+		} else if eType == "result" {
+			fmt.Printf("DEBUG result %s", e)
+			panic("Can't do yet")
+		}
+	}
+
+	code = append(code, fmt.Sprintf("call %s", i.GetFuncName()))
+	f := NewFunc(fmt.Sprintf("(func %s %s %s\n)", funName, sig, typeParams))
+	f.Instructions = code
+	return f, funName
 }
 
 func (wm *WasmModule) Parse() {

@@ -1,11 +1,9 @@
 (module
 
-;; $debug_enter_func
-  (func $debug_enter_func (param $fid i32)
+;; $debug_exit_func
+  (func $debug_exit_func (param $fid i32)
     (local $count i32)
     (local $metrics_ptr i32)
-    global.get $debug_current_stack_depth
-    local.set $count
 
     ;; Update metrics
     local.get $fid
@@ -16,27 +14,37 @@
     global.get $debug_start_mem
     i32.add
     local.tee $metrics_ptr
-    local.get $metrics_ptr
-    i32.load
-    i32.const 1
-    i32.add
-    i32.store
 
-    ;; Store enter timestamp in metrics stack
+    call $debug_gettime
+
+    ;; Pop timestamp off the timestamp stack
+    global.get $debug_timestamps_stack_pointer
+    i32.const 8
+    i32.sub
+    global.set $debug_timestamps_stack_pointer
+
     global.get $debug_timestamps_stack_pointer
     i32.const offset.$debug_timestamps_stack
     i32.add
     global.get $debug_start_mem
     i32.add
-    call $debug_gettime
-    i64.store
+    i64.load
 
-    global.get $debug_timestamps_stack_pointer
-    i32.const 8
-    i32.add
-    global.set $debug_timestamps_stack_pointer
+    i64.sub
 
-    ;; TODO: Detect stack overflow here...
+    local.get $metrics_ptr
+    i64.load offset=4
+    i64.add
+
+    i64.store offset=4
+
+    global.get $debug_current_stack_depth
+    i32.const 1
+    i32.sub
+    global.set $debug_current_stack_depth
+
+    global.get $debug_current_stack_depth
+    local.set $count
 
     block
       loop
@@ -58,10 +66,10 @@
       end
     end
 
-    i32.const offset.$debug_enter
+    i32.const offset.$debug_exit
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_enter
+    i32.const length.$debug_exit
     call $debug_print
 
     local.get $fid
@@ -85,31 +93,15 @@
     i32.add
     i32.load offset=4
     call $debug_print
-
-    i32.const offset.$debug_param_start
-    global.get $debug_start_mem
-    i32.add
-    i32.const length.$debug_param_start
-    call $debug_print
-
-    global.get $debug_current_stack_depth
-    i32.const 1
-    i32.add
-    global.set $debug_current_stack_depth
   )
 
-(func $debug_enter_i32 (param $fid i32) (param $pid i32) (param $value i32)
-    local.get $pid
-    i32.eqz
-    if
-    else
-      i32.const offset.$debug_param_sep
-      global.get $debug_start_mem
-      i32.add
-      i32.const length.$debug_param_sep
-      call $debug_print
-    end
-
+;; $debug_exit_func_i32
+  (func $debug_exit_func_i32 (param $value i32) (result i32)
+    i32.const offset.$debug_return_value
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_return_value
+    call $debug_print
     i32.const offset.$debug_value_i32
     global.get $debug_start_mem
     i32.add
@@ -124,20 +116,24 @@
     i32.add
     i32.const length.$db_number_i32
     call $debug_print
-)
 
-(func $debug_enter_i64 (param $fid i32) (param $pid i32) (param $value i64)
-    local.get $pid
-    i32.eqz
-    if
-    else
-      i32.const offset.$debug_param_sep
-      global.get $debug_start_mem
-      i32.add
-      i32.const length.$debug_param_sep
-      call $debug_print
-    end
+    i32.const offset.$debug_newline
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_newline
+    call $debug_print
 
+    call $debug_summary_maybe
+    local.get $value
+  )
+
+;; $debug_exit_func_i64
+  (func $debug_exit_func_i64 (param $value i64) (result i64)
+    i32.const offset.$debug_return_value
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_return_value
+    call $debug_print
     i32.const offset.$debug_value_i64
     global.get $debug_start_mem
     i32.add
@@ -165,20 +161,24 @@
     i32.add
     i32.const length.$db_number_i32
     call $debug_print
-)
 
-(func $debug_enter_f32 (param $fid i32) (param $pid i32) (param $value f32)
-    local.get $pid
-    i32.eqz
-    if
-    else
-      i32.const offset.$debug_param_sep
-      global.get $debug_start_mem
-      i32.add
-      i32.const length.$debug_param_sep
-      call $debug_print
-    end
+    i32.const offset.$debug_newline
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_newline
+    call $debug_print
 
+    call $debug_summary_maybe
+    local.get $value
+  )
+
+;; $debug_exit_func_f32
+  (func $debug_exit_func_f32 (param $value f32) (result f32)
+    i32.const offset.$debug_return_value
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_return_value
+    call $debug_print
     i32.const offset.$debug_value_f32
     global.get $debug_start_mem
     i32.add
@@ -186,20 +186,24 @@
     call $debug_print
 
     ;; TODO
-)
 
-(func $debug_enter_f64 (param $fid i32) (param $pid i32) (param $value f64)
-    local.get $pid
-    i32.eqz
-    if
-    else
-      i32.const offset.$debug_param_sep
-      global.get $debug_start_mem
-      i32.add
-      i32.const length.$debug_param_sep
-      call $debug_print
-    end
+    i32.const offset.$debug_newline
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_newline
+    call $debug_print
 
+    call $debug_summary_maybe
+    local.get $value
+  )
+
+;; $debug_exit_func_f64
+  (func $debug_exit_func_f64 (param $value f64) (result f64)
+    i32.const offset.$debug_return_value
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_return_value
+    call $debug_print
     i32.const offset.$debug_value_f64
     global.get $debug_start_mem
     i32.add
@@ -207,20 +211,27 @@
     call $debug_print
 
     ;; TODO
-)
-
-(func $debug_enter_end (param $fid i32)
-    i32.const offset.$debug_param_end
-    global.get $debug_start_mem
-    i32.add
-    i32.const length.$debug_param_end
-    call $debug_print
 
     i32.const offset.$debug_newline
     global.get $debug_start_mem
     i32.add
     i32.const length.$debug_newline
     call $debug_print
-)
+
+    call $debug_summary_maybe
+    local.get $value
+  )
+
+;; $debug_exit_func_none
+  (func $debug_exit_func_none
+    i32.const offset.$debug_newline
+    global.get $debug_start_mem
+    i32.add
+    i32.const length.$debug_newline
+    call $debug_print
+
+    call $debug_summary_maybe
+  )
+
 
 )
