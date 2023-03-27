@@ -37,6 +37,15 @@ func NewModule(file string) *WasmModule {
 	}
 }
 
+func (wm *WasmModule) ReplaceConst(s string, i int) {
+	news := fmt.Sprintf("%d", i)
+	for _, f := range wm.Funcs {
+		for index, i := range f.Instructions {
+			f.Instructions[index] = strings.Replace(i, s, news, -1)
+		}
+	}
+}
+
 func (wm *WasmModule) Parse() {
 	data, err := ioutil.ReadFile(wm.filename)
 	if err != nil {
@@ -61,6 +70,21 @@ func (wm *WasmModule) Parse() {
 		// End of the module?
 		if text[0] == ')' {
 			break
+		}
+
+		// Skip any single line comments
+		for {
+			if strings.HasPrefix(text, ";;") {
+				// Skip to end of line
+				p := strings.Index(text, "\n")
+				if p == -1 {
+					panic("TODO: Comment without newline")
+				}
+				text = text[p+1:]
+				text = strings.TrimLeft(text, " \t\r\n") // Skip to next bit
+			} else {
+				break
+			}
 		}
 
 		e, _ := ReadElement(text)

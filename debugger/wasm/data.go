@@ -10,7 +10,9 @@ import (
  * Example:
  * (data $.data (i32.const 66160) "x\9c\19\f6\dc\02\01\00\00\00\00\00\9c\03\01\00\c1\82\01\00\00\00\00\00\04\00\00\00\0c\00\00\00\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\00\02\00\00\00\a8\02\01\00\98\01\00\00\01\00\00\00\ff\01\01\00\0b\00\00\00\00\00\00\00 \01\01\00\13\00\00\003\01\01\00\13"))
  *
- *
+ * Extensions:
+ *  - You can ommit the Location
+ *  - Instead of a string value you can specify a length
  */
 
 type Data struct {
@@ -31,8 +33,26 @@ func NewData(src string) *Data {
 		id, s = ReadToken(s)
 	}
 
-	loc, s := ReadElement(s)
-	data, s := ReadString(s)
+	loc := "(i32.const 0)"
+
+	// Read optional Location
+	if s[0] == '(' {
+		loc, s = ReadElement(s)
+	}
+
+	data := "\"\""
+
+	if s[0] == '"' {
+		data, s = ReadString(s)
+	} else {
+		// Read length and create data
+		l, err := strconv.Atoi(s)
+		if err != nil {
+			panic("Error parsing data element")
+		}
+		bytes := make([]byte, l)
+		data = EncodeData(bytes)
+	}
 
 	return &Data{
 		Source:     src,
@@ -40,6 +60,32 @@ func NewData(src string) *Data {
 		Location:   loc,
 		Data:       data,
 	}
+}
+
+func EncodeData(values []byte) string {
+	allowed := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 "
+
+	output := ""
+	for _, v := range values {
+		if strings.Index(allowed, string(rune(v))) == -1 {
+			output = fmt.Sprintf("%s\\%02x", output, v)
+		} else {
+			output = output + string(rune(v))
+		}
+	}
+	return "\"" + output + "\""
+}
+
+func (d *Data) DataLength() int {
+	slen := 0
+	s := d.Data[1 : len(d.Data)-1]
+	for _, i := range s {
+		if string(rune(i)) == "\\" {
+			slen -= 2
+		}
+		slen++
+	}
+	return slen
 }
 
 func (d *Data) Write() string {
