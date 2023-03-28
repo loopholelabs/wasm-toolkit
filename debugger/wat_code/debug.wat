@@ -24,8 +24,10 @@
   (data $debug_newline "\0d\0a")
   (data $debug_enter "-> ")
   (data $debug_exit "<- ")
+  (data $debug_single_sp " ")
   (data $debug_sp "  ")
   (data $debug_table_sep " | ")
+  (data $debug_memory_change " => ")
 
   (global $debug_current_stack_depth (mut i32) (i32.const 0))
 )

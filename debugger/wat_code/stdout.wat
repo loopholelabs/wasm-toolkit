@@ -20,7 +20,7 @@
     local.get $len
     i32.store
 
-    i32.const 1
+    i32.const 2
     local.get $iovp
     i32.const 1
     i32.const offset.$bytes_written

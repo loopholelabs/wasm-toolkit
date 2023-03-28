@@ -16,6 +16,8 @@ func main() {
 
 	args := os.Args[1:]
 
+	hook_stores := true
+
 	// Just a single arg for now, the input filename...
 	watfile := args[0]
 
@@ -118,6 +120,19 @@ func main() {
 		}
 
 		f.Instructions = ins
+
+		// Optionally hook all memory stores...
+		if hook_stores {
+			f.FixMemoryInstrOffsetAlign("i32.store", "$debug_i32.store")
+			f.FixMemoryInstrOffsetAlign("i32.store8", "$debug_i32.store8")
+			f.FixMemoryInstrOffsetAlign("i32.store16", "$debug_i32.store16")
+			f.FixMemoryInstrOffsetAlign("i64.store", "$debug_i64.store")
+			f.FixMemoryInstrOffsetAlign("i64.store8", "$debug_i64.store8")
+			f.FixMemoryInstrOffsetAlign("i64.store16", "$debug_i64.store16")
+			f.FixMemoryInstrOffsetAlign("i64.store32", "$debug_i64.store32")
+			f.FixMemoryInstrOffsetAlign("f32.store", "$debug_f32.store")
+			f.FixMemoryInstrOffsetAlign("f64.store", "$debug_f64.store")
+		}
 	}
 
 	// Hook memory.size and memory.grow
