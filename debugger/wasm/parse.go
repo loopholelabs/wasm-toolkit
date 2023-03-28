@@ -9,6 +9,7 @@ import (
 
 const Whitespace = " \t\r\n"
 
+// Skip a multiline comment (; ;)
 func SkipComment(text string) string {
 	if strings.HasPrefix(text, "(;") {
 		p := strings.Index(text, ";)")
@@ -20,7 +21,7 @@ func SkipComment(text string) string {
 	return text
 }
 
-// Reads non-whitespace
+// Reads non-whitespace token
 func ReadToken(text string) (string, string) {
 	text = SkipComment(text)
 
@@ -95,9 +96,6 @@ func ReadElement(text string) (string, string) {
 
 		current++
 
-		// Do something with ch...
-		//		el = el + string(ch)
-
 		if ch == '"' {
 			inString = !inString
 		}
@@ -107,7 +105,6 @@ func ReadElement(text string) (string, string) {
 			if ch == '(' {
 				bracketCount++
 			}
-
 			if ch == ')' {
 				bracketCount--
 			}

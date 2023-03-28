@@ -17,6 +17,7 @@
 
   (data $debug_clock_loc 8)
 
+  ;; Only allow 800 function stack for now
   (data $debug_timestamps_stack 800)
 
   (global $debug_timestamps_stack_pointer (mut i32) (i32.const 0))

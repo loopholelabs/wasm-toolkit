@@ -66,12 +66,24 @@ func NewFunc(src string) *Func {
 			break
 		}
 
-		fun.Instructions = append(fun.Instructions, s[0:p])
+		inst := strings.Trim(s[0:p], Whitespace)
+		// Ignore any single line comments...
+		if !strings.HasPrefix(inst, ";;") {
+			fun.Instructions = append(fun.Instructions, inst)
+		}
 
 		s = s[p+1:]
 	}
 
 	return fun
+}
+
+func (f *Func) ReplaceInstruction(from string, to string) {
+	for index, i := range f.Instructions {
+		if strings.Trim(i, Whitespace) == from {
+			f.Instructions[index] = to
+		}
+	}
 }
 
 func (d *Func) AdjustType(adj int) {

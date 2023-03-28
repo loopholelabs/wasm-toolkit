@@ -49,11 +49,7 @@ func (wm *WasmModule) ReplaceConst(s string, i int) {
 
 func (wm *WasmModule) ReplaceInstruction(s string, t string) {
 	for _, f := range wm.Funcs {
-		for index, i := range f.Instructions {
-			if strings.Trim(i, Whitespace) == s {
-				f.Instructions[index] = t
-			}
-		}
+		f.ReplaceInstruction(s, t)
 	}
 }
 
@@ -72,7 +68,7 @@ func (wm *WasmModule) WrapImport(i *Import) (*Func, string) {
 		fun_name2 = fun_name2[1 : len(fun_name2)-1]
 	}
 
-	funName := fmt.Sprintf("$import.%s.%s", fun_name1, fun_name2)
+	funName := fmt.Sprintf("$__IMPORT__.%s.%s", fun_name1, fun_name2)
 
 	code := make([]string, 0)
 
@@ -224,21 +220,6 @@ func (wm *WasmModule) Parse() {
 		// Skip over this element
 		text = text[len(e):]
 	}
-	/*
-	   fmt.Printf("Parsed wat file. %d Data, %d Elem, %d Export, %d Func, %d Global, %d Import, %d Memory, %d Table, %d type\n",
-
-	   	len(wm.Datas),
-	   	len(wm.Elems),
-	   	len(wm.Exports),
-	   	len(wm.Funcs),
-	   	len(wm.Globals),
-	   	len(wm.Imports),
-	   	len(wm.Memorys),
-	   	len(wm.Tables),
-	   	len(wm.Types),
-
-	   )
-	*/
 }
 
 func (m *WasmModule) Write() string {

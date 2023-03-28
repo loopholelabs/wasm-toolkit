@@ -7,12 +7,15 @@ import (
 )
 
 /**
- * Example:
+ * Examples:
  * (data $.data (i32.const 66160) "x\9c\19\f6\dc\02\01\00\00\00\00\00\9c\03\01\00\c1\82\01\00\00\00\00\00\04\00\00\00\0c\00\00\00\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\00\02\00\00\00\a8\02\01\00\98\01\00\00\01\00\00\00\ff\01\01\00\0b\00\00\00\00\00\00\00 \01\01\00\13\00\00\003\01\01\00\13"))
+ * (data $.data 10)
+ * (data $.data "hello world")
  *
  * Extensions:
- *  - You can ommit the Location
- *  - Instead of a string value you can specify a length
+ *  - You can ommit the Location, and it will get filled in at link time.
+ *  - 2 constants will be defined - offset.{Identifier} and length.{Identifier} to be used in code.
+ *  - Instead of a string value you can specify a length.
  */
 
 type Data struct {
@@ -76,6 +79,8 @@ func EncodeData(values []byte) string {
 	return "\"" + output + "\""
 }
 
+// DataLength
+// TODO: Fix things like "\n"
 func (d *Data) DataLength() int {
 	slen := 0
 	s := d.Data[1 : len(d.Data)-1]
