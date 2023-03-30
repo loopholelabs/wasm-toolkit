@@ -16,10 +16,35 @@ func main() {
 
 	args := os.Args[1:]
 
-	hook_stores := true
-
 	// Just a single arg for now, the input filename...
 	watfile := args[0]
+
+	wasmfile := args[1] // For now...
+
+	w := wasm.NewWasmFile(wasmfile)
+
+	err := w.ReadDwarf()
+	if err != nil {
+		panic(err)
+	}
+
+	err = w.ReadFunctionInfo()
+	if err != nil {
+		panic(err)
+	}
+
+	err = w.ParseDwarfLineNumbers()
+	if err != nil {
+		panic(err)
+	}
+
+	log.Print("Dwarf function info loaded up...")
+
+	for fnid, fi := range w.FunctionLocations {
+		log.Printf("Function %d - %s (%d-%d)\n", fnid, fi.LineFile, fi.LineMin, fi.LineMax)
+	}
+
+	hook_stores := false
 
 	log.Print("Loading mod...")
 	module := wasm.NewModule(watfile)
@@ -156,16 +181,22 @@ func main() {
 	module.Globals = append(module.Globals, wasm.NewGlobal(fmt.Sprintf("(global $debug_start_mem (mut i32) (i32.const %d))", debug_mem_start)))
 
 	// Write the function names and build a table of addresses / sizes
-
 	functionNameTable := make([]byte, 0)
 	functionNameData := make([]byte, 0)
 	functionNameMetrics := make([]byte, 0)
-	for _, f := range module.Funcs {
+	for findex, f := range module.Funcs {
+		functioninfo, ok := w.FunctionLocations[findex]
+		fullFunction := f.Identifier
+		if ok {
+			// Use the augmented dwarf info
+			fullFunction = fmt.Sprintf("%s %s(%d-%d)", fullFunction, functioninfo.LineFile, functioninfo.LineMin, functioninfo.LineMax)
+		}
+
 		// First add the address and length to our table
 		bs := make([]byte, 4)
 		binary.LittleEndian.PutUint32(bs, uint32(len(functionNameData)))
 		functionNameTable = append(functionNameTable, bs...)
-		binary.LittleEndian.PutUint32(bs, uint32(len(f.Identifier)))
+		binary.LittleEndian.PutUint32(bs, uint32(len(fullFunction)))
 		functionNameTable = append(functionNameTable, bs...)
 
 		functionNameMetrics = append(functionNameMetrics, make([]byte, 16)...)
@@ -173,7 +204,7 @@ func main() {
 		// i64 running time
 
 		// Now add the string onto our data
-		functionNameData = append(functionNameData, []byte(f.Identifier)...)
+		functionNameData = append(functionNameData, []byte(fullFunction)...)
 	}
 
 	// Now we need to write these as data items...
