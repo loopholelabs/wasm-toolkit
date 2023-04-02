@@ -3,6 +3,7 @@ package wasmfile
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 )
 
@@ -285,6 +286,16 @@ type Expression struct {
 	InnerExpression []*Expression
 	MemAlign        int
 	MemOffset       int
+}
+
+// TODO
+func (e *Expression) EncodeBinary(w io.Writer) error {
+
+	b := make([]byte, 1)
+	b[0] = byte(instrToOpcode["end"])
+	_, err := w.Write(b)
+	return err
+
 }
 
 func (e *Expression) Show(prefix string, wf WasmFile) {

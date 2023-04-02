@@ -120,11 +120,14 @@ func (wf *WasmFile) ParseSectionCode(data []byte) {
 		for lo := 0; lo < int(vclen); lo++ {
 			paramLen, ll := binary.Uvarint(code[locptr:])
 			locptr += ll
+			ty := code[locptr]
+			locptr++
+
 			for lod := 0; lod < int(paramLen); lod++ {
-				ty := code[locptr+lod]
+				//				ty := code[locptr+lod]
 				locals = append(locals, ValType(ty))
 			}
-			locptr += int(paramLen)
+			//			locptr += int(paramLen)
 		}
 
 		expression, _ := NewExpression(code[locptr:], codeptr+uint64(locptr))

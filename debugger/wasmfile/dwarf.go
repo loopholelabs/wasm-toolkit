@@ -4,7 +4,6 @@ import (
 	"debug/dwarf"
 	"fmt"
 	"io"
-	"log"
 )
 
 func (wf *WasmFile) ParseDwarf() error {
@@ -77,13 +76,14 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			break
 		}
 
-		//		log.Printf("ENTRY %v\n", entry)
+		fmt.Printf("ENTRY %v\n", entry)
 
 		if entry.Tag == dwarf.TagVariable {
 
-			log.Printf("TagVariable %v\n", entry)
+			//	log.Printf("TagVariable %v\n", entry)
 
 		} else if entry.Tag == dwarf.TagFormalParameter {
+
 			/*
 				// Show some other dwarf detail...
 				vname := "<unknown>"
