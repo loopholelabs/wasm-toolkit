@@ -44,6 +44,8 @@ func (wf *WasmFile) DecodeBinary(data []byte) error {
 
 		// Process each section
 
+		fmt.Printf("SECTION %d\n", sectionType)
+
 		if sectionType == byte(SectionCustom) {
 			wf.ParseSectionCustom(sectionData)
 		} else if sectionType == byte(SectionType) {
@@ -68,10 +70,26 @@ func (wf *WasmFile) DecodeBinary(data []byte) error {
 			wf.ParseSectionCode(sectionData)
 		} else if sectionType == byte(SectionData) {
 			wf.ParseSectionData(sectionData)
-		}
+		} else if sectionType == byte(SectionDataCount) {
+			wf.ParseSectionDataCount(sectionData)
 
+		} else {
+			panic("Unknown section!")
+		}
 	}
+
+	fmt.Printf("WasmFile %d Custom %d Type %d Import %d Function %d Table %d Memory %d Global %d Export %d Elem %d Code %d Data\n",
+		len(wf.Custom), len(wf.Type), len(wf.Import), len(wf.Function), len(wf.Table), len(wf.Memory), len(wf.Global), len(wf.Export), len(wf.Elem), len(wf.Code), len(wf.Data))
+
 	return nil
+}
+
+func (wf *WasmFile) ParseSectionDataCount(data []byte) {
+	/*
+		ptr := 0
+		dataCount, l := binary.Uvarint(data)
+	*/
+	// For now, we don't care...
 }
 
 func (wf *WasmFile) ParseSectionData(data []byte) {
@@ -124,14 +142,27 @@ func (wf *WasmFile) ParseSectionCode(data []byte) {
 			locptr++
 
 			for lod := 0; lod < int(paramLen); lod++ {
-				//				ty := code[locptr+lod]
 				locals = append(locals, ValType(ty))
 			}
-			//			locptr += int(paramLen)
 		}
 
 		expression, _ := NewExpression(code[locptr:], codeptr+uint64(locptr))
+		/*
+			var buf bytes.Buffer
+			for _, e := range expression {
+				e.EncodeBinary(&buf)
+			}
+			buf.WriteByte(0x0b)
 
+			inputHex := fmt.Sprintf("%x", code[locptr:])
+			outputHex := fmt.Sprintf("%x", buf.Bytes())
+
+			if inputHex == outputHex {
+				fmt.Printf("%d: Ok\n", i)
+			} else {
+				fmt.Printf("%d: Wrong\n", i)
+			}
+		*/
 		c := &CodeEntry{
 			Locals:         locals,
 			CodeSectionPtr: codeptr,
@@ -286,9 +317,14 @@ func (wf *WasmFile) ParseSectionGlobal(data []byte) {
 		ptr++
 		valMut := data[ptr]
 		ptr++
+		// Read the init expression
+		expression, n := NewExpression(data[ptr:], 0)
+		ptr += n
+
 		g := &GlobalEntry{
-			Type: ValType(valType),
-			Mut:  valMut,
+			Type:       ValType(valType),
+			Mut:        valMut,
+			Expression: expression,
 		}
 		wf.Global = append(wf.Global, g)
 	}

@@ -25,9 +25,14 @@ func writeString(w io.Writer, s string) error {
 }
 
 func writeUvarint(w io.Writer, v uint64) error {
-	lenBuffer := make([]byte, 10)
-	l := binary.PutUvarint(lenBuffer, v)
-	_, err := w.Write(lenBuffer[:l])
+	b := binary.AppendUvarint(make([]byte, 0), v)
+	_, err := w.Write(b)
+	return err
+}
+
+func writeVarint(w io.Writer, v int64) error {
+	b := AppendSleb128(make([]byte, 0), v)
+	_, err := w.Write(b)
 	return err
 }
 
@@ -39,28 +44,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	/*
-		// Section Custom
-		if len(wf.Custom) > 0 {
-			for _, c := range wf.Custom {
-				var buf bytes.Buffer
-				// Write the name, and the data...
-				writeString(&buf, c.Name)
-				// Now write the data into &buf
-				_, err := buf.Write(c.Data)
-				if err != nil {
-					return err
-				}
 
-				// Write a single type section
-				writeSectionHeader(w, byte(SectionCustom), buf.Len())
-				_, err = w.Write(buf.Bytes())
-				if err != nil {
-					return err
-				}
-			}
-		}
-	*/
 	// Section Type
 	if len(wf.Type) > 0 {
 		var buf bytes.Buffer
@@ -118,6 +102,114 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 	}
 
+	// Section Table
+	if len(wf.Table) > 0 {
+		var buf bytes.Buffer
+		writeUvarint(&buf, uint64(len(wf.Table)))
+		for _, t := range wf.Table {
+			err = t.EncodeBinary(&buf)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Write a single table section
+		writeSectionHeader(w, byte(SectionTable), buf.Len())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// Section Memory
+	if len(wf.Memory) > 0 {
+		var buf bytes.Buffer
+		writeUvarint(&buf, uint64(len(wf.Memory)))
+		for _, t := range wf.Memory {
+			err = t.EncodeBinary(&buf)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Write a single memory section
+		writeSectionHeader(w, byte(SectionMemory), buf.Len())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// Section Global
+	if len(wf.Global) > 0 {
+		var buf bytes.Buffer
+		writeUvarint(&buf, uint64(len(wf.Global)))
+		for _, t := range wf.Global {
+			err = t.EncodeBinary(&buf)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Write a single memory section
+		writeSectionHeader(w, byte(SectionGlobal), buf.Len())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// Section Export
+	if len(wf.Export) > 0 {
+		var buf bytes.Buffer
+		writeUvarint(&buf, uint64(len(wf.Export)))
+		for _, t := range wf.Export {
+			err = t.EncodeBinary(&buf)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Write a single export section
+		writeSectionHeader(w, byte(SectionExport), buf.Len())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO StartSection
+
+	// Section Elem
+	if len(wf.Elem) > 0 {
+		var buf bytes.Buffer
+		writeUvarint(&buf, uint64(len(wf.Elem)))
+		for _, t := range wf.Elem {
+			err = t.EncodeBinary(&buf)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Write a single elem section
+		writeSectionHeader(w, byte(SectionElem), buf.Len())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// Section DataCount
+	var buf bytes.Buffer
+	writeUvarint(&buf, uint64(len(wf.Data)))
+
+	// Write a single data count section
+	writeSectionHeader(w, byte(SectionDataCount), buf.Len())
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
 	// Section Code
 	if len(wf.Code) > 0 {
 		var buf bytes.Buffer
@@ -137,18 +229,45 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 	}
 
-	/*
-		 TODO
-			wf.ParseSectionTable
-			wf.ParseSectionMemory
-			wf.ParseSectionGlobal
-			wf.ParseSectionExport
-			wf.ParseSectionStart
+	// Section Data
+	if len(wf.Data) > 0 {
+		var buf bytes.Buffer
+		writeUvarint(&buf, uint64(len(wf.Data)))
+		for _, t := range wf.Data {
+			err = t.EncodeBinary(&buf)
+			if err != nil {
+				return err
+			}
+		}
 
-			wf.ParseSectionElem
-			wf.ParseSectionCode
-			wf.ParseSectionData
-	*/
+		// Write a single data section
+		writeSectionHeader(w, byte(SectionData), buf.Len())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+
+	// Section Custom
+	if len(wf.Custom) > 0 {
+		for _, c := range wf.Custom {
+			var buf bytes.Buffer
+			// Write the name, and the data...
+			writeString(&buf, c.Name)
+			// Now write the data into &buf
+			_, err := buf.Write(c.Data)
+			if err != nil {
+				return err
+			}
+
+			// Write a single type section
+			writeSectionHeader(w, byte(SectionCustom), buf.Len())
+			_, err = w.Write(buf.Bytes())
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }
@@ -214,6 +333,67 @@ func (f *FunctionEntry) EncodeBinary(w io.Writer) error {
 	return err
 }
 
+func (c *TableEntry) EncodeBinary(w io.Writer) error {
+	var buf bytes.Buffer
+
+	buf.WriteByte(c.TableType)
+	if c.LimitMax == 0 { // TODO: Fixme
+		buf.WriteByte(LimitTypeMin)
+		writeUvarint(&buf, uint64(c.LimitMin))
+	} else {
+		buf.WriteByte(LimitTypeMinMax)
+		writeUvarint(&buf, uint64(c.LimitMin))
+		writeUvarint(&buf, uint64(c.LimitMax))
+
+	}
+
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+func (c *MemoryEntry) EncodeBinary(w io.Writer) error {
+	var buf bytes.Buffer
+
+	if c.LimitMax == 0 { // TODO: Fixme
+		buf.WriteByte(LimitTypeMin)
+		writeUvarint(&buf, uint64(c.LimitMin))
+	} else {
+		buf.WriteByte(LimitTypeMinMax)
+		writeUvarint(&buf, uint64(c.LimitMin))
+		writeUvarint(&buf, uint64(c.LimitMax))
+
+	}
+
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+func (c *GlobalEntry) EncodeBinary(w io.Writer) error {
+	var buf bytes.Buffer
+
+	buf.WriteByte(byte(c.Type))
+	buf.WriteByte(c.Mut)
+
+	for _, e := range c.Expression {
+		e.EncodeBinary(&buf)
+	}
+	buf.WriteByte(0x0b) // END
+
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+func (c *ExportEntry) EncodeBinary(w io.Writer) error {
+	var buf bytes.Buffer
+
+	writeString(&buf, c.Name)
+	buf.WriteByte(byte(c.Type))
+	writeUvarint(&buf, uint64(c.Index))
+
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
 func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
@@ -223,13 +403,9 @@ func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 		buf.WriteByte(byte(l))
 	}
 
-	// Now write the code out bit by bit
-	// TODO
-	/*
-		for _, e := range c.Expression {
-			e.EncodeBinary(&buf)
-		}
-	*/
+	for _, e := range c.Expression {
+		e.EncodeBinary(&buf)
+	}
 	buf.WriteByte(0x0b) // END
 
 	err := writeUvarint(w, uint64(buf.Len()))
@@ -237,5 +413,62 @@ func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 		return err
 	}
 	_, err = w.Write(buf.Bytes())
+	return err
+}
+
+func (c *ElemEntry) EncodeBinary(w io.Writer) error {
+	var buf bytes.Buffer
+
+	err := writeUvarint(&buf, uint64(c.TableIndex))
+	if err != nil {
+		return err
+	}
+
+	for _, e := range c.Offset {
+		e.EncodeBinary(&buf)
+	}
+	buf.WriteByte(0x0b) // END
+
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	err = writeUvarint(w, uint64(len(c.Indexes)))
+	if err != nil {
+		return err
+	}
+	for _, ii := range c.Indexes {
+		err = writeUvarint(w, ii)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *DataEntry) EncodeBinary(w io.Writer) error {
+	var buf bytes.Buffer
+
+	err := writeUvarint(&buf, uint64(c.MemIndex))
+	if err != nil {
+		return err
+	}
+
+	for _, e := range c.Offset {
+		e.EncodeBinary(&buf)
+	}
+	buf.WriteByte(0x0b) // END
+
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	err = writeUvarint(w, uint64(len(c.Data)))
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(c.Data)
 	return err
 }
