@@ -1,11 +1,25 @@
 package wasmfile
 
 import (
+	"bufio"
+	"fmt"
 	"io"
 )
 
 // TODO
-func (e *Expression) EncodeWat(w io.Writer) error {
+func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
+	comment := "" // TODO From line numbers, vars etc
+
+	lineNumberData := wf.GetLineNumberInfo(e.PC)
+	if lineNumberData != "" {
+		comment = fmt.Sprintf("    ;; Src = %s", lineNumberData)
+	}
+
+	wr := bufio.NewWriter(w)
+
+	defer func() {
+		wr.Flush()
+	}()
 
 	// First deal with simple opcodes (No args)
 	if e.Opcode == instrToOpcode["unreachable"] ||
@@ -148,42 +162,21 @@ func (e *Expression) EncodeWat(w io.Writer) error {
 		e.Opcode == instrToOpcode["i64.extend16_s"] ||
 		e.Opcode == instrToOpcode["i64.extend32_s"] {
 
-		_, err := w.Write([]byte{byte(e.Opcode)})
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstr[e.Opcode], comment))
 		return err
 	} else if e.Opcode == instrToOpcode["br_table"] {
-		/*
-			numLabels, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			labels := make([]int, 0)
-			for ll := 0; ll < int(numLabels); ll++ {
-				labelIdx, l := binary.Uvarint(data[ptr:])
-				ptr += l
-				labels = append(labels, int(labelIdx))
-			}
-			defaultLabelIdx, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:         pc + uint64(opptr),
-					Opcode:     Opcode(opcode),
-					Labels:     labels,
-					LabelIndex: int(defaultLabelIdx),
-				})
-		*/
-		panic("TODO")
+		targets := ""
+		for _, l := range e.Labels {
+			targets = fmt.Sprintf("%s %d", targets, l)
+		}
+		defaultTarget := fmt.Sprintf(" %d", e.LabelIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], targets, defaultTarget, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["br"] ||
 		e.Opcode == instrToOpcode["br_if"] {
-		/*
-			val, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:         pc + uint64(opptr),
-					Opcode:     Opcode(opcode),
-					LabelIndex: int(val),
-				})
-		*/
-		panic("TODO")
+		target := fmt.Sprintf(" %d", e.LabelIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], target, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["i32.load"] ||
 		e.Opcode == instrToOpcode["i64.load"] ||
 		e.Opcode == instrToOpcode["f32.load"] ||
@@ -207,200 +200,97 @@ func (e *Expression) EncodeWat(w io.Writer) error {
 		e.Opcode == instrToOpcode["i64.store8"] ||
 		e.Opcode == instrToOpcode["i64.store16"] ||
 		e.Opcode == instrToOpcode["i64.store32"] {
-		/*
-			align, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			offset, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:        pc + uint64(opptr),
-					Opcode:    Opcode(opcode),
-					MemAlign:  int(align),
-					MemOffset: int(offset),
-				})
-		*/
-		panic("TODO")
+		modAlign := fmt.Sprintf(" align=%d", e.MemAlign)
+		modOffset := fmt.Sprintf(" offset=%d", e.MemOffset)
+		if e.MemOffset == 0 {
+			modOffset = ""
+		}
+		if e.MemAlign == 0 {
+			modAlign = ""
+		}
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], modAlign, modOffset, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["memory.size"] ||
 		e.Opcode == instrToOpcode["memory.grow"] {
-		/*
-			//				memoryIndex := data[ptr]
-			ptr++
-			exps = append(exps,
-				&Expression{
-					PC:     pc + uint64(opptr),
-					Opcode: Opcode(opcode),
-				})
-		*/
-		panic("TODO")
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstr[e.Opcode], comment))
+		return err
 	} else if e.Opcode == instrToOpcode["block"] ||
 		e.Opcode == instrToOpcode["if"] ||
 		e.Opcode == instrToOpcode["loop"] {
-		/*
-			// Read the blocktype, and then read Expression
-			valType := data[ptr]
-			ptr++
 
-			ex, l := NewExpression(data[ptr:], pc+uint64(ptr))
-			ptr += l
+		result := ""
+		if e.Result != ValNone {
+			result = fmt.Sprintf(" (result %s)", byteToValType[e.Result])
+		}
 
-			exps = append(exps,
-				&Expression{
-					PC:              pc + uint64(opptr),
-					Opcode:          Opcode(opcode),
-					Result:          ValType(valType),
-					InnerExpression: ex,
-				})
-		*/
-		panic("TODO")
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))
+
+		for _, ie := range e.InnerExpression {
+			err = ie.EncodeWat(wr, fmt.Sprintf("%s%s", prefix, "    "), wf)
+			if err != nil {
+				return err
+			}
+		}
+
+		_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "    end"))
+		return err
 	} else if e.Opcode == instrToOpcode["i32.const"] {
-		/*
-			val, l := DecodeSleb128(data[ptr:])
-			ptr += int(l)
-			exps = append(exps,
-				&Expression{
-					PC:       pc + uint64(opptr),
-					Opcode:   Opcode(opcode),
-					I32Value: int32(val),
-				})
-		*/
-		panic("TODO")
+		value := fmt.Sprintf(" %d", e.I32Value)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["i64.const"] {
-		/*
-			val, l := DecodeSleb128(data[ptr:])
-			ptr += int(l)
-			exps = append(exps,
-				&Expression{
-					PC:       pc + uint64(opptr),
-					Opcode:   Opcode(opcode),
-					I64Value: int64(val),
-				})
-		*/
-		panic("TODO")
+		value := fmt.Sprintf(" %d", e.I64Value)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["f32.const"] {
-		/*
-			ival := binary.LittleEndian.Uint32(data[ptr : ptr+4])
-			val := math.Float32frombits(ival)
-			ptr += 4
-			exps = append(exps,
-				&Expression{
-					PC:       pc + uint64(opptr),
-					Opcode:   Opcode(opcode),
-					F32Value: float32(val),
-				})
-		*/
-		panic("TODO")
+		value := fmt.Sprintf(" %f", e.F32Value)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["f64.const"] {
-		/*
-			ival := binary.LittleEndian.Uint64(data[ptr : ptr+8])
-			val := math.Float64frombits(ival)
-			ptr += 8
-			exps = append(exps,
-				&Expression{
-					PC:       pc + uint64(opptr),
-					Opcode:   Opcode(opcode),
-					F64Value: float64(val),
-				})
-		*/
-		panic("TODO")
+		value := fmt.Sprintf(" %f", e.F64Value)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["local.get"] ||
 		e.Opcode == instrToOpcode["local.set"] ||
 		e.Opcode == instrToOpcode["local.tee"] {
-		/*
-			val, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:         pc + uint64(opptr),
-					Opcode:     Opcode(opcode),
-					LocalIndex: int(val),
-				})
-		*/
-		panic("TODO")
+		localTarget := fmt.Sprintf(" %d", e.LocalIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], localTarget, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["global.get"] ||
 		e.Opcode == instrToOpcode["global.set"] {
-		/*
-			val, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:          pc + uint64(opptr),
-					Opcode:      Opcode(opcode),
-					GlobalIndex: int(val),
-				})
-		*/
-		panic("TODO")
+		globalTarget := fmt.Sprintf(" %d", e.GlobalIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["call"] {
-		/*
-			val, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:        pc + uint64(opptr),
-					Opcode:    Opcode(opcode),
-					FuncIndex: int(val),
-				})
-		*/
-		panic("TODO")
+		callTarget := fmt.Sprintf(" %d", e.FuncIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], callTarget, comment))
+		return err
 	} else if e.Opcode == instrToOpcode["call_indirect"] {
-		/*
-			typeIdx, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			tableIdx, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			exps = append(exps,
-				&Expression{
-					PC:         pc + uint64(opptr),
-					Opcode:     Opcode(opcode),
-					TypeIndex:  int(typeIdx),
-					TableIndex: int(tableIdx),
-				})
-		*/
-		panic("TODO")
+		typeIndex := fmt.Sprintf(" (type %d)", e.TypeIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], typeIndex, comment))
+		return err
 	} else if e.Opcode == ExtendedOpcodeFC {
-		/*
-			opcode2, l := binary.Uvarint(data[ptr:])
-			ptr += l
-			// Now deal with opcode2...
-			if int(opcode2) == instrToOpcodeFC["memory.copy"] {
-				// For now we expect two 0 bytes.
-				ptr += 2
-				exps = append(exps,
-					&Expression{
-						PC:        pc + uint64(opptr),
-						Opcode:    Opcode(opcode),
-						OpcodeExt: int(opcode2),
-					})
-			} else if int(opcode2) == instrToOpcodeFC["memory.fill"] {
-				// For now we expect one 0 byte.
-				ptr++
-				exps = append(exps,
-					&Expression{
-						PC:        pc + uint64(opptr),
-						Opcode:    Opcode(opcode),
-						OpcodeExt: int(opcode2),
-					})
-			} else if int(opcode2) == instrToOpcodeFC["i32.trunc_sat_f32_s"] ||
-				int(opcode2) == instrToOpcodeFC["i32.trunc_sat_f32_u"] ||
-				int(opcode2) == instrToOpcodeFC["i32.trunc_sat_f64_s"] ||
-				int(opcode2) == instrToOpcodeFC["i32.trunc_sat_f64_u"] ||
-				int(opcode2) == instrToOpcodeFC["i64.trunc_sat_f32_s"] ||
-				int(opcode2) == instrToOpcodeFC["i64.trunc_sat_f32_u"] ||
-				int(opcode2) == instrToOpcodeFC["i64.trunc_sat_f64_s"] ||
-				int(opcode2) == instrToOpcodeFC["i64.trunc_sat_f64_u"] {
+		// Now deal with opcode2...
+		if e.OpcodeExt == instrToOpcodeFC["memory.copy"] {
+			_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstrFC[e.OpcodeExt], comment))
+			return err
+		} else if e.OpcodeExt == instrToOpcodeFC["memory.fill"] {
+			_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstrFC[e.OpcodeExt], comment))
+			return err
+		} else if e.OpcodeExt == instrToOpcodeFC["i32.trunc_sat_f32_s"] ||
+			e.OpcodeExt == instrToOpcodeFC["i32.trunc_sat_f32_u"] ||
+			e.OpcodeExt == instrToOpcodeFC["i32.trunc_sat_f64_s"] ||
+			e.OpcodeExt == instrToOpcodeFC["i32.trunc_sat_f64_u"] ||
+			e.OpcodeExt == instrToOpcodeFC["i64.trunc_sat_f32_s"] ||
+			e.OpcodeExt == instrToOpcodeFC["i64.trunc_sat_f32_u"] ||
+			e.OpcodeExt == instrToOpcodeFC["i64.trunc_sat_f64_s"] ||
+			e.OpcodeExt == instrToOpcodeFC["i64.trunc_sat_f64_u"] {
+			_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstrFC[e.OpcodeExt], comment))
+			return err
+		} else {
+			panic(fmt.Sprintf("Unsupported opcode 0xfc %d", e.OpcodeExt))
+		}
 
-				exps = append(exps,
-					&Expression{
-						PC:        pc + uint64(opptr),
-						Opcode:    Opcode(opcode),
-						OpcodeExt: int(opcode2),
-					})
-
-			} else {
-				panic(fmt.Sprintf("Unsupported opcode 0xfc %d", opcode2))
-			}
-		*/
-		panic("TODO")
 	} else {
 		panic("TODO UNKNOWN")
 	}

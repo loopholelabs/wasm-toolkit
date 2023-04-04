@@ -65,6 +65,16 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 	return nil
 }
 
+func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
+	// See if we have any line info...
+	lineInfo := ""
+	li, ok := wf.lineNumbers[pc]
+	if ok {
+		lineInfo = fmt.Sprintf("%s:%d", li.Filename, li.Linenumber)
+	}
+	return lineInfo
+}
+
 func (wf *WasmFile) ParseDwarfVariables() error {
 	entryReader := wf.dwarfData.Reader()
 

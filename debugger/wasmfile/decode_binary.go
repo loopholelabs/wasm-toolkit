@@ -44,8 +44,6 @@ func (wf *WasmFile) DecodeBinary(data []byte) error {
 
 		// Process each section
 
-		fmt.Printf("SECTION %d\n", sectionType)
-
 		if sectionType == byte(SectionCustom) {
 			wf.ParseSectionCustom(sectionData)
 		} else if sectionType == byte(SectionType) {
@@ -77,9 +75,6 @@ func (wf *WasmFile) DecodeBinary(data []byte) error {
 			panic("Unknown section!")
 		}
 	}
-
-	fmt.Printf("WasmFile %d Custom %d Type %d Import %d Function %d Table %d Memory %d Global %d Export %d Elem %d Code %d Data\n",
-		len(wf.Custom), len(wf.Type), len(wf.Import), len(wf.Function), len(wf.Table), len(wf.Memory), len(wf.Global), len(wf.Export), len(wf.Elem), len(wf.Code), len(wf.Data))
 
 	return nil
 }
