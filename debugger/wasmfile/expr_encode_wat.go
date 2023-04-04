@@ -8,11 +8,11 @@ import (
 
 // TODO
 func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
-	comment := "" // TODO From line numbers, vars etc
+	comment := fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
 	lineNumberData := wf.GetLineNumberInfo(e.PC)
 	if lineNumberData != "" {
-		comment = fmt.Sprintf("    ;; Src = %s", lineNumberData)
+		comment = fmt.Sprintf("%s, Src = %s", comment, lineNumberData)
 	}
 
 	wr := bufio.NewWriter(w)

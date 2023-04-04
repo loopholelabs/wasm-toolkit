@@ -152,12 +152,15 @@ type WasmFile struct {
 	Data     []*DataEntry
 	Elem     []*ElemEntry
 
+	dwarfLoc    []byte
 	dwarfData   *dwarf.Data
 	lineNumbers map[uint64]LineInfo
 
 	functionNames map[int]string
 	globalNames   map[int]string
 	dataNames     map[int]string
+
+	functionDebug map[int]string
 }
 
 // Create a new WasmFile from a file
@@ -179,4 +182,13 @@ func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 		}
 	}
 	return nil
+}
+
+func (wf *WasmFile) FindFunction(pc uint64) int {
+	for index, c := range wf.Code {
+		if pc >= c.CodeSectionPtr && pc <= (c.CodeSectionPtr+uint64(len(c.ExprData))) {
+			return len(wf.Import) + index
+		}
+	}
+	return -1
 }

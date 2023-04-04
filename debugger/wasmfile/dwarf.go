@@ -15,9 +15,17 @@ func (wf *WasmFile) ParseDwarf() error {
 	debug_ranges := wf.GetCustomSectionData(".debug_ranges")
 	debug_str := wf.GetCustomSectionData(".debug_str")
 
+	debug_loc := wf.GetCustomSectionData(".debug_loc")
+	wf.dwarfLoc = debug_loc
+
 	debug_frame := make([]byte, 0) // call frame info
 
 	dd, err := dwarf.New(debug_abbrev, debug_aranges, debug_frame, debug_info, debug_line, debug_pubnames, debug_ranges, debug_str)
+	if err != nil {
+		return err
+	}
+
+	err = dd.AddSection(".debug_loc", debug_loc)
 	if err != nil {
 		return err
 	}
@@ -74,7 +82,16 @@ func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
 	return lineInfo
 }
 
+func (wf *WasmFile) GetFunctionDebug(fid int) string {
+	de, ok := wf.functionDebug[fid]
+	if ok {
+		return de
+	}
+	return ""
+}
+
 func (wf *WasmFile) ParseDwarfVariables() error {
+	wf.functionDebug = make(map[int]string)
 	entryReader := wf.dwarfData.Reader()
 
 	for {
@@ -85,28 +102,76 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			break
 		}
 
-		fmt.Printf("ENTRY %v\n", entry)
+		if entry.Tag == dwarf.TagSubprogram {
+			spname := "<unknown>"
+			sploc := uint64(0)
+			for _, field := range entry.Field {
+				//				log.Printf("Field %v\n", field)
+				if field.Attr == dwarf.AttrName {
+					spname = field.Val.(string)
+				} else if field.Attr == dwarf.AttrLowpc {
+					switch field.Val.(type) {
+					case uint64:
+						sploc = field.Val.(uint64)
+					}
+				}
+			}
 
-		if entry.Tag == dwarf.TagVariable {
+			params := ""
+			locals := ""
+			if entry.Children {
+				// Read the children...
+				for {
+					entry, err := entryReader.Next()
+					if err != nil {
+						return err
+					}
+					if entry.Tag == 0 {
+						break
+					}
 
-			//	log.Printf("TagVariable %v\n", entry)
+					vname := "<unknown>"
+					vtype := ""
+					for _, field := range entry.Field {
+						if field.Attr == dwarf.AttrName {
+							vname = field.Val.(string)
+						} else if field.Attr == dwarf.AttrType {
+							t := field.Val.(dwarf.Offset)
+							ty, err := wf.dwarfData.Type(t)
+							if err == nil {
+								vtype = ty.String()
+							}
+						}
+					}
 
+					if entry.Tag == dwarf.TagFormalParameter {
+						if len(params) > 0 {
+							params = params + ", "
+						}
+						params = fmt.Sprintf("%s%s(%s)", params, vname, vtype)
+					} else if entry.Tag == dwarf.TagVariable {
+						locals = fmt.Sprintf("%s;; local %s %s\n", locals, vname, vtype)
+					}
+
+				}
+			}
+			function_debug := fmt.Sprintf(";; %s(%s)\n%s", spname, params, locals)
+
+			fid := wf.FindFunction(sploc)
+
+			if fid != -1 {
+				wf.functionDebug[fid] = function_debug
+			}
 		} else if entry.Tag == dwarf.TagFormalParameter {
 
 			/*
 				// Show some other dwarf detail...
 				vname := "<unknown>"
-				vtype := int64(-1)
 				vloc := int64(-1)
 				for _, field := range entry.Field {
-					log.Printf("Field %v\n", field)
+					//				log.Printf("Field %v\n", field)
 					if field.Attr == dwarf.AttrName {
 						vname = field.Val.(string)
-					} else if field.Attr == dwarf.AttrType {
-						switch field.Val.(type) {
-						case int64:
-							vtype = field.Val.(int64)
-						}
 					} else if field.Attr == dwarf.AttrLocation {
 						switch field.Val.(type) {
 						case int64:
@@ -115,7 +180,20 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 					}
 				}
 
-				fmt.Printf("FormalParameter %s - %d - %d\n", vname, vtype, vloc)
+				//			if vname == "stringParam" {
+
+				// Find the location from LocList
+
+				fmt.Printf("%v\n", entry)
+
+				locdata := make([]byte, 0)
+				if vloc != -1 {
+					locdata = wf.dwarfLoc[vloc : vloc+16]
+				}
+
+				fmt.Printf("FormalParameter %s - %d // %x\n", vname, vloc, locdata)
+
+				//			}
 			*/
 		}
 	}

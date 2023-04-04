@@ -92,6 +92,12 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			return err
 		}
 
+		d := wf.GetFunctionDebug(index + len(wf.Import))
+		_, err = wr.WriteString(d)
+		if err != nil {
+			return err
+		}
+
 		// Write out locals...
 		for _, l := range code.Locals {
 			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", byteToValType[l]))
