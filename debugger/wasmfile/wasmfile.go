@@ -156,6 +156,8 @@ type WasmFile struct {
 	lineNumbers map[uint64]LineInfo
 
 	functionNames map[int]string
+	globalNames   map[int]string
+	dataNames     map[int]string
 }
 
 // Create a new WasmFile from a file

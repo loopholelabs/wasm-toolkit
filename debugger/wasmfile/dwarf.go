@@ -57,7 +57,6 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 						Filename:   ent.File.Name,
 						Linenumber: ent.Line,
 					}
-					fmt.Printf("LINE %d %s:%d\n", ent.Address, ent.File.Name, ent.Line)
 				}
 			}
 		}
