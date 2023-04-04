@@ -154,6 +154,8 @@ type WasmFile struct {
 
 	dwarfData   *dwarf.Data
 	lineNumbers map[uint64]LineInfo
+
+	functionNames map[int]string
 }
 
 // Create a new WasmFile from a file

@@ -82,9 +82,11 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			results = results + ")"
 		}
 
+		f := wf.GetFunctionIdentifier(index + len(wf.Import))
+
 		// Encode it and send it out...
 		// TODO: Function identifier
-		tdata := fmt.Sprintf("\n    (func (type %d)%s%s    ;; function_index=%d\n", tindex, params, results, index)
+		tdata := fmt.Sprintf("\n    (func %s (type %d)%s%s    ;; function_index=%d\n", f, tindex, params, results, index)
 		_, err = wr.WriteString(tdata)
 		if err != nil {
 			return err

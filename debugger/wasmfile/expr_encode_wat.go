@@ -262,7 +262,8 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
 		return err
 	} else if e.Opcode == instrToOpcode["call"] {
-		callTarget := fmt.Sprintf(" %d", e.FuncIndex)
+		f := wf.GetFunctionIdentifier(e.FuncIndex)
+		callTarget := fmt.Sprintf(" %s", f)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], callTarget, comment))
 		return err
 	} else if e.Opcode == instrToOpcode["call_indirect"] {
