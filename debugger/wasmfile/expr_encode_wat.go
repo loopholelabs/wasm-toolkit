@@ -8,11 +8,11 @@ import (
 
 // TODO
 func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
-	comment := fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
+	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
 	lineNumberData := wf.GetLineNumberInfo(e.PC)
 	if lineNumberData != "" {
-		comment = fmt.Sprintf("%s, Src = %s", comment, lineNumberData)
+		comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)
 	}
 
 	wr := bufio.NewWriter(w)
@@ -232,7 +232,7 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 			}
 		}
 
-		_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "    end"))
+		_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "end"))
 		return err
 	} else if e.Opcode == instrToOpcode["i32.const"] {
 		value := fmt.Sprintf(" %d", e.I32Value)
@@ -253,6 +253,10 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 	} else if e.Opcode == instrToOpcode["local.get"] ||
 		e.Opcode == instrToOpcode["local.set"] ||
 		e.Opcode == instrToOpcode["local.tee"] {
+		tname := wf.GetLocalVarName(e.PC, e.LocalIndex)
+		if tname != "" {
+			comment = comment + " ;; Variable " + tname
+		}
 		localTarget := fmt.Sprintf(" %d", e.LocalIndex)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], localTarget, comment))
 		return err

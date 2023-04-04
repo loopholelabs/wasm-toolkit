@@ -118,7 +118,7 @@ type MemoryEntry struct {
 type CodeEntry struct {
 	Locals         []ValType
 	CodeSectionPtr uint64
-	ExprData       []byte
+	CodeSectionLen uint64
 	Expression     []*Expression
 }
 
@@ -137,6 +137,7 @@ type ElemEntry struct {
 type LineInfo struct {
 	Filename   string
 	Linenumber int
+	Column     int
 }
 
 type WasmFile struct {
@@ -161,6 +162,8 @@ type WasmFile struct {
 	dataNames     map[int]string
 
 	functionDebug map[int]string
+
+	localNames []*LocalNameData
 }
 
 // Create a new WasmFile from a file
@@ -186,7 +189,7 @@ func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 
 func (wf *WasmFile) FindFunction(pc uint64) int {
 	for index, c := range wf.Code {
-		if pc >= c.CodeSectionPtr && pc <= (c.CodeSectionPtr+uint64(len(c.ExprData))) {
+		if pc >= c.CodeSectionPtr && pc <= (c.CodeSectionPtr+c.CodeSectionLen) {
 			return len(wf.Import) + index
 		}
 	}

@@ -161,7 +161,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) {
 		c := &CodeEntry{
 			Locals:         locals,
 			CodeSectionPtr: codeptr,
-			ExprData:       code[locptr:], // TODO
+			CodeSectionLen: clen,
 			Expression:     expression,
 		}
 		wf.Code = append(wf.Code, c)

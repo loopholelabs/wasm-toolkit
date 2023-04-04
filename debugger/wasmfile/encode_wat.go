@@ -67,33 +67,32 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		results := ""
 
 		if len(typedata.Param) > 0 {
-			params = " (param"
-			for _, p := range typedata.Param {
-				params = params + " " + byteToValType[p]
+			for index, p := range typedata.Param {
+				comment := ""
+				vname := wf.GetLocalVarName(code.CodeSectionPtr, index)
+				if vname != "" {
+					comment = " ;; " + vname
+				}
+
+				params = fmt.Sprintf("%s\n        (param %s)%s", params, byteToValType[p], comment)
 			}
-			params = params + ")"
 		}
 
 		if len(typedata.Result) > 0 {
-			results = " (result"
+			results = "        (result"
 			for _, p := range typedata.Result {
 				results = results + " " + byteToValType[p]
 			}
-			results = results + ")"
+			results = results + ")\n"
 		}
 
 		f := wf.GetFunctionIdentifier(index + len(wf.Import))
 
 		// Encode it and send it out...
 		// TODO: Function identifier
-		tdata := fmt.Sprintf("\n    (func %s (type %d)%s%s    ;; function_index=%d\n", f, tindex, params, results, index)
-		_, err = wr.WriteString(tdata)
-		if err != nil {
-			return err
-		}
-
 		d := wf.GetFunctionDebug(index + len(wf.Import))
-		_, err = wr.WriteString(d)
+		tdata := fmt.Sprintf("\n    (func %s (type %d) ;; function_index=%d\n%s%s\n%s", f, tindex, index, d, params, results)
+		_, err = wr.WriteString(tdata)
 		if err != nil {
 			return err
 		}
@@ -119,7 +118,17 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			return err
 		}
 
-		_, err = wr.WriteString("    )\n")
+		// Bit of a special case here. We know the function ends with an END opcode...
+		lastAddr := code.CodeSectionPtr + code.CodeSectionLen - 1
+		lineNumberData := wf.GetLineNumberInfo(lastAddr)
+		comment := ""
+		if lineNumberData != "" {
+			comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)
+		}
+
+		fmt.Printf("LineData %d %d %d %s\n", code.CodeSectionPtr, code.CodeSectionLen, lastAddr, lineNumberData)
+
+		_, err = wr.WriteString(fmt.Sprintf("    )%s\n", comment))
 		if err != nil {
 			return err
 		}

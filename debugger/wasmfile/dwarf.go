@@ -2,6 +2,7 @@ package wasmfile
 
 import (
 	"debug/dwarf"
+	"encoding/binary"
 	"fmt"
 	"io"
 )
@@ -64,7 +65,10 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 					wf.lineNumbers[ent.Address] = LineInfo{
 						Filename:   ent.File.Name,
 						Linenumber: ent.Line,
+						Column:     ent.Column,
 					}
+
+					fmt.Printf("LineData %d %s:%d %d\n", ent.Address, ent.File.Name, ent.Line, ent.Column)
 				}
 			}
 		}
@@ -72,12 +76,21 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 	return nil
 }
 
+func (wf *WasmFile) GetLocalVarName(pc uint64, index int) string {
+	for _, lnd := range wf.localNames {
+		if lnd.Index == index && (pc >= lnd.StartPC && pc <= lnd.EndPC) {
+			return lnd.VarName
+		}
+	}
+	return ""
+}
+
 func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
 	// See if we have any line info...
 	lineInfo := ""
 	li, ok := wf.lineNumbers[pc]
 	if ok {
-		lineInfo = fmt.Sprintf("%s:%d", li.Filename, li.Linenumber)
+		lineInfo = fmt.Sprintf("%s:%d.%d", li.Filename, li.Linenumber, li.Column)
 	}
 	return lineInfo
 }
@@ -90,8 +103,16 @@ func (wf *WasmFile) GetFunctionDebug(fid int) string {
 	return ""
 }
 
+type LocalNameData struct {
+	StartPC uint64
+	EndPC   uint64
+	Index   int
+	VarName string
+}
+
 func (wf *WasmFile) ParseDwarfVariables() error {
 	wf.functionDebug = make(map[int]string)
+	wf.localNames = make([]*LocalNameData, 0)
 	entryReader := wf.dwarfData.Reader()
 
 	for {
@@ -132,6 +153,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 
 					vname := "<unknown>"
 					vtype := ""
+					vloc := int64(-1)
 					for _, field := range entry.Field {
 						if field.Attr == dwarf.AttrName {
 							vname = field.Val.(string)
@@ -141,15 +163,67 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 							if err == nil {
 								vtype = ty.String()
 							}
+						} else if field.Attr == dwarf.AttrLocation {
+							switch field.Val.(type) {
+							case int64:
+								vloc = field.Val.(int64)
+							}
 						}
 					}
 
 					if entry.Tag == dwarf.TagFormalParameter {
+						if vloc != -1 {
+							locdata := wf.ReadLocation(uint64(vloc))
+							for _, ld := range locdata {
+								// We have code ptr range here...
+
+								locs := extractWasmDwarfExpression(ld.expression)
+								for _, l := range locs {
+									if l.isLocal {
+										// Store in the locals lookup...
+										wf.localNames = append(wf.localNames, &LocalNameData{
+											StartPC: uint64(ld.startAddress),
+											EndPC:   uint64(ld.endAddress),
+											Index:   int(l.index),
+											VarName: vname,
+										})
+
+										//										fmt.Printf("LocationLocal %s %s %d-%d  local %d\n", spname, vname, ld.startAddress, ld.endAddress, l.index)
+									}
+								}
+							}
+						}
 						if len(params) > 0 {
 							params = params + ", "
 						}
 						params = fmt.Sprintf("%s%s(%s)", params, vname, vtype)
 					} else if entry.Tag == dwarf.TagVariable {
+
+						//						fmt.Printf("TagVariable %v\n", entry)
+
+						if vloc != -1 {
+							locdata := wf.ReadLocation(uint64(vloc))
+							for _, ld := range locdata {
+								// We have code ptr range here...
+
+								//								fmt.Printf("Var Data %s is %d %d %x\n", vname, ld.startAddress, ld.endAddress, ld.expression)
+
+								locs := extractWasmDwarfExpression(ld.expression)
+								for _, l := range locs {
+									if l.isLocal {
+										// Store in the locals lookup...
+										wf.localNames = append(wf.localNames, &LocalNameData{
+											StartPC: uint64(ld.startAddress),
+											EndPC:   uint64(ld.endAddress),
+											Index:   int(l.index),
+											VarName: vname,
+										})
+
+										//										fmt.Printf("LocationLocal %s %s %d-%d  local %d\n", spname, vname, ld.startAddress, ld.endAddress, l.index)
+									}
+								}
+							}
+						}
 						locals = fmt.Sprintf("%s;; local %s %s\n", locals, vname, vtype)
 					}
 
@@ -198,4 +272,98 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 		}
 	}
 	return nil
+}
+
+type LocationData struct {
+	startAddress uint32
+	endAddress   uint32
+	expression   []byte
+}
+
+const DW_OP_WASM_location = 0xed
+const DW_Location_Local = 0
+const DW_Location_Global = 1
+const DW_Location_Stack = 2 // 0 = bottom of the stack
+const DW_Location_Global_i32 = 3
+
+const DW_OP_stack_value = 0x9f
+const DW_OP_piece = 0x93
+
+type WasmLocation struct {
+	isLocal  bool
+	isGlobal bool
+	isStack  bool
+	index    uint64
+}
+
+func extractWasmDwarfExpression(data []byte) []*WasmLocation {
+	orgdata := data
+	locs := make([]*WasmLocation, 0)
+	for {
+		if len(data) == 0 {
+			break
+		}
+		opcode := data[0]
+		data = data[1:]
+		if opcode == DW_OP_stack_value {
+			// Fine...
+		} else if opcode == DW_OP_piece {
+			_, l := binary.Uvarint(data)
+			data = data[l:]
+		} else if opcode == DW_OP_WASM_location {
+			t := data[0]
+			data = data[1:]
+			var index uint64
+			if t == 3 {
+				index = uint64(binary.LittleEndian.Uint32(data))
+				data = data[4:]
+			} else {
+				var l int
+				index, l = binary.Uvarint(data)
+				data = data[l:]
+			}
+			locs = append(locs, &WasmLocation{
+				isLocal:  t == DW_Location_Local,
+				isGlobal: t == DW_Location_Global || t == DW_Location_Global_i32,
+				isStack:  t == DW_Location_Stack,
+				index:    index,
+			})
+
+		} else {
+			fmt.Printf("WARN: Unknown dwarf expression opcode %d %x\n", opcode, orgdata)
+			return locs
+		}
+	}
+	return locs
+}
+
+func (wf *WasmFile) ReadLocation(p uint64) []*LocationData {
+	baseAddress := uint32(0)
+	ld := make([]*LocationData, 0)
+
+	ptr := p
+	for {
+		low := binary.LittleEndian.Uint32(wf.dwarfLoc[ptr:])
+		ptr += 4
+		high := binary.LittleEndian.Uint32(wf.dwarfLoc[ptr:])
+		ptr += 4
+		if low == 0 && high == 0 {
+			break
+		}
+		if low == 0xffffffff {
+			baseAddress = high
+		} else {
+			// Read expr len
+			explen := binary.LittleEndian.Uint16(wf.dwarfLoc[ptr:])
+			ptr += 2
+			expr := wf.dwarfLoc[ptr : ptr+uint64(explen)]
+			ptr += uint64(explen)
+			ld = append(ld, &LocationData{
+				startAddress: baseAddress + low,
+				endAddress:   baseAddress + high,
+				expression:   expr,
+			})
+		}
+	}
+	return ld
 }
