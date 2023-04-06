@@ -1,3 +1,19 @@
+/*
+	Copyright 2023 Loophole Labs
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		   http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
 package wasmfile
 
 import (
@@ -6,7 +22,6 @@ import (
 	"io"
 )
 
-// TODO
 func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
@@ -294,11 +309,10 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstrFC[e.OpcodeExt], comment))
 			return err
 		} else {
-			panic(fmt.Sprintf("Unsupported opcode 0xfc %d", e.OpcodeExt))
+			return fmt.Errorf("Unsupported opcode 0xfc %d", e.OpcodeExt)
 		}
-
 	} else {
-		panic("TODO UNKNOWN")
+		return fmt.Errorf("Unsupported opcode %d", e.Opcode)
 	}
 
 }
