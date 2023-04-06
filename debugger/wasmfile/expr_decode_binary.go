@@ -6,7 +6,7 @@ import (
 	"math"
 )
 
-func NewExpression(data []byte, pc uint64) ([]*Expression, int) {
+func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 	exps := make([]*Expression, 0)
 	ptr := 0
 
@@ -239,7 +239,10 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int) {
 			valType := data[ptr]
 			ptr++
 
-			ex, l := NewExpression(data[ptr:], pc+uint64(ptr))
+			ex, l, err := NewExpression(data[ptr:], pc+uint64(ptr))
+			if err != nil {
+				return nil, 0, err
+			}
 			ptr += l
 
 			exps = append(exps,
@@ -373,7 +376,7 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int) {
 			}
 
 		} else if Opcode(opcode) == instrToOpcode["end"] {
-			return exps, ptr
+			return exps, ptr, nil
 		} else {
 			ptr--
 			panic(fmt.Sprintf("TODO: Expression %x\n", data[ptr:ptr+16]))

@@ -1,9 +1,53 @@
+/*
+	Copyright 2022 Loophole Labs
+
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
+
+		   http://www.apache.org/licenses/LICENSE-2.0
+
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
+
 package wasmfile
 
 import (
 	"debug/dwarf"
 	"io/ioutil"
 )
+
+type WasmFile struct {
+	// Each section of the wasm file
+	Function []*FunctionEntry
+	Type     []*TypeEntry
+	Custom   []*CustomEntry
+	Export   []*ExportEntry
+	Import   []*ImportEntry
+	Table    []*TableEntry
+	Global   []*GlobalEntry
+	Memory   []*MemoryEntry
+	Code     []*CodeEntry
+	Data     []*DataEntry
+	Elem     []*ElemEntry
+
+	// dwarf debugging data
+	dwarfLoc    []byte
+	dwarfData   *dwarf.Data
+	lineNumbers map[uint64]LineInfo
+	// debug info derived from dwarf
+	functionDebug map[int]string
+	localNames    []*LocalNameData
+
+	// custom names section data
+	functionNames map[int]string
+	globalNames   map[int]string
+	dataNames     map[int]string
+}
 
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
@@ -138,32 +182,6 @@ type LineInfo struct {
 	Filename   string
 	Linenumber int
 	Column     int
-}
-
-type WasmFile struct {
-	Function []*FunctionEntry
-	Type     []*TypeEntry
-	Custom   []*CustomEntry
-	Export   []*ExportEntry
-	Import   []*ImportEntry
-	Table    []*TableEntry
-	Global   []*GlobalEntry
-	Memory   []*MemoryEntry
-	Code     []*CodeEntry
-	Data     []*DataEntry
-	Elem     []*ElemEntry
-
-	dwarfLoc    []byte
-	dwarfData   *dwarf.Data
-	lineNumbers map[uint64]LineInfo
-
-	functionNames map[int]string
-	globalNames   map[int]string
-	dataNames     map[int]string
-
-	functionDebug map[int]string
-
-	localNames []*LocalNameData
 }
 
 // Create a new WasmFile from a file
