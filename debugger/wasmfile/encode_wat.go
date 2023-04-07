@@ -61,13 +61,69 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	}
 
-	// TODO: Encode the sections as wat
-
 	// #### Write out Export
+	for _, t := range wf.Export {
+		exp := ""
+		if t.Type == ExportFunc {
+			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index))
+		} else if t.Type == ExportGlobal {
+			exp = fmt.Sprintf("(global %d)", t.Index)
+		} else if t.Type == ExportMem {
+			exp = fmt.Sprintf("(memory %d)", t.Index)
+		} else if t.Type == ExportTable {
+			exp = fmt.Sprintf("(table %d)", t.Index)
+		}
+
+		edata := fmt.Sprintf("    (export \"%s\" %s)\n", t.Name, exp)
+		_, err = wr.WriteString(edata)
+		if err != nil {
+			return err
+		}
+	}
 
 	// #### Write out Import
+	for index, t := range wf.Import {
+		exp := ""
+		if t.Type == ExportFunc {
+			exp = fmt.Sprintf("(func %s (type %d))", wf.GetFunctionIdentifier(index), t.Index)
+		} else if t.Type == ExportGlobal {
+			exp = fmt.Sprintf("(global %d)", t.Index)
+		} else if t.Type == ExportMem {
+			exp = fmt.Sprintf("(memory %d)", t.Index)
+		} else if t.Type == ExportTable {
+			exp = fmt.Sprintf("(table %d)", t.Index)
+		}
+
+		edata := fmt.Sprintf("    (import \"%s\" \"%s\" %s)\n", t.Module, t.Name, exp)
+		_, err = wr.WriteString(edata)
+		if err != nil {
+			return err
+		}
+	}
 
 	// #### Write out Global
+	for index, g := range wf.Global {
+		t := byteToValType[g.Type]
+		if g.Mut == 0x01 {
+			t = fmt.Sprintf("(mut %s)", t)
+		}
+
+		var buf bytes.Buffer
+		for _, ee := range g.Expression {
+			err := ee.EncodeWat(&buf, "", wf)
+			if err != nil {
+				return err
+			}
+		}
+
+		gname := wf.GetGlobalIdentifier(index)
+
+		edata := fmt.Sprintf("    (global %s %s (%s))\n", gname, t, buf.Bytes())
+		_, err = wr.WriteString(edata)
+		if err != nil {
+			return err
+		}
+	}
 
 	// #### Write out Memory
 
@@ -105,7 +161,6 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		f := wf.GetFunctionIdentifier(index + len(wf.Import))
 
 		// Encode it and send it out...
-		// TODO: Function identifier
 		d := wf.GetFunctionDebug(index + len(wf.Import))
 		tdata := fmt.Sprintf("\n    (func %s (type %d) ;; function_index=%d\n%s%s\n%s", f, tindex, index, d, params, results)
 		_, err = wr.WriteString(tdata)
@@ -141,8 +196,6 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if lineNumberData != "" {
 			comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)
 		}
-
-		fmt.Printf("LineData %d %d %d %s\n", code.CodeSectionPtr, code.CodeSectionLen, lastAddr, lineNumberData)
 
 		_, err = wr.WriteString(fmt.Sprintf("    )%s\n", comment))
 		if err != nil {
