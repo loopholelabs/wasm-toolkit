@@ -15,3 +15,25 @@
 */
 
 package wasmfile
+
+import "errors"
+
+func (wf *WasmFile) DecodeWat(data []byte) (err error) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			switch x := r.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("unknown panic")
+			}
+		}
+	}()
+
+	// Parse the wat file and fill in all the data...
+
+	return nil
+}
