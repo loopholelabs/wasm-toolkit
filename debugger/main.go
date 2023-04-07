@@ -63,7 +63,7 @@ func main() {
 	}
 
 	fmt.Printf("Writing wat out to %s...\n", outputWat)
-	watf, err := os.Create("test.wat")
+	watf, err := os.Create(outputWat)
 	if err != nil {
 		panic(err)
 	}
@@ -77,5 +77,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Checking up wat file %s\n", outputWat)
+	_, err = wasmfile.NewFromWat(outputWat)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO: Verify wfile2
 
 }
