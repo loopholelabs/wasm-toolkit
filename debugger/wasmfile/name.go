@@ -19,6 +19,7 @@ package wasmfile
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 )
 
 const subsectionModuleNames = 0
@@ -108,6 +109,8 @@ func (wf *WasmFile) ParseName() error {
 func (wf *WasmFile) GetFunctionIdentifier(fid int) string {
 	f, ok := wf.functionNames[fid]
 	if ok {
+		f = strings.ReplaceAll(f, "(", "_")
+		f = strings.ReplaceAll(f, ")", "_")
 		return fmt.Sprintf("$%s", f)
 	}
 	return fmt.Sprintf("%d", fid)
@@ -116,6 +119,8 @@ func (wf *WasmFile) GetFunctionIdentifier(fid int) string {
 func (wf *WasmFile) GetGlobalIdentifier(gid int) string {
 	f, ok := wf.globalNames[gid]
 	if ok {
+		f = strings.ReplaceAll(f, "(", "_")
+		f = strings.ReplaceAll(f, ")", "_")
 		return fmt.Sprintf("$%s", f)
 	}
 	return fmt.Sprintf("%d", gid)
@@ -124,6 +129,8 @@ func (wf *WasmFile) GetGlobalIdentifier(gid int) string {
 func (wf *WasmFile) GetDataIdentifier(did int) string {
 	f, ok := wf.dataNames[did]
 	if ok {
+		f = strings.ReplaceAll(f, "(", "_")
+		f = strings.ReplaceAll(f, ")", "_")
 		return fmt.Sprintf("$%s", f)
 	}
 	return fmt.Sprintf("%d", did)

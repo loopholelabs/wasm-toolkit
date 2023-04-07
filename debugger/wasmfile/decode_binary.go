@@ -19,6 +19,7 @@ package wasmfile
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -27,7 +28,21 @@ import (
  * Decode a wasm binary into a WasmFile
  *
  */
-func (wf *WasmFile) DecodeBinary(data []byte) error {
+func (wf *WasmFile) DecodeBinary(data []byte) (err error) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			switch x := r.(type) {
+			case string:
+				err = errors.New(x)
+			case error:
+				err = x
+			default:
+				err = errors.New("unknown panic")
+			}
+		}
+	}()
+
 	hd := binary.LittleEndian.Uint32(data)
 	vr := binary.LittleEndian.Uint32(data[4:])
 
