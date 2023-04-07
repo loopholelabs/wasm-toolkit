@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func (wf *WasmFile) EncodeWat(w io.Writer) error {
@@ -126,8 +127,34 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	}
 
 	// #### Write out Memory
+	for _, m := range wf.Memory {
+		limits := fmt.Sprintf("%d", m.LimitMin)
+		if m.LimitMax != 0 {
+			limits = fmt.Sprintf("%s %d", limits, m.LimitMax)
+		}
+
+		mdata := fmt.Sprintf("    (memory %s)\n", limits)
+		_, err = wr.WriteString(mdata)
+		if err != nil {
+			return err
+		}
+	}
 
 	// #### Write out Table
+	for _, t := range wf.Table {
+		limits := fmt.Sprintf("%d", t.LimitMin)
+		if t.LimitMax != 0 {
+			limits = fmt.Sprintf("%s %d", limits, t.LimitMax)
+		}
+
+		tabType := "funcref"
+
+		mdata := fmt.Sprintf("    (table %s %s)\n", limits, tabType)
+		_, err = wr.WriteString(mdata)
+		if err != nil {
+			return err
+		}
+	}
 
 	// #### Write out Function/Code
 	for index, code := range wf.Code {
@@ -205,8 +232,49 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	}
 
 	// #### Write out Data
+	for index, d := range wf.Data {
+		id := wf.GetDataIdentifier(index)
+
+		var buf bytes.Buffer
+		for _, ee := range d.Offset {
+			err := ee.EncodeWat(&buf, "", wf)
+			if err != nil {
+				return err
+			}
+		}
+
+		dat := d.GetStringEncodedData()
+
+		ddata := fmt.Sprintf("    (data %s (%s) \"%s\")\n", id, strings.Trim(buf.String(), " \t\r\n"), dat)
+		_, err = wr.WriteString(ddata)
+		if err != nil {
+			return err
+		}
+	}
 
 	// #### Write out Elem
+	for _, e := range wf.Elem {
+
+		var buf bytes.Buffer
+		for _, ee := range e.Offset {
+			err := ee.EncodeWat(&buf, "", wf)
+			if err != nil {
+				return err
+			}
+		}
+
+		funcs := ""
+		for _, f := range e.Indexes {
+			fid := wf.GetFunctionIdentifier(int(f))
+			funcs = funcs + " " + fid
+		}
+
+		ddata := fmt.Sprintf("    (elem (%s) func%s)\n", strings.Trim(buf.String(), " \t\r\n"), funcs)
+		_, err = wr.WriteString(ddata)
+		if err != nil {
+			return err
+		}
+	}
 
 	_, err = wr.WriteString(")\n")
 	if err != nil {
@@ -215,4 +283,17 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	err = wr.Flush()
 	return err
+}
+
+func (d *DataEntry) GetStringEncodedData() string {
+	allowed := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ "
+	var buf bytes.Buffer
+	for _, b := range d.Data {
+		if strings.Index(allowed, string(rune(b))) != -1 {
+			buf.WriteRune(rune(b))
+		} else {
+			buf.WriteString(fmt.Sprintf("\\%02x", b))
+		}
+	}
+	return buf.String()
 }
