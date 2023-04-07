@@ -215,15 +215,18 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		e.Opcode == instrToOpcode["i64.store8"] ||
 		e.Opcode == instrToOpcode["i64.store16"] ||
 		e.Opcode == instrToOpcode["i64.store32"] {
-		modAlign := fmt.Sprintf(" align=%d", e.MemAlign)
+		modAlign := fmt.Sprintf(" align=%d", 1<<e.MemAlign)
 		modOffset := fmt.Sprintf(" offset=%d", e.MemOffset)
 		if e.MemOffset == 0 {
 			modOffset = ""
 		}
-		if e.MemAlign == 0 {
-			modAlign = ""
-		}
-		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], modAlign, modOffset, comment))
+		// TODO: Default align?
+		/*
+			if e.MemAlign == 0 {
+				modAlign = ""
+			}
+		*/
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], modOffset, modAlign, comment))
 		return err
 	} else if e.Opcode == instrToOpcode["memory.size"] ||
 		e.Opcode == instrToOpcode["memory.grow"] {

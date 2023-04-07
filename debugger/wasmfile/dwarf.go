@@ -42,11 +42,6 @@ func (wf *WasmFile) ParseDwarf() error {
 		return err
 	}
 
-	err = dd.AddSection(".debug_loc", debug_loc)
-	if err != nil {
-		return err
-	}
-
 	wf.dwarfData = dd
 	return nil
 }
@@ -83,8 +78,6 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 						Linenumber: ent.Line,
 						Column:     ent.Column,
 					}
-
-					fmt.Printf("LineData %d %s:%d %d\n", ent.Address, ent.File.Name, ent.Line, ent.Column)
 				}
 			}
 		}
@@ -252,39 +245,6 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			if fid != -1 {
 				wf.functionDebug[fid] = function_debug
 			}
-		} else if entry.Tag == dwarf.TagFormalParameter {
-
-			/*
-				// Show some other dwarf detail...
-				vname := "<unknown>"
-				vloc := int64(-1)
-				for _, field := range entry.Field {
-					//				log.Printf("Field %v\n", field)
-					if field.Attr == dwarf.AttrName {
-						vname = field.Val.(string)
-					} else if field.Attr == dwarf.AttrLocation {
-						switch field.Val.(type) {
-						case int64:
-							vloc = field.Val.(int64)
-						}
-					}
-				}
-
-				//			if vname == "stringParam" {
-
-				// Find the location from LocList
-
-				fmt.Printf("%v\n", entry)
-
-				locdata := make([]byte, 0)
-				if vloc != -1 {
-					locdata = wf.dwarfLoc[vloc : vloc+16]
-				}
-
-				fmt.Printf("FormalParameter %s - %d // %x\n", vname, vloc, locdata)
-
-				//			}
-			*/
 		}
 	}
 	return nil
@@ -313,7 +273,6 @@ type WasmLocation struct {
 }
 
 func extractWasmDwarfExpression(data []byte) []*WasmLocation {
-	orgdata := data
 	locs := make([]*WasmLocation, 0)
 	for {
 		if len(data) == 0 {
@@ -346,7 +305,8 @@ func extractWasmDwarfExpression(data []byte) []*WasmLocation {
 			})
 
 		} else {
-			fmt.Printf("WARN: Unknown dwarf expression opcode %d %x\n", opcode, orgdata)
+			// FIXME: Deal with other dwarf opcodes
+			//			fmt.Printf("WARN: Unknown dwarf expression opcode %d %x\n", opcode, orgdata)
 			return locs
 		}
 	}

@@ -111,6 +111,11 @@ func (wf *WasmFile) GetFunctionIdentifier(fid int) string {
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
+		f = strings.ReplaceAll(f, "{", "_")
+		f = strings.ReplaceAll(f, "}", "_")
+		f = strings.ReplaceAll(f, "[", "_")
+		f = strings.ReplaceAll(f, "]", "_")
+		f = strings.ReplaceAll(f, ",", "_")
 		return fmt.Sprintf("$%s", f)
 	}
 	return fmt.Sprintf("%d", fid)
