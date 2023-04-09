@@ -62,26 +62,6 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	}
 
-	// #### Write out Export
-	for _, t := range wf.Export {
-		exp := ""
-		if t.Type == ExportFunc {
-			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index))
-		} else if t.Type == ExportGlobal {
-			exp = fmt.Sprintf("(global %d)", t.Index)
-		} else if t.Type == ExportMem {
-			exp = fmt.Sprintf("(memory %d)", t.Index)
-		} else if t.Type == ExportTable {
-			exp = fmt.Sprintf("(table %d)", t.Index)
-		}
-
-		edata := fmt.Sprintf("    (export \"%s\" %s)\n", t.Name, exp)
-		_, err = wr.WriteString(edata)
-		if err != nil {
-			return err
-		}
-	}
-
 	// #### Write out Import
 	for index, t := range wf.Import {
 		exp := ""
@@ -229,6 +209,26 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			return err
 		}
 
+	}
+
+	// #### Write out Export
+	for _, t := range wf.Export {
+		exp := ""
+		if t.Type == ExportFunc {
+			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index))
+		} else if t.Type == ExportGlobal {
+			exp = fmt.Sprintf("(global %d)", t.Index)
+		} else if t.Type == ExportMem {
+			exp = fmt.Sprintf("(memory %d)", t.Index)
+		} else if t.Type == ExportTable {
+			exp = fmt.Sprintf("(table %d)", t.Index)
+		}
+
+		edata := fmt.Sprintf("    (export \"%s\" %s)\n", t.Name, exp)
+		_, err = wr.WriteString(edata)
+		if err != nil {
+			return err
+		}
 	}
 
 	// #### Write out Data

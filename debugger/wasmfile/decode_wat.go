@@ -23,6 +23,20 @@ import (
 	"strings"
 )
 
+func (wf *WasmFile) LookupFunctionID(n string) int {
+	for idx, name := range wf.functionNames {
+		if n == name {
+			return idx
+		}
+	}
+	return -1
+}
+
+func (wf *WasmFile) RegisterNextFunctionName(n string) {
+	idx := len(wf.Function) + 1
+	wf.functionNames[idx] = n
+}
+
 func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	/*
 		defer func() {
@@ -40,6 +54,8 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 		}()
 	*/
 	// Parse the wat file and fill in all the data...
+
+	wf.functionNames = make(map[int]string)
 
 	text := string(data)
 
@@ -91,11 +107,11 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 			wf.Elem = append(wf.Elem, ee)
 		} else if eType == "export" {
 			ee := &ExportEntry{}
-			err = ee.DecodeWat(e)
+			err = ee.DecodeWat(e, wf)
 			wf.Export = append(wf.Export, ee)
 		} else if eType == "func" {
 			ee := &FunctionEntry{}
-			err = ee.DecodeWat(e)
+			err = ee.DecodeWat(e, wf)
 			wf.Function = append(wf.Function, ee)
 			ce := &CodeEntry{}
 			err = ce.DecodeWat(e)
@@ -198,13 +214,76 @@ func (e *CodeEntry) DecodeWat(d string) error {
 	return nil
 }
 
-func (e *FunctionEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Function\n")
-	return nil
+func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
+	s := strings.TrimLeft(d[5:len(d)-1], Whitespace)
+	// eg (func $write (type 7) (param i32 i32 i32) (result i32)
+
+	// Optional Identifier
+	if s[0] == '$' {
+		var fname string
+		fname, s = ReadToken(s)
+		// Store the name for lookups...
+		wf.RegisterNextFunctionName(fname)
+	}
+
+	for {
+		s = strings.Trim(s, Whitespace)
+		if s[0] == '(' {
+			var el string
+			var err error
+			el, s = ReadElement(s)
+			eType, _ := ReadToken(el[1:])
+			if eType == "type" {
+				el = strings.Trim(el[5:len(el)-1], Whitespace)
+				e.TypeIndex, err = strconv.Atoi(el)
+				return err
+			}
+		} else {
+			return errors.New("Error parsing func. Did not find a type.")
+		}
+	}
 }
 
-func (e *ExportEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Export\n")
+func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
+	//  (export "memory" (memory 0))
+	//  (export "hello" (func $hello))
+
+	s := strings.TrimLeft(d[7:len(d)-1], Whitespace)
+
+	e.Name, s = ReadString(s)
+	s = strings.Trim(s, Whitespace)
+	el, _ := ReadElement(s)
+	etype, erest := ReadToken(el[1:])
+	erest = erest[:len(erest)-1]
+	if etype == "memory" {
+		e.Type = ExportMem
+		idx, err := strconv.Atoi(erest)
+		if err != nil {
+			return err
+		}
+		e.Index = idx
+	} else if etype == "func" {
+		e.Type = ExportFunc
+		if strings.HasPrefix(erest, "$") {
+			fname, _ := ReadToken(erest)
+			fid := wf.LookupFunctionID(fname)
+			if fid == -1 {
+				return fmt.Errorf("Function %s not found in export", fname)
+			}
+			e.Index = fid
+			// Parse the ID and look it up
+		} else {
+			idx, err := strconv.Atoi(erest)
+			if err != nil {
+				return err
+			}
+			e.Index = idx
+
+		}
+	} else {
+		return errors.New("TODO: Support other exports")
+	}
+
 	return nil
 }
 
