@@ -364,7 +364,88 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 }
 
 func (e *CodeEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Code\n")
+	e.Locals = make([]ValType, 0)
+
+	s := strings.Trim(d[5:len(d)-1], Whitespace)
+
+	// Optional Identifier
+	if s[0] == '$' {
+		_, s = ReadToken(s)
+	}
+
+	localNames := make(map[int]string)
+
+	for {
+		s = strings.Trim(s, Whitespace)
+		if s[0] == '(' {
+			var el string
+			el, s = ReadElement(s)
+			eType, _ := ReadToken(el[1:])
+			if eType == "type" {
+			} else if eType == "param" {
+				// TODO: Use to sanity check
+			} else if eType == "result" {
+				// TODO: Use to sanity check
+			} else if eType == "local" {
+				// eg (local $hello i32)
+				// eg (local i64 i64)
+
+				types := strings.Trim(el[6:len(el)-1], Whitespace)
+				for {
+					types = strings.Trim(types, Whitespace)
+					if len(types) == 0 {
+						break
+					}
+					var tok string
+					tok, types = ReadToken(types)
+					if tok[0] == '$' {
+						// preRegister a name
+						localNames[len(e.Locals)] = tok
+					} else {
+						l, ok := valTypeToByte[tok]
+						if !ok {
+							return fmt.Errorf("Invalid local type %s", tok)
+						}
+						e.Locals = append(e.Locals, l)
+					}
+				}
+			}
+		} else {
+			break
+		}
+	}
+
+	// Then just read instructions...
+	for {
+		s = strings.Trim(s, Whitespace)
+		if len(s) == 0 {
+			break
+		}
+		lend := strings.Index(s, "\n")
+		if lend == -1 {
+			lend = len(s)
+		}
+		ecode := s[:lend]
+		s = s[lend:]
+
+		// Ignore any ;; comments
+		cend := strings.Index(ecode, ";;")
+		if cend != -1 {
+			ecode = ecode[:cend]
+		}
+
+		ecode = strings.Trim(ecode, Whitespace)
+
+		if len(ecode) > 0 {
+			newe := &Expression{}
+			err := newe.DecodeWat(ecode)
+			if err != nil {
+				return err
+			}
+			e.Expression = append(e.Expression, newe)
+		}
+	}
+
 	return nil
 }
 
