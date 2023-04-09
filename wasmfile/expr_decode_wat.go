@@ -171,6 +171,7 @@ func (e *Expression) DecodeWat(s string) error {
 		e.Opcode = instrToOpcode[opcode]
 		return nil
 	} else if opcode == "br_table" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			targets := ""
 			for _, l := range e.Labels {
@@ -182,6 +183,7 @@ func (e *Expression) DecodeWat(s string) error {
 		*/
 	} else if opcode == "br" ||
 		opcode == "br_if" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			target := fmt.Sprintf(" %d", e.LabelIndex)
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], target, comment))
@@ -210,6 +212,7 @@ func (e *Expression) DecodeWat(s string) error {
 		opcode == "i64.store8" ||
 		opcode == "i64.store16" ||
 		opcode == "i64.store32" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			modAlign := fmt.Sprintf(" align=%d", 1<<e.MemAlign)
 			modOffset := fmt.Sprintf(" offset=%d", e.MemOffset)
@@ -222,6 +225,7 @@ func (e *Expression) DecodeWat(s string) error {
 		*/
 	} else if opcode == "memory.size" ||
 		opcode == "memory.grow" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstr[e.Opcode], comment))
 			return err
@@ -229,6 +233,7 @@ func (e *Expression) DecodeWat(s string) error {
 	} else if opcode == "block" ||
 		opcode == "if" ||
 		opcode == "loop" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			result := ""
 			if e.Result != ValNone {
@@ -248,24 +253,28 @@ func (e *Expression) DecodeWat(s string) error {
 			return err
 		*/
 	} else if opcode == "i32.const" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			value := fmt.Sprintf(" %d", e.I32Value)
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
 			return err
 		*/
 	} else if opcode == "i64.const" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			value := fmt.Sprintf(" %d", e.I64Value)
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
 			return err
 		*/
 	} else if opcode == "f32.const" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			value := fmt.Sprintf(" %f", e.F32Value)
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
 			return err
 		*/
 	} else if opcode == "f64.const" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			value := fmt.Sprintf(" %f", e.F64Value)
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
@@ -274,6 +283,7 @@ func (e *Expression) DecodeWat(s string) error {
 	} else if opcode == "local.get" ||
 		opcode == "local.set" ||
 		opcode == "local.tee" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			tname := wf.GetLocalVarName(e.PC, e.LocalIndex)
 			if tname != "" {
@@ -285,6 +295,7 @@ func (e *Expression) DecodeWat(s string) error {
 		*/
 	} else if opcode == "global.get" ||
 		opcode == "global.set" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			g := wf.GetGlobalIdentifier(e.GlobalIndex)
 			globalTarget := fmt.Sprintf(" %s", g)
@@ -292,6 +303,7 @@ func (e *Expression) DecodeWat(s string) error {
 			return err
 		*/
 	} else if opcode == "call" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			f := wf.GetFunctionIdentifier(e.FuncIndex)
 			callTarget := fmt.Sprintf(" %s", f)
@@ -299,6 +311,7 @@ func (e *Expression) DecodeWat(s string) error {
 			return err
 		*/
 	} else if opcode == "call_indirect" {
+		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
 			typeIndex := fmt.Sprintf(" (type %d)", e.TypeIndex)
 			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], typeIndex, comment))

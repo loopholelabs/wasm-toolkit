@@ -150,17 +150,115 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 }
 
 func (e *TypeEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Type\n")
+	//   (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+
+	s := strings.Trim(d[5:len(d)-1], Whitespace)
+	s = SkipComment(s)
+	fspec, s := ReadElement(s)
+	if fspec == "(func)" {
+		// Special case, nothing else to do.
+		return nil
+	}
+	if strings.HasPrefix(fspec, "(func ") && fspec[len(fspec)-1] == ')' {
+		fspec = fspec[6 : len(fspec)-1]
+		for {
+			var el string
+			fspec = SkipComment(fspec)
+			fspec = strings.Trim(fspec, Whitespace)
+			if len(fspec) == 0 {
+				break
+			}
+			el, fspec = ReadElement(fspec)
+			if strings.HasPrefix(el, "(param ") {
+				// Now read each type
+				el = el[7 : len(el)-1]
+				for {
+					var ptype string
+					el = SkipComment(el)
+					el = strings.Trim(el, Whitespace)
+					if len(el) == 0 {
+						break
+					}
+					ptype, el = ReadToken(el)
+					b, ok := valTypeToByte[ptype]
+					if !ok {
+						return fmt.Errorf("Unknown param type (%s)", ptype)
+					}
+					e.Param = append(e.Param, b)
+				}
+			} else if strings.HasPrefix(el, "(result ") {
+				// atm we only support one return type.
+				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
+				b, ok := valTypeToByte[rtype]
+				if !ok {
+					return fmt.Errorf("Unknown result type (%s)", rtype)
+				}
+				e.Result = append(e.Result, b)
+			} else {
+				return fmt.Errorf("Unknown spec in type %s", el)
+			}
+		}
+	} else {
+		return errors.New("Only support type func atm")
+	}
 	return nil
 }
 
 func (e *TableEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Table\n")
+	//  (table (;0;) 3 3 funcref)
+
+	s := strings.Trim(d[6:len(d)-1], Whitespace)
+	s = SkipComment(s)
+	// Should be a number next (min)
+	var mmin string
+	var mmax string
+	var err error
+	mmin, s = ReadToken(s)
+	e.LimitMin, err = strconv.Atoi(mmin)
+	if err != nil {
+		return err
+	}
+
+	s = SkipComment(s)
+	s = strings.Trim(s, Whitespace)
+	mmax, s = ReadToken(s)
+	e.LimitMax, err = strconv.Atoi(mmax)
+	if err != nil {
+		return err
+	}
+
+	tabtype, s := ReadToken(s)
+	if tabtype != "funcref" {
+		return errors.New("Only table funcref supported atm")
+	}
 	return nil
 }
 
 func (e *MemoryEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Memory\n")
+	// (memory (;0;) 2)
+
+	s := strings.Trim(d[7:len(d)-1], Whitespace)
+	s = SkipComment(s)
+	// Should be a number next (min)
+	var mmin string
+	var mmax string
+	var err error
+	mmin, s = ReadToken(s)
+	e.LimitMin, err = strconv.Atoi(mmin)
+	if err != nil {
+		return err
+	}
+
+	s = SkipComment(s)
+	s = strings.Trim(s, Whitespace)
+	if len(s) > 0 {
+		mmax, s = ReadToken(s)
+		e.LimitMax, err = strconv.Atoi(mmax)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
