@@ -37,6 +37,16 @@ func (wf *WasmFile) RegisterNextFunctionName(n string) {
 	wf.functionNames[idx] = n
 }
 
+func (wf *WasmFile) RegisterNextGlobalName(n string) {
+	idx := len(wf.Global) + 1
+	wf.globalNames[idx] = n
+}
+
+func (wf *WasmFile) RegisterNextDataName(n string) {
+	idx := len(wf.Data) + 1
+	wf.dataNames[idx] = n
+}
+
 func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	/*
 		defer func() {
@@ -56,6 +66,8 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	// Parse the wat file and fill in all the data...
 
 	wf.functionNames = make(map[int]string)
+	wf.globalNames = make(map[int]string)
+	wf.dataNames = make(map[int]string)
 
 	text := string(data)
 
@@ -99,11 +111,11 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 
 		if eType == "data" {
 			de := &DataEntry{}
-			err = de.DecodeWat(e)
+			err = de.DecodeWat(e, wf)
 			wf.Data = append(wf.Data, de)
 		} else if eType == "elem" {
 			ee := &ElemEntry{}
-			err = ee.DecodeWat(e)
+			err = ee.DecodeWat(e, wf)
 			wf.Elem = append(wf.Elem, ee)
 		} else if eType == "export" {
 			ee := &ExportEntry{}
@@ -118,7 +130,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 			wf.Code = append(wf.Code, ce)
 		} else if eType == "global" {
 			ge := &GlobalEntry{}
-			err = ge.DecodeWat(e)
+			err = ge.DecodeWat(e, wf)
 			wf.Global = append(wf.Global, ge)
 		} else if eType == "import" {
 			ie := &ImportEntry{}
@@ -302,8 +314,52 @@ func (e *ImportEntry) DecodeWat(d string) error {
 	return nil
 }
 
-func (e *GlobalEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Global\n")
+func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
+	//  (global $__stack_pointer (mut i32) (i32.const 65536))
+
+	s := strings.Trim(d[7:len(d)-1], Whitespace)
+	if s[0] == '$' {
+		// We have an identifier, lets use it
+		var id string
+		id, s = ReadToken(s)
+		wf.RegisterNextGlobalName(id)
+	}
+
+	// Next we either have a type, or (mut <type>)
+	var ty string
+	var ok bool
+	if s[0] == '(' {
+		var mutty string
+		mutty, s = ReadElement(s)
+		if strings.HasPrefix(mutty, "(mut ") && mutty[len(mutty)-1] == ')' {
+			e.Mut = 1
+			ty = mutty[5 : len(mutty)-1]
+		} else {
+			return fmt.Errorf("Cannot parse global %s", d)
+		}
+	} else {
+		ty, s = ReadToken(s)
+		e.Mut = 0
+	}
+
+	e.Type, ok = valTypeToByte[ty]
+	if !ok {
+		return fmt.Errorf("Invalid type in global %s", ty)
+	}
+
+	s = strings.Trim(s, Whitespace)
+	expr, _ := ReadElement(s)
+	// Read the expression
+	expr = expr[1 : len(expr)-1]
+	// TODO: Support proper expressions. For now we only support a single instruction
+	e.Expression = make([]*Expression, 0)
+	ex := &Expression{}
+	err := ex.DecodeWat(expr)
+	if err != nil {
+		return err
+	}
+	e.Expression = append(e.Expression, ex)
+
 	return nil
 }
 
@@ -385,12 +441,118 @@ func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
 	return nil
 }
 
-func (e *ElemEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Elem\n")
+func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
+	// (elem (;0;) (i32.const 1) func $runtime.memequal $runtime.hash32)
+	e.TableIndex = 0 // For now only one table
+
+	s := strings.Trim(d[5:len(d)-1], Whitespace)
+	s = SkipComment(s)
+
+	expr, s := ReadElement(s)
+	// Read the expression
+	expr = expr[1 : len(expr)-1]
+	// TODO: Support proper expressions. For now we only support a single instruction
+	e.Offset = make([]*Expression, 0)
+	ex := &Expression{}
+	err := ex.DecodeWat(expr)
+	if err != nil {
+		return err
+	}
+	e.Offset = append(e.Offset, ex)
+
+	s = strings.Trim(s, Whitespace)
+	var elemType string
+	elemType, s = ReadToken(s)
+	if elemType == "func" {
+		for {
+			s = strings.Trim(s, Whitespace)
+			if len(s) == 0 {
+				break
+			}
+			var fid string
+			var findex int
+			fid, s = ReadToken(s)
+			if strings.HasPrefix(fid, "$") {
+				findex = wf.LookupFunctionID(fid)
+				if findex == -1 {
+					return fmt.Errorf("Function not found %s", fid)
+				}
+			} else {
+				findex, err = strconv.Atoi(fid)
+				if err != nil {
+					return err
+				}
+			}
+			e.Indexes = append(e.Indexes, uint64(findex))
+		}
+	} else {
+		return fmt.Errorf("Unknown type for elem %s", elemType)
+	}
+
 	return nil
 }
 
-func (e *DataEntry) DecodeWat(d string) error {
-	fmt.Printf("TODO: Decode Data\n")
+func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
+	//	* (data $.data (i32.const 66160) "x\9c\19\f6\dc\02\01\00\00\00\00\00\9c\03\01\00\c1\82\01\00\00\00\00\00\04\00\00\00\0c\00\00\00\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\00\02\00\00\00\a8\02\01\00\98\01\00\00\01\00\00\00\ff\01\01\00\0b\00\00\00\00\00\00\00 \01\01\00\13\00\00\003\01\01\00\13"))
+	//	* (data $.data 10)
+	//	* (data $.data "hello world")
+
+	s := strings.Trim(d[5:len(d)-1], Whitespace)
+
+	if s[0] == '$' {
+		var id string
+		id, s = ReadToken(s)
+		wf.RegisterNextDataName(id)
+	}
+	s = strings.Trim(s, Whitespace)
+	if s[0] == '(' {
+		// Must have a specific Offset already set
+		var expr string
+		expr, s = ReadElement(s)
+		// Read the expression
+		expr = expr[1 : len(expr)-1]
+		// TODO: Support proper expressions. For now we only support a single instruction
+		e.Offset = make([]*Expression, 0)
+		ex := &Expression{}
+		err := ex.DecodeWat(expr)
+		if err != nil {
+			return err
+		}
+		e.Offset = append(e.Offset, ex)
+	}
+
+	s = strings.Trim(s, Whitespace)
+
+	if s[0] == '"' {
+		// Parse the data
+		s = s[1 : len(s)-1]
+		for {
+			if len(s) == 0 {
+				break
+			}
+			// TODO: \r\n\t
+			if s[0] == '\\' {
+				// Parse the byte value...
+				bval := s[1:3]
+				bv, err := strconv.ParseInt(bval, 16, 32)
+				if err != nil {
+					return err
+				}
+				e.Data = append(e.Data, byte(bv))
+				s = s[3:]
+			} else {
+				e.Data = append(e.Data, byte(s[0]))
+				s = s[1:]
+			}
+		}
+	} else {
+		// Assume it's a number...
+		length, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		e.Data = make([]byte, length)
+	}
+
 	return nil
 }

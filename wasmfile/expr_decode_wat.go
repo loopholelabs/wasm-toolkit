@@ -18,6 +18,7 @@ package wasmfile
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -253,12 +254,15 @@ func (e *Expression) DecodeWat(s string) error {
 			return err
 		*/
 	} else if opcode == "i32.const" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			value := fmt.Sprintf(" %d", e.I32Value)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		s = strings.Trim(s, Whitespace)
+		v, _ := ReadToken(s)
+		vv, err := strconv.Atoi(v)
+		if err != nil {
 			return err
-		*/
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.I32Value = int32(vv)
+		return nil
 	} else if opcode == "i64.const" {
 		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
