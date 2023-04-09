@@ -1,12 +1,19 @@
-# Wasm toolkit
+# Wasm trace
 
-Pre-requisites: Make sure you have wat2wasm and wasm2wat from webt https://github.com/WebAssembly/wabt
+1. Run `./add_debug.sh <wasmfile>` to create a debug version of the wasm file. This inserts host callbacks.
 
+2. Run the new wasm file and observe STDERR
 
-## debugger
+## Features
 
-Can be used to modify a wasm file to add debug trace logging. Currently it requires a host with the correct calls, but later it will be done within the wasm and sent to wasi/stderr
+* Full trace of all function calls within the wasm file
 
-## linker
+* Shows all parameters and return values
 
-Can be used to link 2 wasm files into a single wasm file. This is a work in progress. Most things work, but there's some more work to be done.
+* Shows dwarf line number / source file information
+
+* Monitors execution time and shows summary at the end of expensive functions
+
+## TODO
+
+* Use dwarf debug info on parameters
