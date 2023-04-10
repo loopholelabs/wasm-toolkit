@@ -42,6 +42,8 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		e.Opcode == instrToOpcode["return"] ||
 		e.Opcode == instrToOpcode["drop"] ||
 		e.Opcode == instrToOpcode["select"] ||
+		e.Opcode == instrToOpcode["end"] ||
+		e.Opcode == instrToOpcode["else"] ||
 		e.Opcode == instrToOpcode["i32.eqz"] ||
 		e.Opcode == instrToOpcode["i32.eq"] ||
 		e.Opcode == instrToOpcode["i32.ne"] ||
@@ -243,14 +245,16 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))
 
-		for _, ie := range e.InnerExpression {
-			err = ie.EncodeWat(wr, fmt.Sprintf("%s%s", prefix, "    "), wf)
-			if err != nil {
-				return err
+		if e.InnerExpression != nil {
+			for _, ie := range e.InnerExpression {
+				err = ie.EncodeWat(wr, fmt.Sprintf("%s%s", prefix, "    "), wf)
+				if err != nil {
+					return err
+				}
 			}
-		}
 
-		_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "end"))
+			_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "end"))
+		}
 		return err
 	} else if e.Opcode == instrToOpcode["i32.const"] {
 		value := fmt.Sprintf(" %d", e.I32Value)

@@ -247,8 +247,20 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 				if err != nil {
 					return err
 				}
-				e.MemAlign = v
-
+				if v == 1 {
+					e.MemAlign = 0
+				} else if v == 2 {
+					e.MemAlign = 1
+				} else if v == 4 {
+					e.MemAlign = 2
+				} else if v == 8 {
+					e.MemAlign = 3
+				} else if v == 16 {
+					e.MemAlign = 4
+				} else {
+					return fmt.Errorf("Invalid align %d", v)
+				}
+				return nil
 			} else if strings.HasPrefix(t, "offset=") {
 				v, err := strconv.Atoi(t[7:])
 				if err != nil {
@@ -270,6 +282,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		opcode == "else" ||
 		opcode == "end" {
 		e.Opcode = instrToOpcode[opcode]
+		e.Result = ValNone
 		// Optional result type...
 		s = strings.Trim(s, Whitespace)
 		if len(s) == 0 {
@@ -320,7 +333,6 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		e.Opcode = instrToOpcode[opcode]
 		e.F32Value = float32(vv)
 		return nil
-
 	} else if opcode == "f64.const" {
 		s = strings.Trim(s, Whitespace)
 		v, _ := ReadToken(s)

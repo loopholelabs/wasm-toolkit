@@ -31,6 +31,8 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 		e.Opcode == instrToOpcode["return"] ||
 		e.Opcode == instrToOpcode["drop"] ||
 		e.Opcode == instrToOpcode["select"] ||
+		e.Opcode == instrToOpcode["end"] ||
+		e.Opcode == instrToOpcode["else"] ||
 		e.Opcode == instrToOpcode["i32.eqz"] ||
 		e.Opcode == instrToOpcode["i32.eq"] ||
 		e.Opcode == instrToOpcode["i32.ne"] ||
@@ -237,14 +239,16 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 			return err
 		}
 
-		for _, ie := range e.InnerExpression {
-			err = ie.EncodeBinary(w)
-			if err != nil {
-				return err
+		if e.InnerExpression != nil {
+			for _, ie := range e.InnerExpression {
+				err = ie.EncodeBinary(w)
+				if err != nil {
+					return err
+				}
 			}
-		}
 
-		_, err = w.Write([]byte{byte(instrToOpcode["end"])})
+			_, err = w.Write([]byte{byte(instrToOpcode["end"])})
+		}
 		return err
 	} else if e.Opcode == instrToOpcode["i32.const"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -78,12 +79,75 @@ func main() {
 		panic(err)
 	}
 
+	// Do a second test from the wat file...
+
+	outputWasm2 := "output2.wasm"
+	outputWat2 := "output2.wat"
+
 	fmt.Printf("Checking up wat file %s\n", outputWat)
-	_, err = wasmfile.NewFromWat(outputWat)
+	wf2, err := wasmfile.NewFromWat(outputWat)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Writing wasm out to %s...\n", outputWasm2)
+	f2, err := os.Create(outputWasm2)
+	if err != nil {
+		panic(err)
+	}
+
+	err = wf2.EncodeBinary(f2)
+	if err != nil {
+		panic(err)
+	}
+
+	err = f2.Close()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Writing wat out to %s...\n", outputWat2)
+	watf2, err := os.Create(outputWat2)
+	if err != nil {
+		panic(err)
+	}
+
+	err = wf2.EncodeWat(watf2)
+	if err != nil {
+		panic(err)
+	}
+
+	err = watf2.Close()
 	if err != nil {
 		panic(err)
 	}
 
 	// TODO: Verify wfile2
+
+	// Compare the code...
+	for idx, c1 := range wfile.Code {
+		c2 := wf2.Code[idx]
+
+		var buf1 bytes.Buffer
+		c1.EncodeBinary(&buf1)
+		var buf2 bytes.Buffer
+		c2.EncodeBinary(&buf2)
+
+		data1 := buf1.Bytes()
+		data2 := buf2.Bytes()
+
+		var issue = false
+		for i, b1 := range data1 {
+			b2 := data2[i]
+			if b1 != b2 {
+				issue = true
+				break
+			}
+		}
+
+		if issue {
+			fmt.Printf("Differs %d %x %x\n", idx, data1, data2)
+		}
+	}
 
 }

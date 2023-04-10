@@ -42,17 +42,17 @@ func (wf *WasmFile) LookupGlobalID(n string) int {
 }
 
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
-	idx := len(wf.functionNames) + 1
+	idx := len(wf.functionNames)
 	wf.functionNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextGlobalName(n string) {
-	idx := len(wf.globalNames) + 1
+	idx := len(wf.globalNames)
 	wf.globalNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextDataName(n string) {
-	idx := len(wf.dataNames) + 1
+	idx := len(wf.dataNames)
 	wf.dataNames[idx] = n
 }
 
@@ -332,7 +332,9 @@ func (e *ImportEntry) DecodeWat(d string, wf *WasmFile) error {
 	s := strings.TrimLeft(d[7:len(d)-1], Whitespace)
 
 	e.Module, s = ReadString(s)
+	e.Module = e.Module[1 : len(e.Module)-1]
 	e.Name, s = ReadString(s)
+	e.Name = e.Name[1 : len(e.Name)-1]
 
 	var idata, typedata, tdata string
 	idata, s = ReadElement(s)
@@ -508,6 +510,8 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 		}
 	}
 
+	// TODO: Restructure the Expression to use InnerExpression where it should...
+
 	return nil
 }
 
@@ -548,6 +552,7 @@ func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
 	s := strings.TrimLeft(d[7:len(d)-1], Whitespace)
 
 	e.Name, s = ReadString(s)
+	e.Name = e.Name[1 : len(e.Name)-1]
 	s = strings.Trim(s, Whitespace)
 	el, _ := ReadElement(s)
 	etype, erest := ReadToken(el[1:])
