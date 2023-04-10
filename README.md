@@ -3,7 +3,7 @@
 ## Features
 
 * Encoding and decoding from `.wasm` binary (99% done)
-* Encoding and decoding from `.wat` text (50% done)
+* Encoding and decoding from `.wat` text (99% done)
 
 ## TODO
 
