@@ -17,6 +17,7 @@
 package wasmfile
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -172,24 +173,39 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		e.Opcode = instrToOpcode[opcode]
 		return nil
 	} else if opcode == "br_table" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			targets := ""
-			for _, l := range e.Labels {
-				targets = fmt.Sprintf("%s %d", targets, l)
+		e.Opcode = instrToOpcode[opcode]
+		e.Labels = make([]int, 0)
+		var err error
+		var br_target string
+		var li int
+		for {
+			s = strings.Trim(s, Whitespace)
+			if len(s) == 0 || strings.HasPrefix(s, ";;") {
+				break
 			}
-			defaultTarget := fmt.Sprintf(" %d", e.LabelIndex)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], targets, defaultTarget, comment))
-			return err
-		*/
+			br_target, s = ReadToken(s)
+			li, err = strconv.Atoi(br_target)
+			if err != nil {
+				return err
+			}
+			e.Labels = append(e.Labels, li)
+		}
+
+		// Remove the last label and put it into default
+		e.LabelIndex = e.Labels[len(e.Labels)-1]
+		e.Labels = e.Labels[:len(e.Labels)-1]
+		return nil
 	} else if opcode == "br" ||
 		opcode == "br_if" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			target := fmt.Sprintf(" %d", e.LabelIndex)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], target, comment))
+		e.Opcode = instrToOpcode[opcode]
+		var err error
+		var br_target string
+		br_target, s = ReadToken(s)
+		e.LabelIndex, err = strconv.Atoi(br_target)
+		if err != nil {
 			return err
-		*/
+		}
+		return nil
 	} else if opcode == "i32.load" ||
 		opcode == "i64.load" ||
 		opcode == "f32.load" ||
@@ -213,46 +229,67 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		opcode == "i64.store8" ||
 		opcode == "i64.store16" ||
 		opcode == "i64.store32" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			modAlign := fmt.Sprintf(" align=%d", 1<<e.MemAlign)
-			modOffset := fmt.Sprintf(" offset=%d", e.MemOffset)
-			if e.MemOffset == 0 {
-				modOffset = ""
+		e.Opcode = instrToOpcode[opcode]
+		for {
+			var t string
+			s = strings.Trim(s, Whitespace)
+			if len(s) == 0 {
+				break
 			}
-			// TODO: Default align?
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], modOffset, modAlign, comment))
-			return err
-		*/
-	} else if opcode == "memory.size" ||
-		opcode == "memory.grow" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s\n", prefix, opcodeToInstr[e.Opcode], comment))
-			return err
-		*/
-	} else if opcode == "block" ||
-		opcode == "if" ||
-		opcode == "loop" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			result := ""
-			if e.Result != ValNone {
-				result = fmt.Sprintf(" (result %s)", byteToValType[e.Result])
+			if strings.HasPrefix(s, ";;") {
+				break
 			}
-
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))
-
-			for _, ie := range e.InnerExpression {
-				err = ie.EncodeWat(wr, fmt.Sprintf("%s%s", prefix, "    "), wf)
+			t, s = ReadToken(s)
+			// Optional align=<V>
+			// Optional offset=<V>
+			if strings.HasPrefix(t, "align=") {
+				v, err := strconv.Atoi(t[6:])
 				if err != nil {
 					return err
 				}
-			}
+				e.MemAlign = v
 
-			_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "end"))
-			return err
-		*/
+			} else if strings.HasPrefix(t, "offset=") {
+				v, err := strconv.Atoi(t[7:])
+				if err != nil {
+					return err
+				}
+				e.MemOffset = v
+			} else {
+				return errors.New("Error parsing memory operands")
+			}
+		}
+		return nil
+	} else if opcode == "memory.size" ||
+		opcode == "memory.grow" {
+		e.Opcode = instrToOpcode[opcode]
+		return nil
+	} else if opcode == "block" ||
+		opcode == "if" ||
+		opcode == "loop" ||
+		opcode == "else" ||
+		opcode == "end" {
+		e.Opcode = instrToOpcode[opcode]
+		// Optional result type...
+		s = strings.Trim(s, Whitespace)
+		if len(s) == 0 {
+			return nil
+		}
+		if s[0] == '(' {
+			// eg (result i32)
+			var ok bool
+			var rtype string
+			rtype, s = ReadElement(s)
+			if strings.HasPrefix(rtype, "(result") {
+				rtype = strings.Trim(rtype[7:len(rtype)-1], Whitespace)
+				e.Result, ok = valTypeToByte[rtype]
+				if !ok {
+					return errors.New("Error parsing block result")
+				}
+			}
+		}
+		// We can optimise/deal with this later... (InnerExpression)
+		return nil
 	} else if opcode == "i32.const" {
 		s = strings.Trim(s, Whitespace)
 		v, _ := ReadToken(s)
@@ -264,48 +301,71 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		e.I32Value = int32(vv)
 		return nil
 	} else if opcode == "i64.const" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			value := fmt.Sprintf(" %d", e.I64Value)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		s = strings.Trim(s, Whitespace)
+		v, _ := ReadToken(s)
+		vv, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
 			return err
-		*/
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.I64Value = int64(vv)
+		return nil
 	} else if opcode == "f32.const" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			value := fmt.Sprintf(" %f", e.F32Value)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		s = strings.Trim(s, Whitespace)
+		v, _ := ReadToken(s)
+		vv, err := strconv.ParseFloat(v, 32)
+		if err != nil {
 			return err
-		*/
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.F32Value = float32(vv)
+		return nil
+
 	} else if opcode == "f64.const" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			value := fmt.Sprintf(" %f", e.F64Value)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
+		s = strings.Trim(s, Whitespace)
+		v, _ := ReadToken(s)
+		vv, err := strconv.ParseFloat(v, 64)
+		if err != nil {
 			return err
-		*/
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.F64Value = float64(vv)
+		return nil
 	} else if opcode == "local.get" ||
 		opcode == "local.set" ||
 		opcode == "local.tee" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			tname := wf.GetLocalVarName(e.PC, e.LocalIndex)
-			if tname != "" {
-				comment = comment + " ;; Variable " + tname
-			}
-			localTarget := fmt.Sprintf(" %d", e.LocalIndex)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], localTarget, comment))
+		var target string
+		var lid int
+		var err error
+		target, s = ReadToken(s)
+		lid, err = strconv.Atoi(target)
+		if err != nil {
 			return err
-		*/
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.LocalIndex = lid
+		return nil
 	} else if opcode == "global.get" ||
 		opcode == "global.set" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			g := wf.GetGlobalIdentifier(e.GlobalIndex)
-			globalTarget := fmt.Sprintf(" %s", g)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
-			return err
-		*/
+		var target string
+		var fid int
+		var err error
+		target, s = ReadToken(s)
+		if target[0] == '$' {
+			// Lookup the function and get the ID
+			fid = wf.LookupGlobalID(target)
+			if fid == -1 {
+				return fmt.Errorf("Global target not found (%s)", target)
+			}
+		} else {
+			fid, err = strconv.Atoi(target)
+			if err != nil {
+				return err
+			}
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.FuncIndex = fid
+		return nil
 	} else if opcode == "call" {
 		var target string
 		var fid int
@@ -327,12 +387,23 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		e.FuncIndex = fid
 		return nil
 	} else if opcode == "call_indirect" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			typeIndex := fmt.Sprintf(" (type %d)", e.TypeIndex)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], typeIndex, comment))
-			return err
-		*/
+		e.Opcode = instrToOpcode[opcode]
+		s = strings.Trim(s, Whitespace)
+		if s[0] == '(' {
+			typeInfo, _ := ReadElement(s)
+			if strings.HasPrefix(typeInfo, "(type") {
+				typeInfo = strings.Trim(typeInfo[5:len(typeInfo)-1], Whitespace)
+				var err error
+				e.TypeIndex, err = strconv.Atoi(typeInfo)
+				if err != nil {
+					return err
+				}
+			} else {
+				return errors.New("Error parsing call_indirect")
+			}
+		} else {
+			return errors.New("Error parsing call_indirect")
+		}
 	} else if opcode == "memory.copy" {
 		e.Opcode = ExtendedOpcodeFC
 		e.OpcodeExt = instrToOpcodeFC[opcode]

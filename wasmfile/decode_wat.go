@@ -32,18 +32,27 @@ func (wf *WasmFile) LookupFunctionID(n string) int {
 	return -1
 }
 
+func (wf *WasmFile) LookupGlobalID(n string) int {
+	for idx, name := range wf.globalNames {
+		if n == name {
+			return idx
+		}
+	}
+	return -1
+}
+
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
-	idx := len(wf.Function) + 1
+	idx := len(wf.functionNames) + 1
 	wf.functionNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextGlobalName(n string) {
-	idx := len(wf.Global) + 1
+	idx := len(wf.globalNames) + 1
 	wf.globalNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextDataName(n string) {
-	idx := len(wf.Data) + 1
+	idx := len(wf.dataNames) + 1
 	wf.dataNames[idx] = n
 }
 
@@ -128,7 +137,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 			wf.Global = append(wf.Global, ge)
 		} else if eType == "import" {
 			ie := &ImportEntry{}
-			err = ie.DecodeWat(e)
+			err = ie.DecodeWat(e, wf)
 			wf.Import = append(wf.Import, ie)
 		} else if eType == "memory" {
 			ee := &MemoryEntry{}
@@ -316,7 +325,7 @@ func (e *MemoryEntry) DecodeWat(d string) error {
 	return nil
 }
 
-func (e *ImportEntry) DecodeWat(d string) error {
+func (e *ImportEntry) DecodeWat(d string, wf *WasmFile) error {
 	//  (import "wasi_snapshot_preview1" "fd_write" (func $runtime.fd_write (type 0)))
 	var err error
 
@@ -332,8 +341,10 @@ func (e *ImportEntry) DecodeWat(d string) error {
 		idata = strings.Trim(idata[5:len(idata)-1], Whitespace)
 		// Read the (optional) function name ID
 		if idata[0] != '(' {
-			_, idata = ReadToken(idata)
+			var fname string
+			fname, idata = ReadToken(idata)
 			idata = strings.Trim(idata, Whitespace)
+			wf.RegisterNextFunctionName(fname)
 		}
 		// Now read the type...
 		typedata, _ = ReadElement(idata)
