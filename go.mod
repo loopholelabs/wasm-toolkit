@@ -1,4 +1,4 @@
-module github.com/loopholelabs/wasm-lnkr
+module github.com/loopholelabs/wasm-toolkit
 
 go 1.20
 
