@@ -31,11 +31,18 @@ var (
 	}
 )
 
+var Input string
+
 func init() {
 	rootCmd.AddCommand(cmdWasm2Wat)
+	cmdWasm2Wat.Flags().StringVarP(&Input, "input", "i", "", "Input file name")
 }
 
 func runWasm2Wat(ccmd *cobra.Command, args []string) {
+	if Input == "" {
+		panic("No input file")
+	}
 	// executes what cmdOne is supposed to do
-	fmt.Printf("Wasm2wat...\n")
+	fmt.Printf("Wasm2wat...%s \n", Input)
+
 }
