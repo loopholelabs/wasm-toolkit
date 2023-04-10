@@ -123,6 +123,31 @@ func main() {
 	}
 
 	// TODO: Verify wfile2
+	for idx, f1 := range wfile.Table {
+		f2 := wf2.Table[idx]
+
+		var buf1 bytes.Buffer
+		f1.EncodeBinary(&buf1)
+		var buf2 bytes.Buffer
+		f2.EncodeBinary(&buf2)
+
+		data1 := buf1.Bytes()
+		data2 := buf2.Bytes()
+
+		var issue = false
+		for i, b1 := range data1 {
+			b2 := data2[i]
+			if b1 != b2 {
+				issue = true
+				break
+			}
+		}
+
+		if issue {
+			fmt.Printf("Differs %d %x %x\n", idx, data1, data2)
+		}
+
+	}
 
 	// Compare the code...
 	for idx, c1 := range wfile.Code {

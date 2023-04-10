@@ -294,6 +294,7 @@ func (e *TableEntry) DecodeWat(d string) error {
 	if tabtype != "funcref" {
 		return errors.New("Only table funcref supported atm")
 	}
+	e.TableType = TableTypeFuncref
 	return nil
 }
 
