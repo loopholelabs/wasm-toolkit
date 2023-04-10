@@ -83,6 +83,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	// Now read all the individual elements from within the module...
 
 	text = text[len(moduleType)+1:]
+	bodytext := text // Save it for a second pass
 
 	for {
 		text = strings.TrimLeft(text, Whitespace) // Skip to next bit
@@ -117,17 +118,10 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 			ee := &ElemEntry{}
 			err = ee.DecodeWat(e, wf)
 			wf.Elem = append(wf.Elem, ee)
-		} else if eType == "export" {
-			ee := &ExportEntry{}
-			err = ee.DecodeWat(e, wf)
-			wf.Export = append(wf.Export, ee)
 		} else if eType == "func" {
 			ee := &FunctionEntry{}
 			err = ee.DecodeWat(e, wf)
 			wf.Function = append(wf.Function, ee)
-			ce := &CodeEntry{}
-			err = ce.DecodeWat(e)
-			wf.Code = append(wf.Code, ce)
 		} else if eType == "global" {
 			ge := &GlobalEntry{}
 			err = ge.DecodeWat(e, wf)
@@ -148,6 +142,8 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 			ee := &TypeEntry{}
 			err = ee.DecodeWat(e)
 			wf.Type = append(wf.Type, ee)
+		} else if eType == "export" {
+			// Deal with it in 2nd pass
 		} else {
 			panic(fmt.Sprintf("Unknown element \"%s\"", eType))
 		}
@@ -158,6 +154,52 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 		// Skip over this element
 		text = text[len(e):]
 	}
+
+	// Second pass
+	text = bodytext
+
+	for {
+		text = strings.TrimLeft(text, Whitespace) // Skip to next bit
+		// End of the module?
+		if text[0] == ')' {
+			break
+		}
+
+		// Skip any single line comments
+		for {
+			if strings.HasPrefix(text, ";;") {
+				// Skip to end of line
+				p := strings.Index(text, "\n")
+				if p == -1 {
+					panic("TODO: Comment without newline")
+				}
+				text = text[p+1:]
+				text = strings.TrimLeft(text, Whitespace) // Skip to next bit
+			} else {
+				break
+			}
+		}
+
+		e, _ := ReadElement(text)
+		eType, _ := ReadToken(e[1:])
+
+		if eType == "export" {
+			ee := &ExportEntry{}
+			err = ee.DecodeWat(e, wf)
+			wf.Export = append(wf.Export, ee)
+		} else if eType == "func" {
+			ce := &CodeEntry{}
+			err = ce.DecodeWat(e, wf)
+			wf.Code = append(wf.Code, ce)
+		}
+		if err != nil {
+			return err
+		}
+
+		// Skip over this element
+		text = text[len(e):]
+	}
+
 	return nil
 }
 
@@ -354,7 +396,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 	// TODO: Support proper expressions. For now we only support a single instruction
 	e.Expression = make([]*Expression, 0)
 	ex := &Expression{}
-	err := ex.DecodeWat(expr)
+	err := ex.DecodeWat(expr, wf)
 	if err != nil {
 		return err
 	}
@@ -363,7 +405,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 	return nil
 }
 
-func (e *CodeEntry) DecodeWat(d string) error {
+func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 	e.Locals = make([]ValType, 0)
 
 	s := strings.Trim(d[5:len(d)-1], Whitespace)
@@ -376,8 +418,17 @@ func (e *CodeEntry) DecodeWat(d string) error {
 	localNames := make(map[int]string)
 
 	for {
+		// Skip comments...
+
 		s = strings.Trim(s, Whitespace)
-		if s[0] == '(' {
+		if strings.HasPrefix(s, ";;") {
+			// Skip this line
+			line_end := strings.Index(s, "\n")
+			if line_end == -1 {
+				return nil // All done?
+			}
+			s = s[line_end:]
+		} else if s[0] == '(' {
 			var el string
 			el, s = ReadElement(s)
 			eType, _ := ReadToken(el[1:])
@@ -438,7 +489,7 @@ func (e *CodeEntry) DecodeWat(d string) error {
 
 		if len(ecode) > 0 {
 			newe := &Expression{}
-			err := newe.DecodeWat(ecode)
+			err := newe.DecodeWat(ecode, wf)
 			if err != nil {
 				return err
 			}
@@ -535,7 +586,7 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 	// TODO: Support proper expressions. For now we only support a single instruction
 	e.Offset = make([]*Expression, 0)
 	ex := &Expression{}
-	err := ex.DecodeWat(expr)
+	err := ex.DecodeWat(expr, wf)
 	if err != nil {
 		return err
 	}
@@ -595,7 +646,7 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 		// TODO: Support proper expressions. For now we only support a single instruction
 		e.Offset = make([]*Expression, 0)
 		ex := &Expression{}
-		err := ex.DecodeWat(expr)
+		err := ex.DecodeWat(expr, wf)
 		if err != nil {
 			return err
 		}

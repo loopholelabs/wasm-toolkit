@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-func (e *Expression) DecodeWat(s string) error {
+func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 	s = SkipComment(s)
 	s = strings.Trim(s, Whitespace)
 
@@ -307,13 +307,25 @@ func (e *Expression) DecodeWat(s string) error {
 			return err
 		*/
 	} else if opcode == "call" {
-		return fmt.Errorf("TODO: expression %s", opcode)
-		/*
-			f := wf.GetFunctionIdentifier(e.FuncIndex)
-			callTarget := fmt.Sprintf(" %s", f)
-			_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], callTarget, comment))
-			return err
-		*/
+		var target string
+		var fid int
+		var err error
+		target, s = ReadToken(s)
+		if target[0] == '$' {
+			// Lookup the function and get the ID
+			fid = wf.LookupFunctionID(target)
+			if fid == -1 {
+				return fmt.Errorf("Function call target not found (%s)", target)
+			}
+		} else {
+			fid, err = strconv.Atoi(target)
+			if err != nil {
+				return err
+			}
+		}
+		e.Opcode = instrToOpcode[opcode]
+		e.FuncIndex = fid
+		return nil
 	} else if opcode == "call_indirect" {
 		return fmt.Errorf("TODO: expression %s", opcode)
 		/*
