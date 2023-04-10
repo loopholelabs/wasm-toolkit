@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/loopholelabs/wasm-lnkr/wasmfile"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 )
 
 func main() {
