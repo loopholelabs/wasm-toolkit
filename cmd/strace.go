@@ -26,21 +26,21 @@ import (
 )
 
 var (
-	cmdWasm2Wat = &cobra.Command{
-		Use:   "wasm2wat",
-		Short: "Use wasm2wat to translate a wasm file to wat",
-		Long:  `This will include any dwarf debug information available.`,
-		Run:   runWasm2Wat,
+	cmdStrace = &cobra.Command{
+		Use:   "strace",
+		Short: "Use strace to add tracing output to as wasm file",
+		Long:  `This will output debug info to STDERR`,
+		Run:   runStrace,
 	}
 )
 
 func init() {
-	rootCmd.AddCommand(cmdWasm2Wat)
-	cmdWasm2Wat.Flags().StringVarP(&Input, "input", "i", "", "Input file name")
-	cmdWasm2Wat.Flags().StringVarP(&Output, "output", "o", "output.wat", "Output file name")
+	rootCmd.AddCommand(cmdStrace)
+	cmdStrace.Flags().StringVarP(&Input, "input", "i", "", "Input file name")
+	cmdStrace.Flags().StringVarP(&Output, "output", "o", "output.wasm", "Output file name")
 }
 
-func runWasm2Wat(ccmd *cobra.Command, args []string) {
+func runStrace(ccmd *cobra.Command, args []string) {
 	if Input == "" {
 		panic("No input file")
 	}
@@ -75,13 +75,15 @@ func runWasm2Wat(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
+	// TODO: Add the tracing information...
+
 	fmt.Printf("Writing wat out to %s...\n", Output)
 	f, err := os.Create(Output)
 	if err != nil {
 		panic(err)
 	}
 
-	err = wfile.EncodeWat(f)
+	err = wfile.EncodeBinary(f)
 	if err != nil {
 		panic(err)
 	}

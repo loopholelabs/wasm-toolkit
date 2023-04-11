@@ -28,6 +28,9 @@ var (
 	}
 )
 
+var Input string
+var Output string
+
 func Execute() error {
 	return rootCmd.Execute()
 }
