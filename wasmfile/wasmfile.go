@@ -74,12 +74,14 @@ func init() {
 	ValTypeToByte["i64"] = ValI64
 	ValTypeToByte["f32"] = ValF32
 	ValTypeToByte["f64"] = ValF64
+	ValTypeToByte["none"] = ValNone
 
 	ByteToValType = make(map[ValType]string)
 	ByteToValType[ValI32] = "i32"
 	ByteToValType[ValI64] = "i64"
 	ByteToValType[ValF32] = "f32"
 	ByteToValType[ValF64] = "f64"
+	ByteToValType[ValNone] = "none"
 }
 
 const (
@@ -479,6 +481,16 @@ func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
 		adjustedExpression = append(adjustedExpression, e)
 	}
 	ce.Expression = adjustedExpression
+	return nil
+}
+
+func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
+	newex, err := wf.ExpressionFromWat(to)
+	if err != nil {
+		return err
+	}
+
+	ce.Expression = append(ce.Expression, newex...)
 	return nil
 }
 

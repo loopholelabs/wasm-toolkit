@@ -126,9 +126,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
 			}
 
-			// For now
-			blockInstr = ""
-
 			// Create some useful data...
 			wfile.AddData(fmt.Sprintf("$function_name_%d", functionIndex), []byte(wfile.GetFunctionIdentifier(functionIndex, false)))
 
@@ -158,6 +155,28 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			if err != nil {
 				panic(err)
 			}
+
+			rt := wasmfile.ValNone
+			if len(t.Result) == 1 {
+				rt = t.Result[0]
+			}
+
+			endCode := fmt.Sprintf(`i32.const %d
+			i32.const offset($function_name_%d)
+			i32.const length($function_name_%d)
+			call $debug_exit_func
+			call $debug_exit_func_%s`, functionIndex, functionIndex, functionIndex, wasmfile.ByteToValType[rt])
+
+			err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
+			if err != nil {
+				panic(err)
+			}
+
+			err = c.InsertFuncEnd(wfile, "end\n"+endCode)
+			if err != nil {
+				panic(err)
+			}
+
 		} else {
 			// Do any relocation adjustments...
 			err = c.InsertAfterRelocating(wfile, `global.get $debug_start_mem
