@@ -8,10 +8,10 @@
 ## Quickstart
 
 * wasm2wat - `./wasm-toolkit wasm2wat -i something.wasm -o something.wat`
+* strace - `./wasm-toolkit strace -i something.wasm -o something-with-strace-stderr.wasm`
 
 ## TODO
 
-* Easy ways to hook/wrap instructions, calls
-* Add function entry/exit code
-* Data relocation
-* wat extensions such as `offset` and `length` of data
+* Add function timings and summary output
+* Add import func wrapping
+* Add dwarf debug info
