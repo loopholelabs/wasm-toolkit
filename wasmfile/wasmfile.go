@@ -453,7 +453,13 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 	for _, e := range ce.Expression {
 		var buf bytes.Buffer
 		e.EncodeWat(&buf, "", wf)
-		if strings.Trim(buf.String(), Whitespace) == from {
+		cd := buf.String()
+		cend := strings.Index(cd, ";;")
+		if cend != -1 {
+			cd = cd[:cend]
+		}
+
+		if strings.Trim(cd, Whitespace) == from {
 			// Replace it!
 			for _, ne := range newex {
 				adjustedExpression = append(adjustedExpression, ne)

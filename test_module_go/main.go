@@ -19,17 +19,17 @@ func hello() {
 }
 
 //go:noinline
-func exampleFunction(x int32, y int32) int32 {
+func exampleFunction(x_value int32, y_value int32) int32 {
 	var zoobs int32 = 45
-	if x == 0 {
+	if x_value == 0 {
 		return -1
 	}
-	if y == 0 {
+	if y_value == 0 {
 		return -2
 	}
-	if x > 44 {
+	if x_value > 44 {
 		zoobs = 1
 	}
 
-	return x * y * zoobs
+	return x_value * y_value * zoobs
 }
