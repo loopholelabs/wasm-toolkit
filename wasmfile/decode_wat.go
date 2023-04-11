@@ -234,7 +234,7 @@ func (e *TypeEntry) DecodeWat(d string) error {
 						break
 					}
 					ptype, el = ReadToken(el)
-					b, ok := valTypeToByte[ptype]
+					b, ok := ValTypeToByte[ptype]
 					if !ok {
 						return fmt.Errorf("Unknown param type (%s)", ptype)
 					}
@@ -243,7 +243,7 @@ func (e *TypeEntry) DecodeWat(d string) error {
 			} else if strings.HasPrefix(el, "(result ") {
 				// atm we only support one return type.
 				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
-				b, ok := valTypeToByte[rtype]
+				b, ok := ValTypeToByte[rtype]
 				if !ok {
 					return fmt.Errorf("Unknown result type (%s)", rtype)
 				}
@@ -389,7 +389,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 		e.Mut = 0
 	}
 
-	e.Type, ok = valTypeToByte[ty]
+	e.Type, ok = ValTypeToByte[ty]
 	if !ok {
 		return fmt.Errorf("Invalid type in global %s", ty)
 	}
@@ -483,13 +483,13 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 						// preRegister a name
 						localNames[tok] = localIndex
 					} else {
-						l, ok := valTypeToByte[tok]
+						l, ok := ValTypeToByte[tok]
 						if !ok {
 							return fmt.Errorf("Invalid local type %s", tok)
 						}
 						e.Locals = append(e.Locals, l)
+						localIndex++
 					}
-					localIndex++
 				}
 			}
 		} else {
@@ -576,7 +576,7 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 						break
 					}
 					ptype, el = ReadToken(el)
-					b, ok := valTypeToByte[ptype]
+					b, ok := ValTypeToByte[ptype]
 					if !ok {
 						return fmt.Errorf("Unknown param type (%s)", ptype)
 					}
@@ -585,7 +585,7 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 			} else if strings.HasPrefix(el, "(result ") {
 				// atm we only support one return type.
 				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
-				b, ok := valTypeToByte[rtype]
+				b, ok := ValTypeToByte[rtype]
 				if !ok {
 					return fmt.Errorf("Unknown result type (%s)", rtype)
 				}
@@ -735,12 +735,15 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 		}
 		e.Offset = append(e.Offset, ex)
 	} else {
-		// Assume this data should go right after the last bit of data...
+		// Assume this data should go right after the last bit of data... (Aligned)
 		data_ptr := int32(0)
 		if len(wf.Data) > 0 {
 			prev := wf.Data[len(wf.Data)-1]
 			data_ptr = prev.Offset[0].I32Value + int32(len(prev.Data))
 		}
+
+		// Align it...
+		data_ptr = (data_ptr + 3) & -4
 
 		e.Offset = []*Expression{
 			{

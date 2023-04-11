@@ -40,7 +40,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(t.Param) > 0 {
 			params = " (param"
 			for _, p := range t.Param {
-				params = params + " " + byteToValType[p]
+				params = params + " " + ByteToValType[p]
 			}
 			params = params + ")"
 		}
@@ -48,7 +48,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(t.Result) > 0 {
 			results = " (result"
 			for _, p := range t.Result {
-				results = results + " " + byteToValType[p]
+				results = results + " " + ByteToValType[p]
 			}
 			results = results + ")"
 		}
@@ -84,7 +84,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	// #### Write out Global
 	for index, g := range wf.Global {
-		t := byteToValType[g.Type]
+		t := ByteToValType[g.Type]
 		if g.Mut == 0x01 {
 			t = fmt.Sprintf("(mut %s)", t)
 		}
@@ -153,14 +153,14 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 					comment = " ;; " + vname
 				}
 
-				params = fmt.Sprintf("%s\n        (param %s)%s", params, byteToValType[p], comment)
+				params = fmt.Sprintf("%s\n        (param %s)%s", params, ByteToValType[p], comment)
 			}
 		}
 
 		if len(typedata.Result) > 0 {
 			results = "        (result"
 			for _, p := range typedata.Result {
-				results = results + " " + byteToValType[p]
+				results = results + " " + ByteToValType[p]
 			}
 			results = results + ")\n"
 		}
@@ -177,7 +177,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		// Write out locals...
 		for _, l := range code.Locals {
-			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", byteToValType[l]))
+			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", ByteToValType[l]))
 			if err != nil {
 				return err
 			}

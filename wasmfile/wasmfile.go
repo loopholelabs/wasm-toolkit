@@ -65,21 +65,21 @@ const (
 	ValNone ValType = 0x40
 )
 
-var valTypeToByte map[string]ValType
-var byteToValType map[ValType]string
+var ValTypeToByte map[string]ValType
+var ByteToValType map[ValType]string
 
 func init() {
-	valTypeToByte = make(map[string]ValType)
-	valTypeToByte["i32"] = ValI32
-	valTypeToByte["i64"] = ValI64
-	valTypeToByte["f32"] = ValF32
-	valTypeToByte["f64"] = ValF64
+	ValTypeToByte = make(map[string]ValType)
+	ValTypeToByte["i32"] = ValI32
+	ValTypeToByte["i64"] = ValI64
+	ValTypeToByte["f32"] = ValF32
+	ValTypeToByte["f64"] = ValF64
 
-	byteToValType = make(map[ValType]string)
-	byteToValType[ValI32] = "i32"
-	byteToValType[ValI64] = "i64"
-	byteToValType[ValF32] = "f32"
-	byteToValType[ValF64] = "f64"
+	ByteToValType = make(map[ValType]string)
+	ByteToValType[ValI32] = "i32"
+	ByteToValType[ValI64] = "i64"
+	ByteToValType[ValF32] = "f32"
+	ByteToValType[ValF64] = "f64"
 }
 
 const (
@@ -268,8 +268,33 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 
 		wf.Data = append(wf.Data, d)
 		ptr += int32(len(d.Data))
+		ptr = (ptr + 3) & -4
 	}
 	return ptr
+}
+
+func (wf *WasmFile) AddData(name string, data []byte) {
+	ptr := int32(0)
+	if len(wf.Data) > 0 {
+		prev := wf.Data[len(wf.Data)-1]
+		ptr = prev.Offset[0].I32Value + int32(len(prev.Data))
+	}
+
+	// Align things...
+	ptr = (ptr + 3) & -4
+
+	idx := len(wf.Data)
+	wf.Data = append(wf.Data, &DataEntry{
+		MemIndex: 0,
+		Offset: []*Expression{
+			{
+				Opcode:   instrToOpcode["i32.const"],
+				I32Value: ptr,
+			},
+		},
+		Data: data,
+	})
+	wf.dataNames[idx] = name
 }
 
 func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
@@ -392,15 +417,33 @@ func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 	}
 }
 
-func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
+func (wf *WasmFile) ExpressionFromWat(d string) ([]*Expression, error) {
 	newex := make([]*Expression, 0)
-	// FIXME: Allow multiple lines of code here...
-	newe := &Expression{}
-	err := newe.DecodeWat(to, wf, nil)
+	lines := strings.Split(d, "\n")
+	for _, toline := range lines {
+		cptr := strings.Index(toline, ";;")
+		if cptr != -1 {
+			toline = toline[:cptr]
+		}
+		toline = strings.Trim(toline, Whitespace)
+		if len(toline) > 0 {
+			newe := &Expression{}
+			err := newe.DecodeWat(toline, wf, nil)
+			if err != nil {
+				return newex, err
+			}
+			newex = append(newex, newe)
+		}
+	}
+	return newex, nil
+}
+
+func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
+
+	newex, err := wf.ExpressionFromWat(to)
 	if err != nil {
 		return err
 	}
-	newex = append(newex, newe)
 
 	// Now we need to find where to replace this code...
 	adjustedExpression := make([]*Expression, 0)
@@ -421,15 +464,9 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 }
 
 func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
-	newex := make([]*Expression, 0)
-	lines := strings.Split(to, "\n")
-	for _, toline := range lines {
-		newe := &Expression{}
-		err := newe.DecodeWat(toline, wf, nil)
-		if err != nil {
-			return err
-		}
-		newex = append(newex, newe)
+	newex, err := wf.ExpressionFromWat(to)
+	if err != nil {
+		return err
 	}
 
 	// Now we need to find where to replace this code...
@@ -446,15 +483,9 @@ func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
 }
 
 func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
-	newex := make([]*Expression, 0)
-	lines := strings.Split(to, "\n")
-	for _, toline := range lines {
-		newe := &Expression{}
-		err := newe.DecodeWat(toline, wf, nil)
-		if err != nil {
-			return err
-		}
-		newex = append(newex, newe)
+	newex, err := wf.ExpressionFromWat(to)
+	if err != nil {
+		return err
 	}
 
 	// Now we need to find where to insert the code

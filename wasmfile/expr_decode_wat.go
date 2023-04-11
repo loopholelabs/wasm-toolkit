@@ -295,7 +295,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 			rtype, s = ReadElement(s)
 			if strings.HasPrefix(rtype, "(result") {
 				rtype = strings.Trim(rtype[7:len(rtype)-1], Whitespace)
-				e.Result, ok = valTypeToByte[rtype]
+				e.Result, ok = ValTypeToByte[rtype]
 				if !ok {
 					return errors.New("Error parsing block result")
 				}
@@ -318,7 +318,6 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 			if len(expr) != 1 || expr[0].Opcode != instrToOpcode["i32.const"] {
 				return errors.New("Can only deal with i32.const for now")
 			}
-			fmt.Printf("Lookup offset for %s %d %v\n", dname, did, expr)
 			e.I32Value = expr[0].I32Value
 			e.Relocating = true
 			return nil

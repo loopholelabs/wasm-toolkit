@@ -16,15 +16,18 @@
     drop
 
     global.get $debug_start_mem
-    global.get $debug_start_mem
     local.get 0
     i32.const 16
     i32.shl
     i32.add
+
+    global.get $debug_start_mem
+
     global.get $debug_mem_size
     i32.const 16
     i32.shl
-    memory.copy    
+
+    memory.copy
 
     global.get $debug_start_mem
     local.get 0

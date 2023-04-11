@@ -240,7 +240,7 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 
 		result := ""
 		if e.Result != ValNone {
-			result = fmt.Sprintf(" (result %s)", byteToValType[e.Result])
+			result = fmt.Sprintf(" (result %s)", ByteToValType[e.Result])
 		}
 
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))
