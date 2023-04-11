@@ -129,37 +129,37 @@
   ;; These two log functions get called before and after writes...
   (func $debug_log_write_pre (param $addr i32) (param $len i32)
 
-    i32.const offset.$debug_mem_access_start
+    i32.const offset($debug_mem_access_start)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_mem_access_start
+    i32.const length($debug_mem_access_start)
     call $debug_print
 
     ;; Print address
     local.get $addr
     call $db_format_i32_hex
 
-    i32.const offset.$db_number_i32
+    i32.const offset($db_number_i32)
     global.get $debug_start_mem
     i32.add
     i32.const 8
     ;;length.$db_number_i32
     call $debug_print
 
-    i32.const offset.$debug_single_sp
+    i32.const offset($debug_single_sp)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_single_sp
+    i32.const length($debug_single_sp)
     call $debug_print
 
     local.get $addr
     local.get $len
     call $show_bytes
 
-    i32.const offset.$debug_memory_change
+    i32.const offset($debug_memory_change)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_memory_change
+    i32.const length($debug_memory_change)
     call $debug_print
 
   )
@@ -170,10 +170,10 @@
     local.get $len
     call $show_bytes
 
-    i32.const offset.$debug_newline
+    i32.const offset($debug_newline)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_newline
+    i32.const length($debug_newline)
     call $debug_print
   )
 
@@ -188,10 +188,10 @@
     i32.eqz
     if
     else
-      i32.const offset.$debug_single_sp
+      i32.const offset($debug_single_sp)
       global.get $debug_start_mem
       i32.add
-      i32.const length.$debug_single_sp
+      i32.const length($debug_single_sp)
       call $debug_print
     end
 
@@ -204,7 +204,7 @@
     call $db_format_i32_hex
 
     ;; 00000000
-    i32.const offset.$db_number_i32
+    i32.const offset($db_number_i32)
     global.get $debug_start_mem
     i32.add
     i32.const 6

@@ -4,12 +4,12 @@
   (func $debug_gettime (result i64)
     i32.const 0
     i64.const 1000
-    i32.const offset.$debug_clock_loc
+    i32.const offset($debug_clock_loc)
     global.get $debug_start_mem
     i32.add
     call $debug_clock_time_get
     drop
-    i32.const offset.$debug_clock_loc
+    i32.const offset($debug_clock_loc)
     global.get $debug_start_mem
     i32.add
     i64.load

@@ -8,7 +8,7 @@
     local.get $fid
     i32.const 4
     i32.shl
-    i32.const offset.$debug_function_metrics
+    i32.const offset($debug_function_metrics)
     i32.add
     global.get $debug_start_mem
     i32.add
@@ -21,17 +21,17 @@
     local.get $metric_count
     call $db_format_i32_dec_nz
 
-    i32.const offset.$db_number_i32
+    i32.const offset($db_number_i32)
     global.get $debug_start_mem
     i32.add
     i32.const 10
     ;;length.$db_number_i32
     call $debug_print
 
-    i32.const offset.$debug_table_sep
+    i32.const offset($debug_table_sep)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_table_sep
+    i32.const length($debug_table_sep)
     call $debug_print
 
 ;; Now print out total time in ns
@@ -39,17 +39,17 @@
     i64.load offset=4
     call $db_format_i64_dec_nz
 
-    i32.const offset.$db_number_i64
+    i32.const offset($db_number_i64)
     global.get $debug_start_mem
     i32.add
     i32.const 19
     ;;length.$db_number_i32
     call $debug_print
 
-    i32.const offset.$debug_table_sep
+    i32.const offset($debug_table_sep)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_table_sep
+    i32.const length($debug_table_sep)
     call $debug_print
 
     local.get $fid
@@ -57,27 +57,27 @@
     i32.shl
     global.get $debug_start_mem
     i32.add
-    i32.const offset.$debug_function_table
+    i32.const offset($debug_function_table)
     i32.add
     i32.load
     global.get $debug_start_mem
     i32.add
-    i32.const offset.$debug_function_data
+    i32.const offset($debug_function_data)
     i32.add
     local.get 0
     i32.const 3
     i32.shl
     global.get $debug_start_mem
     i32.add
-    i32.const offset.$debug_function_table
+    i32.const offset($debug_function_table)
     i32.add
     i32.load offset=4
     call $debug_print
 
-    i32.const offset.$debug_newline
+    i32.const offset($debug_newline)
     global.get $debug_start_mem
     i32.add
-    i32.const length.$debug_newline
+    i32.const length($debug_newline)
     call $debug_print
   
   )
@@ -85,10 +85,10 @@
 ;; $debug_summary
   (func $debug_summary
       (local $f_id i32)
-      i32.const offset.$debug_summary
+      i32.const offset($debug_summary)
       global.get $debug_start_mem
       i32.add
-      i32.const length.$debug_summary
+      i32.const length($debug_summary)
       call $debug_print
 
 ;; Go through all functions and print details for the function
@@ -108,7 +108,7 @@
         local.get $f_id
         i32.const 4
         i32.shl
-        i32.const offset.$debug_function_metrics
+        i32.const offset($debug_function_metrics)
         i32.add
         global.get $debug_start_mem
         i32.add
@@ -126,7 +126,7 @@
     (local $best_val i64)
     (local $metrics_ptr i32)
 
-    i32.const offset.$debug_function_metrics
+    i32.const offset($debug_function_metrics)
     global.get $debug_start_mem
     i32.add
     local.set $metrics_ptr

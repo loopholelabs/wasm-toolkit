@@ -5,7 +5,7 @@
   (func $debug_print (param $ptr i32) (param $len i32)
     (local $iovp i32)
 
-    i32.const offset.$iovec
+    i32.const offset($iovec)
     global.get $debug_start_mem
     i32.add
     local.set $iovp
@@ -23,7 +23,7 @@
     i32.const 2
     local.get $iovp
     i32.const 1
-    i32.const offset.$bytes_written
+    i32.const offset($bytes_written)
     global.get $debug_start_mem
     i32.add
     call $debug_fd_write
@@ -36,7 +36,7 @@
     (local $ptr i32)
     (local $shift_val i32)
 
-    i32.const offset.$db_number_i32
+    i32.const offset($db_number_i32)
     global.get $debug_start_mem
     i32.add
     local.set $ptr
@@ -60,7 +60,7 @@
       i32.const 0x0f
       i32.and
 
-      i32.const offset.$db_hex
+      i32.const offset($db_hex)
       i32.add
       global.get $debug_start_mem
       i32.add
@@ -97,7 +97,7 @@
     (local $in_number i32)
     (local $store_value i32)
 
-    i32.const offset.$db_number_i32
+    i32.const offset($db_number_i32)
     global.get $debug_start_mem
     i32.add
     local.set $ptr
@@ -119,7 +119,7 @@
       i32.const 10
       i32.rem_u
 
-      i32.const offset.$db_hex
+      i32.const offset($db_hex)
       i32.add
       global.get $debug_start_mem
       i32.add
@@ -155,7 +155,7 @@
     (local $in_number i32)
     (local $store_value i32)
 
-    i32.const offset.$db_number_i32
+    i32.const offset($db_number_i32)
     global.get $debug_start_mem
     i32.add
     local.set $ptr
@@ -191,7 +191,7 @@
         local.get $store_value
       end
 
-      i32.const offset.$db_hex
+      i32.const offset($db_hex)
       i32.add
       global.get $debug_start_mem
       i32.add
@@ -227,7 +227,7 @@
     (local $in_number i32)
     (local $store_value i32)
 
-    i32.const offset.$db_number_i64
+    i32.const offset($db_number_i64)
     global.get $debug_start_mem
     i32.add
     local.set $ptr
@@ -264,7 +264,7 @@
         local.get $store_value
       end
 
-      i32.const offset.$db_hex
+      i32.const offset($db_hex)
       i32.add
       global.get $debug_start_mem
       i32.add
