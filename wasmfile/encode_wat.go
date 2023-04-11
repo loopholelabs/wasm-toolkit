@@ -66,7 +66,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	for index, t := range wf.Import {
 		exp := ""
 		if t.Type == ExportFunc {
-			exp = fmt.Sprintf("(func %s (type %d))", wf.GetFunctionIdentifier(index), t.Index)
+			exp = fmt.Sprintf("(func %s (type %d))", wf.GetFunctionIdentifier(index, true), t.Index)
 		} else if t.Type == ExportGlobal {
 			exp = fmt.Sprintf("(global %d)", t.Index)
 		} else if t.Type == ExportMem {
@@ -165,7 +165,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			results = results + ")\n"
 		}
 
-		f := wf.GetFunctionIdentifier(index + len(wf.Import))
+		f := wf.GetFunctionIdentifier(index+len(wf.Import), true)
 
 		// Encode it and send it out...
 		d := wf.GetFunctionDebug(index + len(wf.Import))
@@ -215,7 +215,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	for _, t := range wf.Export {
 		exp := ""
 		if t.Type == ExportFunc {
-			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index))
+			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index, false))
 		} else if t.Type == ExportGlobal {
 			exp = fmt.Sprintf("(global %d)", t.Index)
 		} else if t.Type == ExportMem {
@@ -265,7 +265,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		funcs := ""
 		for _, f := range e.Indexes {
-			fid := wf.GetFunctionIdentifier(int(f))
+			fid := wf.GetFunctionIdentifier(int(f), false)
 			funcs = funcs + " " + fid
 		}
 

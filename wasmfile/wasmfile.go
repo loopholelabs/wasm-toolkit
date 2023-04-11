@@ -19,6 +19,7 @@ package wasmfile
 import (
 	"bytes"
 	"debug/dwarf"
+	"fmt"
 	"io/ioutil"
 	"strings"
 )
@@ -231,7 +232,7 @@ func (wf *WasmFile) FindFunction(pc uint64) int {
 func (wf *WasmFile) SetGlobal(name string, t ValType, expr string) {
 	ex := make([]*Expression, 0)
 	e := &Expression{}
-	e.DecodeWat(expr, wf)
+	e.DecodeWat(expr, wf, nil)
 	ex = append(ex, e)
 
 	idx := wf.LookupGlobalID(name)
@@ -253,6 +254,24 @@ func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
 	return len(wf.Type) - 1
 }
 
+func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
+	ptr := addr
+	for idx, d := range wfSource.Data {
+		fmt.Printf("Adding data %d at %d\n", idx, ptr)
+		// Relocate the data
+		d.Offset = []*Expression{
+			{
+				Opcode:   instrToOpcode["i32.const"],
+				I32Value: ptr,
+			},
+		}
+
+		wf.Data = append(wf.Data, d)
+		ptr += int32(len(d.Data))
+	}
+	return ptr
+}
+
 func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 	globalModification := make(map[int]int)
 	for idx, g := range wfSource.Global {
@@ -266,9 +285,70 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 
 	callModification := make(map[int]int) // old fid -> new fid
 
+	// Deal with any imports
+	for idx, i := range wfSource.Import {
+		// Check if it's already being imported as something else...
+		var newidx = -1
+		for nidx, i2 := range wf.Import {
+			if i.Module == i2.Module && i.Name == i2.Name {
+				newidx = nidx
+				break
+			}
+		}
+		if newidx != -1 {
+			callModification[idx] = newidx
+		} else {
+			// Need to add a new import then... (This means relocating every call as well)
+			callModification[idx] = len(wf.Import)
+			newidx := len(wf.Import)
+
+			// TODO: Might need to add a type if there isn't one already
+			t := wfSource.Type[i.Type]
+			i.Index = wf.AddTypeMaybe(t)
+
+			wf.Import = append(wf.Import, i)
+			// Need to fix up any existing code, and the function names table
+			newmap := make(map[int]string, 0)
+			for idx, name := range wf.functionNames {
+				if idx >= newidx {
+					newmap[idx+1] = name
+				} else {
+					newmap[idx] = name
+				}
+			}
+			name := wfSource.GetFunctionIdentifier(idx, true)
+			if name != "" {
+				newmap[newidx] = name
+			}
+			wf.functionNames = newmap
+
+			rmap := make(map[int]int)
+			for i := 0; i < len(wf.Code)+len(wf.Import); i++ {
+				// Relocate everything at or above newidx
+				if i >= newidx {
+					rmap[i] = i + 1
+				}
+			}
+
+			// Modify any exports
+			for _, ex := range wf.Export {
+				if ex.Type == ExportFunc && ex.Index >= newidx {
+					ex.Index++
+				}
+			}
+
+			for _, ce := range wf.Code {
+				ce.ModifyAllCalls(rmap)
+			}
+
+		}
+	}
+
+	fmt.Printf("Imports sorted out... %v\n", callModification) // 0->0 ok
+
 	for idx, f := range wfSource.Function {
 		t := wfSource.Type[f.TypeIndex]
-		name := wfSource.GetFunctionIdentifier(idx)
+		name := wfSource.GetFunctionIdentifier(len(wfSource.Import)+idx, true)
 
 		newidx := len(wf.Import) + len(wf.Function)
 
@@ -277,9 +357,11 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 		f.TypeIndex = wf.AddTypeMaybe(t)
 
 		// Add the function name if there is one
-		wf.functionNames[newidx] = name
+		if name != "" {
+			wf.functionNames[newidx] = name
+		}
 
-		callModification[idx] = newidx
+		callModification[len(wfSource.Import)+idx] = newidx
 	}
 
 	// Now add the code
@@ -314,7 +396,7 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 	newex := make([]*Expression, 0)
 	// FIXME: Allow multiple lines of code here...
 	newe := &Expression{}
-	err := newe.DecodeWat(to, wf)
+	err := newe.DecodeWat(to, wf, nil)
 	if err != nil {
 		return err
 	}
@@ -332,6 +414,57 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 			}
 		} else {
 			adjustedExpression = append(adjustedExpression, e)
+		}
+	}
+	ce.Expression = adjustedExpression
+	return nil
+}
+
+func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
+	newex := make([]*Expression, 0)
+	lines := strings.Split(to, "\n")
+	for _, toline := range lines {
+		newe := &Expression{}
+		err := newe.DecodeWat(toline, wf, nil)
+		if err != nil {
+			return err
+		}
+		newex = append(newex, newe)
+	}
+
+	// Now we need to find where to replace this code...
+	adjustedExpression := make([]*Expression, 0)
+	for _, e := range newex {
+		adjustedExpression = append(adjustedExpression, e)
+	}
+
+	for _, e := range ce.Expression {
+		adjustedExpression = append(adjustedExpression, e)
+	}
+	ce.Expression = adjustedExpression
+	return nil
+}
+
+func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
+	newex := make([]*Expression, 0)
+	lines := strings.Split(to, "\n")
+	for _, toline := range lines {
+		newe := &Expression{}
+		err := newe.DecodeWat(toline, wf, nil)
+		if err != nil {
+			return err
+		}
+		newex = append(newex, newe)
+	}
+
+	// Now we need to find where to insert the code
+	adjustedExpression := make([]*Expression, 0)
+	for _, e := range ce.Expression {
+		adjustedExpression = append(adjustedExpression, e)
+		if e.Relocating {
+			for _, ne := range newex {
+				adjustedExpression = append(adjustedExpression, ne)
+			}
 		}
 	}
 	ce.Expression = adjustedExpression

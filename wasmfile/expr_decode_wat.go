@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
+func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int) error {
 	s = SkipComment(s)
 	s = strings.Trim(s, Whitespace)
 
@@ -303,13 +303,39 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 		}
 		return nil
 	} else if opcode == "i32.const" {
+		e.Opcode = instrToOpcode[opcode]
 		s = strings.Trim(s, Whitespace)
 		v, _ := ReadToken(s)
+		if strings.HasPrefix(v, "offset(") {
+			// Lookup the data offset, but also mark it so we can insert modification later...
+			dname := v[7 : len(v)-1]
+			did := wf.LookupDataId(dname)
+			if did == -1 {
+				return fmt.Errorf("Data not found %s", dname)
+			}
+
+			expr := wf.Data[did].Offset
+			if len(expr) != 1 || expr[0].Opcode != instrToOpcode["i32.const"] {
+				return errors.New("Can only deal with i32.const for now")
+			}
+			fmt.Printf("Lookup offset for %s %d %v\n", dname, did, expr)
+			e.I32Value = expr[0].I32Value
+			e.Relocating = true
+			return nil
+		} else if strings.HasPrefix(v, "length(") {
+			// Lookup the data length...
+			dname := v[7 : len(v)-1]
+			did := wf.LookupDataId(dname)
+			if did == -1 {
+				return fmt.Errorf("Data not found %s", dname)
+			}
+			e.I32Value = int32(len(wf.Data[did].Data))
+			return nil
+		}
 		vv, err := strconv.Atoi(v)
 		if err != nil {
 			return err
 		}
-		e.Opcode = instrToOpcode[opcode]
 		e.I32Value = int32(vv)
 		return nil
 	} else if opcode == "i64.const" {
@@ -345,15 +371,24 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 	} else if opcode == "local.get" ||
 		opcode == "local.set" ||
 		opcode == "local.tee" {
+		e.Opcode = instrToOpcode[opcode]
 		var target string
 		var lid int
 		var err error
 		target, s = ReadToken(s)
+		if localNames != nil && strings.HasPrefix(target, "$") {
+			// Find the id for it...
+			lid, ok := localNames[target]
+			if !ok {
+				return fmt.Errorf("Local name %s not found", target)
+			}
+			e.LocalIndex = lid
+			return nil
+		}
 		lid, err = strconv.Atoi(target)
 		if err != nil {
 			return err
 		}
-		e.Opcode = instrToOpcode[opcode]
 		e.LocalIndex = lid
 		return nil
 	} else if opcode == "global.get" ||

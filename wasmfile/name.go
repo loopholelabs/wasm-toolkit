@@ -106,7 +106,7 @@ func (wf *WasmFile) ParseName() error {
 	return nil
 }
 
-func (wf *WasmFile) GetFunctionIdentifier(fid int) string {
+func (wf *WasmFile) GetFunctionIdentifier(fid int, defaultEmpty bool) string {
 	f, ok := wf.functionNames[fid]
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
@@ -117,6 +117,9 @@ func (wf *WasmFile) GetFunctionIdentifier(fid int) string {
 		f = strings.ReplaceAll(f, "]", "_")
 		f = strings.ReplaceAll(f, ",", "_")
 		return f
+	}
+	if defaultEmpty {
+		return ""
 	}
 	return fmt.Sprintf("%d", fid)
 }
@@ -138,5 +141,23 @@ func (wf *WasmFile) GetDataIdentifier(did int) string {
 		f = strings.ReplaceAll(f, ")", "_")
 		return f
 	}
-	return fmt.Sprintf("%d", did)
+	return ""
+}
+
+func (wf *WasmFile) LookupDataId(n string) int {
+	for idx, name := range wf.dataNames {
+		if n == name {
+			return idx
+		}
+	}
+	return -1
+}
+
+func (wf *WasmFile) LookupGlobalID(n string) int {
+	for idx, name := range wf.globalNames {
+		if n == name {
+			return idx
+		}
+	}
+	return -1
 }

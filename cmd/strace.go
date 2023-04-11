@@ -57,25 +57,25 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	/*
+		fmt.Printf("Parsing custom dwarf debug sections...\n")
+		err = wfile.ParseDwarf()
+		if err != nil {
+			panic(err)
+		}
 
-	fmt.Printf("Parsing custom dwarf debug sections...\n")
-	err = wfile.ParseDwarf()
-	if err != nil {
-		panic(err)
-	}
+		fmt.Printf("Parsing dwarf line numbers...\n")
+		err = wfile.ParseDwarfLineNumbers()
+		if err != nil {
+			panic(err)
+		}
 
-	fmt.Printf("Parsing dwarf line numbers...\n")
-	err = wfile.ParseDwarfLineNumbers()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Parsing dwarf local variables...\n")
-	err = wfile.ParseDwarfVariables()
-	if err != nil {
-		panic(err)
-	}
-
+		fmt.Printf("Parsing dwarf local variables...\n")
+		err = wfile.ParseDwarfVariables()
+		if err != nil {
+			panic(err)
+		}
+	*/
 	// Add a payload to the wasm file
 	memFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "memory.wat"))
 	if err != nil {
@@ -88,17 +88,48 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	payload_size := 1
 
+	data_ptr := wfile.Memory[0].LimitMin << 16
+
 	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", wfile.Memory[0].LimitMin<<16))
+	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
-	// Adjust any memory.size / memory.grow calls
-	for idx := 0; idx < originalFunctionLength; idx++ {
-		wfile.Code[idx].ReplaceInstr(wfile, "memory.grow", "call $debug_memory_grow")
-		wfile.Code[idx].ReplaceInstr(wfile, "memory.size", "call $debug_memory_size")
+	// Now we can start doing interesting things...
+
+	// Add a payload to the wasm file
+	debugFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "strace.wat"))
+	if err != nil {
+		panic(err)
 	}
 
-	// Now we can start doing interesting things...
+	wfile.AddDataFrom(int32(data_ptr), debugFunctions)
+	wfile.AddFuncsFrom(debugFunctions)
+
+	// Adjust any memory.size / memory.grow calls
+	for idx, c := range wfile.Code {
+		if idx < originalFunctionLength {
+			err = c.ReplaceInstr(wfile, "memory.grow", "call $debug_memory_grow")
+			if err != nil {
+				panic(err)
+			}
+			err = c.ReplaceInstr(wfile, "memory.size", "call $debug_memory_size")
+			if err != nil {
+				panic(err)
+			}
+
+			err = c.InsertFuncStart(wfile, "call $debug_test")
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			// Do any relocation adjustments...
+			err = c.InsertAfterRelocating(wfile, `global.get $debug_start_mem
+			i32.add`)
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
 
 	fmt.Printf("Writing wat out to %s...\n", Output)
 	f, err := os.Create(Output)

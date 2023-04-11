@@ -305,4 +305,6 @@ type Expression struct {
 	Result      ValType
 	MemAlign    int
 	MemOffset   int
+
+	Relocating bool
 }

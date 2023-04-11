@@ -32,15 +32,6 @@ func (wf *WasmFile) LookupFunctionID(n string) int {
 	return -1
 }
 
-func (wf *WasmFile) LookupGlobalID(n string) int {
-	for idx, name := range wf.globalNames {
-		if n == name {
-			return idx
-		}
-	}
-	return -1
-}
-
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
 	idx := len(wf.functionNames)
 	wf.functionNames[idx] = n
@@ -410,7 +401,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 	// TODO: Support proper expressions. For now we only support a single instruction
 	e.Expression = make([]*Expression, 0)
 	ex := &Expression{}
-	err := ex.DecodeWat(expr, wf)
+	err := ex.DecodeWat(expr, wf, nil)
 	if err != nil {
 		return err
 	}
@@ -429,12 +420,19 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 		_, s = ReadToken(s)
 	}
 
-	localNames := make(map[int]string)
+	localNames := make(map[string]int)
+	localIndex := 0
+
+	// FIXME: If the func only has (type) and not explicit (param) (local)
 
 	for {
 		// Skip comments...
 
 		s = strings.Trim(s, Whitespace)
+		if len(s) == 0 {
+			break
+		}
+
 		if strings.HasPrefix(s, ";;") {
 			// Skip this line
 			line_end := strings.Index(s, "\n")
@@ -448,6 +446,24 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 			eType, _ := ReadToken(el[1:])
 			if eType == "type" {
 			} else if eType == "param" {
+				// Might have a name here...
+				el = strings.Trim(el[6:len(el)-1], Whitespace)
+				if el[0] == '$' {
+					var name string
+					name, el = ReadToken(el)
+					localNames[name] = localIndex
+				}
+
+				// Read the tokens one by one for each param
+				for {
+					el = strings.Trim(el, Whitespace)
+					if len(el) == 0 {
+						break
+					}
+					_, el = ReadToken(el)
+					localIndex++
+				}
+
 				// TODO: Use to sanity check
 			} else if eType == "result" {
 				// TODO: Use to sanity check
@@ -465,7 +481,7 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 					tok, types = ReadToken(types)
 					if tok[0] == '$' {
 						// preRegister a name
-						localNames[len(e.Locals)] = tok
+						localNames[tok] = localIndex
 					} else {
 						l, ok := valTypeToByte[tok]
 						if !ok {
@@ -473,12 +489,15 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 						}
 						e.Locals = append(e.Locals, l)
 					}
+					localIndex++
 				}
 			}
 		} else {
 			break
 		}
 	}
+
+	fmt.Printf("LocalNames %v\n", localNames)
 
 	// Then just read instructions...
 	for {
@@ -503,15 +522,13 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 
 		if len(ecode) > 0 {
 			newe := &Expression{}
-			err := newe.DecodeWat(ecode, wf)
+			err := newe.DecodeWat(ecode, wf, localNames)
 			if err != nil {
 				return err
 			}
 			e.Expression = append(e.Expression, newe)
 		}
 	}
-
-	// TODO: Restructure the Expression to use InnerExpression where it should...
 
 	return nil
 }
@@ -532,6 +549,10 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 
 	for {
 		s = strings.Trim(s, Whitespace)
+		if len(s) == 0 {
+			break
+		}
+
 		if s[0] == '(' {
 			var el string
 			var err error
@@ -543,6 +564,10 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 			} else if strings.HasPrefix(el, "(param ") {
 				// Now read each type
 				el = el[7 : len(el)-1]
+				// Could be a name here...
+				if el[0] == '$' {
+					_, el = ReadToken(el)
+				}
 				for {
 					var ptype string
 					el = SkipComment(el)
@@ -567,21 +592,24 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 				newTypeEntry.Result = append(newTypeEntry.Result, b)
 			}
 		} else {
-			// Add a new Type for this function, or use an existing one...
-			for idx, t := range wf.Type {
-				// Check if we can use it or not...
-				if t.Equals(newTypeEntry) {
-					e.TypeIndex = idx
-					return nil
-				}
-			}
+			break
+		}
+	}
 
-			// Need to add a new type
-			e.TypeIndex = len(wf.Type)
-			wf.Type = append(wf.Type, newTypeEntry)
+	// Add a new Type for this function, or use an existing one...
+	for idx, t := range wf.Type {
+		// Check if we can use it or not...
+		if t.Equals(newTypeEntry) {
+			e.TypeIndex = idx
 			return nil
 		}
 	}
+
+	// Need to add a new type
+	e.TypeIndex = len(wf.Type)
+	wf.Type = append(wf.Type, newTypeEntry)
+	return nil
+
 }
 
 func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
@@ -641,7 +669,7 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 	// TODO: Support proper expressions. For now we only support a single instruction
 	e.Offset = make([]*Expression, 0)
 	ex := &Expression{}
-	err := ex.DecodeWat(expr, wf)
+	err := ex.DecodeWat(expr, wf, nil)
 	if err != nil {
 		return err
 	}
@@ -701,11 +729,25 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 		// TODO: Support proper expressions. For now we only support a single instruction
 		e.Offset = make([]*Expression, 0)
 		ex := &Expression{}
-		err := ex.DecodeWat(expr, wf)
+		err := ex.DecodeWat(expr, wf, nil)
 		if err != nil {
 			return err
 		}
 		e.Offset = append(e.Offset, ex)
+	} else {
+		// Assume this data should go right after the last bit of data...
+		data_ptr := int32(0)
+		if len(wf.Data) > 0 {
+			prev := wf.Data[len(wf.Data)-1]
+			data_ptr = prev.Offset[0].I32Value + int32(len(prev.Data))
+		}
+
+		e.Offset = []*Expression{
+			{
+				Opcode:   instrToOpcode["i32.const"],
+				I32Value: data_ptr,
+			},
+		}
 	}
 
 	s = strings.Trim(s, Whitespace)
