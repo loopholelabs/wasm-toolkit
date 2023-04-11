@@ -16,10 +16,6 @@
 
 package wasmfile
 
-import (
-	"fmt"
-)
-
 type Opcode byte
 
 // TODO
@@ -292,44 +288,21 @@ func init() {
 }
 
 type Expression struct {
-	PC              uint64
-	Opcode          Opcode
-	OpcodeExt       int
-	I32Value        int32
-	I64Value        int64
-	F32Value        float32
-	F64Value        float64
-	FuncIndex       int
-	LocalIndex      int
-	GlobalIndex     int
-	LabelIndex      int
-	TypeIndex       int
-	TableIndex      int
-	Labels          []int
-	Result          ValType
-	InnerExpression []*Expression
-	MemAlign        int
-	MemOffset       int
-}
-
-func (e *Expression) Show(prefix string, wf WasmFile) {
-	opcode := opcodeToInstr[e.Opcode]
-	if e.Opcode == ExtendedOpcodeFC {
-		opcode = opcodeToInstrFC[e.OpcodeExt]
-	}
-
-	// See if we have any line info...
-	lineInfo := ""
-	li, ok := wf.lineNumbers[e.PC]
-	if ok {
-		// TODO: Read source file...
-		lineInfo = fmt.Sprintf("%s:%d", li.Filename, li.Linenumber)
-	}
-
-	fmt.Printf("%d: %s %s ;; %s\n", e.PC, prefix, opcode, lineInfo)
-	if e.InnerExpression != nil {
-		for _, ie := range e.InnerExpression {
-			ie.Show(prefix+" ", wf)
-		}
-	}
+	PC          uint64
+	Opcode      Opcode
+	OpcodeExt   int
+	I32Value    int32
+	I64Value    int64
+	F32Value    float32
+	F64Value    float64
+	FuncIndex   int
+	LocalIndex  int
+	GlobalIndex int
+	LabelIndex  int
+	TypeIndex   int
+	TableIndex  int
+	Labels      []int
+	Result      ValType
+	MemAlign    int
+	MemOffset   int
 }

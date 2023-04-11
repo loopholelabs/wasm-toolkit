@@ -23,10 +23,17 @@ import (
 )
 
 func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
+
+	// This determines when we are finished
+	nestCounter := 1
+
 	exps := make([]*Expression, 0)
 	ptr := 0
 
 	for {
+		if ptr == len(data) {
+			break // All done
+		}
 		opptr := ptr
 		opcode := data[ptr]
 		ptr++
@@ -37,6 +44,9 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 			Opcode(opcode) == instrToOpcode["return"] ||
 			Opcode(opcode) == instrToOpcode["drop"] ||
 			Opcode(opcode) == instrToOpcode["select"] ||
+
+			Opcode(opcode) == instrToOpcode["else"] ||
+
 			Opcode(opcode) == instrToOpcode["i32.eqz"] ||
 			Opcode(opcode) == instrToOpcode["i32.eq"] ||
 			Opcode(opcode) == instrToOpcode["i32.ne"] ||
@@ -251,24 +261,27 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 		} else if Opcode(opcode) == instrToOpcode["block"] ||
 			Opcode(opcode) == instrToOpcode["if"] ||
 			Opcode(opcode) == instrToOpcode["loop"] {
-			// Read the blocktype, and then read Expression
+			// Read the blocktype
 			valType := data[ptr]
 			ptr++
 
-			ex, l, err := NewExpression(data[ptr:], pc+uint64(ptr))
-			if err != nil {
-				return nil, 0, err
-			}
-			ptr += l
-
 			exps = append(exps,
 				&Expression{
-					PC:              pc + uint64(opptr),
-					Opcode:          Opcode(opcode),
-					Result:          ValType(valType),
-					InnerExpression: ex,
+					PC:     pc + uint64(opptr),
+					Opcode: Opcode(opcode),
+					Result: ValType(valType),
 				})
-
+			nestCounter++
+		} else if Opcode(opcode) == instrToOpcode["end"] {
+			nestCounter--
+			if nestCounter == 0 {
+				break
+			}
+			exps = append(exps,
+				&Expression{
+					PC:     pc + uint64(opptr),
+					Opcode: Opcode(opcode),
+				})
 		} else if Opcode(opcode) == instrToOpcode["i32.const"] {
 			val, l := DecodeSleb128(data[ptr:])
 			ptr += int(l)
@@ -391,11 +404,10 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 				return nil, 0, fmt.Errorf("Unsupported opcode 0xfc %d", opcode2)
 			}
 
-		} else if Opcode(opcode) == instrToOpcode["end"] {
-			return exps, ptr, nil
 		} else {
 			ptr--
 			return nil, 0, fmt.Errorf("Unsupported opcode %d", data[ptr])
 		}
 	}
+	return exps, ptr, nil
 }

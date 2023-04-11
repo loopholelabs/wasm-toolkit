@@ -245,16 +245,6 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))
 
-		if e.InnerExpression != nil {
-			for _, ie := range e.InnerExpression {
-				err = ie.EncodeWat(wr, fmt.Sprintf("%s%s", prefix, "    "), wf)
-				if err != nil {
-					return err
-				}
-			}
-
-			_, err = wr.WriteString(fmt.Sprintf("%s%s\n", prefix, "end"))
-		}
 		return err
 	} else if e.Opcode == instrToOpcode["i32.const"] {
 		value := fmt.Sprintf(" %d", e.I32Value)

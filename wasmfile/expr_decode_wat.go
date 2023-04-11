@@ -301,7 +301,6 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 				}
 			}
 		}
-		// We can optimise/deal with this later... (InnerExpression)
 		return nil
 	} else if opcode == "i32.const" {
 		s = strings.Trim(s, Whitespace)
