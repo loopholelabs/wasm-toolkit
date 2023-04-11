@@ -17,8 +17,10 @@
 package wasmfile
 
 import (
+	"bytes"
 	"debug/dwarf"
 	"io/ioutil"
+	"strings"
 )
 
 type WasmFile struct {
@@ -224,4 +226,131 @@ func (wf *WasmFile) FindFunction(pc uint64) int {
 		}
 	}
 	return -1
+}
+
+func (wf *WasmFile) SetGlobal(name string, t ValType, expr string) {
+	ex := make([]*Expression, 0)
+	e := &Expression{}
+	e.DecodeWat(expr, wf)
+	ex = append(ex, e)
+
+	idx := wf.LookupGlobalID(name)
+	if idx == -1 {
+		panic("Global not found")
+	}
+
+	wf.Global[idx].Type = t
+	wf.Global[idx].Expression = ex
+}
+
+func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
+	for idx, t := range wf.Type {
+		if t.Equals(te) {
+			return idx
+		}
+	}
+	wf.Type = append(wf.Type, te)
+	return len(wf.Type) - 1
+}
+
+func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
+	globalModification := make(map[int]int)
+	for idx, g := range wfSource.Global {
+		newidx := len(wf.Global)
+		globalModification[idx] = newidx
+		wf.Global = append(wf.Global, g)
+		name := wfSource.GetGlobalIdentifier(idx)
+
+		wf.globalNames[newidx] = name
+	}
+
+	callModification := make(map[int]int) // old fid -> new fid
+
+	for idx, f := range wfSource.Function {
+		t := wfSource.Type[f.TypeIndex]
+		name := wfSource.GetFunctionIdentifier(idx)
+
+		newidx := len(wf.Import) + len(wf.Function)
+
+		// Add the functions in, copying the type if needed...
+		wf.Function = append(wf.Function, f)
+		f.TypeIndex = wf.AddTypeMaybe(t)
+
+		// Add the function name if there is one
+		wf.functionNames[newidx] = name
+
+		callModification[idx] = newidx
+	}
+
+	// Now add the code
+	for _, c := range wfSource.Code {
+
+		c.ModifyAllCalls(callModification)
+		c.ModifyAllGlobals(globalModification)
+		wf.Code = append(wf.Code, c)
+	}
+
+}
+
+func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
+	for _, e := range ce.Expression {
+		newid, ok := m[e.GlobalIndex]
+		if ok {
+			e.GlobalIndex = newid
+		}
+	}
+}
+
+func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
+	for _, e := range ce.Expression {
+		newid, ok := m[e.FuncIndex]
+		if ok {
+			e.FuncIndex = newid
+		}
+	}
+}
+
+func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
+	newex := make([]*Expression, 0)
+	// FIXME: Allow multiple lines of code here...
+	newe := &Expression{}
+	err := newe.DecodeWat(to, wf)
+	if err != nil {
+		return err
+	}
+	newex = append(newex, newe)
+
+	// Now we need to find where to replace this code...
+	adjustedExpression := make([]*Expression, 0)
+	for _, e := range ce.Expression {
+		var buf bytes.Buffer
+		e.EncodeWat(&buf, "", wf)
+		if strings.Trim(buf.String(), Whitespace) == from {
+			// Replace it!
+			for _, ne := range newex {
+				adjustedExpression = append(adjustedExpression, ne)
+			}
+		} else {
+			adjustedExpression = append(adjustedExpression, e)
+		}
+	}
+	ce.Expression = adjustedExpression
+	return nil
+}
+
+func (te *TypeEntry) Equals(te2 *TypeEntry) bool {
+	if len(te.Param) != len(te2.Param) || len(te.Result) != len(te2.Result) {
+		return false
+	}
+	for idx, v := range te.Param {
+		if v != te2.Param[idx] {
+			return false
+		}
+	}
+	for idx, v := range te.Result {
+		if v != te2.Result[idx] {
+			return false
+		}
+	}
+	return true
 }

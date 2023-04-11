@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 
@@ -75,7 +76,29 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	// TODO: Add the tracing information...
+	// Add a payload to the wasm file
+	memFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "memory.wat"))
+	if err != nil {
+		panic(err)
+	}
+
+	originalFunctionLength := len(wfile.Code)
+
+	wfile.AddFuncsFrom(memFunctions)
+
+	payload_size := 1
+
+	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", wfile.Memory[0].LimitMin<<16))
+	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
+
+	// Adjust any memory.size / memory.grow calls
+	for idx := 0; idx < originalFunctionLength; idx++ {
+		wfile.Code[idx].ReplaceInstr(wfile, "memory.grow", "call $debug_memory_grow")
+		wfile.Code[idx].ReplaceInstr(wfile, "memory.size", "call $debug_memory_size")
+	}
+
+	// Now we can start doing interesting things...
 
 	fmt.Printf("Writing wat out to %s...\n", Output)
 	f, err := os.Create(Output)
@@ -83,7 +106,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	err = wfile.EncodeBinary(f)
+	err = wfile.EncodeWat(f)
 	if err != nil {
 		panic(err)
 	}
@@ -92,4 +115,21 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+
+	//
+	f2, err := os.Create("debug.wasm")
+	if err != nil {
+		panic(err)
+	}
+
+	err = wfile.EncodeBinary(f2)
+	if err != nil {
+		panic(err)
+	}
+
+	err = f2.Close()
+	if err != nil {
+		panic(err)
+	}
+
 }

@@ -359,23 +359,23 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile) error {
 	} else if opcode == "global.get" ||
 		opcode == "global.set" {
 		var target string
-		var fid int
+		var gid int
 		var err error
 		target, s = ReadToken(s)
 		if target[0] == '$' {
 			// Lookup the function and get the ID
-			fid = wf.LookupGlobalID(target)
-			if fid == -1 {
+			gid = wf.LookupGlobalID(target)
+			if gid == -1 {
 				return fmt.Errorf("Global target not found (%s)", target)
 			}
 		} else {
-			fid, err = strconv.Atoi(target)
+			gid, err = strconv.Atoi(target)
 			if err != nil {
 				return err
 			}
 		}
 		e.Opcode = instrToOpcode[opcode]
-		e.FuncIndex = fid
+		e.GlobalIndex = gid
 		return nil
 	} else if opcode == "call" {
 		var target string

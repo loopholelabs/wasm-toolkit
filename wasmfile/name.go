@@ -66,7 +66,7 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.functionNames[int(idx)] = string(nameValue)
+				wf.functionNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
 			}
 
 		} else if subsectionID == subsectionGlobalNames {
@@ -82,7 +82,7 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.globalNames[int(idx)] = string(nameValue)
+				wf.globalNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
 			}
 		} else if subsectionID == subsectionDataNames {
 			nameVecLength, l := binary.Uvarint(data)
@@ -96,7 +96,7 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.dataNames[int(idx)] = string(nameValue)
+				wf.dataNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
 			}
 
 		} else {
@@ -116,7 +116,7 @@ func (wf *WasmFile) GetFunctionIdentifier(fid int) string {
 		f = strings.ReplaceAll(f, "[", "_")
 		f = strings.ReplaceAll(f, "]", "_")
 		f = strings.ReplaceAll(f, ",", "_")
-		return fmt.Sprintf("$%s", f)
+		return f
 	}
 	return fmt.Sprintf("%d", fid)
 }
@@ -126,7 +126,7 @@ func (wf *WasmFile) GetGlobalIdentifier(gid int) string {
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
-		return fmt.Sprintf("$%s", f)
+		return f
 	}
 	return fmt.Sprintf("%d", gid)
 }
@@ -136,7 +136,7 @@ func (wf *WasmFile) GetDataIdentifier(did int) string {
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
-		return fmt.Sprintf("$%s", f)
+		return f
 	}
 	return fmt.Sprintf("%d", did)
 }

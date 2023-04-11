@@ -528,20 +528,58 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 		wf.RegisterNextFunctionName(fname)
 	}
 
+	newTypeEntry := &TypeEntry{}
+
 	for {
 		s = strings.Trim(s, Whitespace)
 		if s[0] == '(' {
 			var el string
 			var err error
 			el, s = ReadElement(s)
-			eType, _ := ReadToken(el[1:])
-			if eType == "type" {
+			if strings.HasPrefix(el, "(type ") {
 				el = strings.Trim(el[5:len(el)-1], Whitespace)
 				e.TypeIndex, err = strconv.Atoi(el)
 				return err
+			} else if strings.HasPrefix(el, "(param ") {
+				// Now read each type
+				el = el[7 : len(el)-1]
+				for {
+					var ptype string
+					el = SkipComment(el)
+					el = strings.Trim(el, Whitespace)
+					if len(el) == 0 {
+						break
+					}
+					ptype, el = ReadToken(el)
+					b, ok := valTypeToByte[ptype]
+					if !ok {
+						return fmt.Errorf("Unknown param type (%s)", ptype)
+					}
+					newTypeEntry.Param = append(newTypeEntry.Param, b)
+				}
+			} else if strings.HasPrefix(el, "(result ") {
+				// atm we only support one return type.
+				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
+				b, ok := valTypeToByte[rtype]
+				if !ok {
+					return fmt.Errorf("Unknown result type (%s)", rtype)
+				}
+				newTypeEntry.Result = append(newTypeEntry.Result, b)
 			}
 		} else {
-			return errors.New("Error parsing func. Did not find a type.")
+			// Add a new Type for this function, or use an existing one...
+			for idx, t := range wf.Type {
+				// Check if we can use it or not...
+				if t.Equals(newTypeEntry) {
+					e.TypeIndex = idx
+					return nil
+				}
+			}
+
+			// Need to add a new type
+			e.TypeIndex = len(wf.Type)
+			wf.Type = append(wf.Type, newTypeEntry)
+			return nil
 		}
 	}
 }
