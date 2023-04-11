@@ -43,8 +43,9 @@ type WasmFile struct {
 	dwarfData   *dwarf.Data
 	lineNumbers map[uint64]LineInfo
 	// debug info derived from dwarf
-	functionDebug map[int]string
-	localNames    []*LocalNameData
+	functionDebug     map[int]string
+	functionSignature map[int]string
+	localNames        []*LocalNameData
 
 	// custom names section data
 	functionNames map[int]string

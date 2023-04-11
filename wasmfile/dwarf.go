@@ -112,6 +112,34 @@ func (wf *WasmFile) GetFunctionDebug(fid int) string {
 	return ""
 }
 
+func (wf *WasmFile) GetFunctionSignature(fid int) string {
+	de, ok := wf.functionSignature[fid]
+	if ok {
+		return de
+	}
+	return ""
+}
+
+func (wf *WasmFile) GetLineNumberRange(fid int, c *CodeEntry) string {
+	filename := "<unknown>"
+	minLine := -1
+	maxLine := -1
+	for pc := c.CodeSectionPtr; pc < c.CodeSectionPtr+c.CodeSectionLen; pc++ {
+		// Look it up...
+		li, ok := wf.lineNumbers[pc]
+		if ok {
+			filename = li.Filename
+			if minLine == -1 || li.Linenumber < minLine {
+				minLine = li.Linenumber
+			}
+			if maxLine == -1 || li.Linenumber > maxLine {
+				maxLine = li.Linenumber
+			}
+		}
+	}
+	return fmt.Sprintf("%s(%d-%d)", filename, minLine, maxLine)
+}
+
 type LocalNameData struct {
 	StartPC uint64
 	EndPC   uint64
@@ -121,6 +149,8 @@ type LocalNameData struct {
 
 func (wf *WasmFile) ParseDwarfVariables() error {
 	wf.functionDebug = make(map[int]string)
+	wf.functionSignature = make(map[int]string)
+
 	wf.localNames = make([]*LocalNameData, 0)
 	entryReader := wf.dwarfData.Reader()
 
@@ -243,6 +273,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			fid := wf.FindFunction(sploc)
 
 			if fid != -1 {
+				wf.functionSignature[fid] = fmt.Sprintf("%s(%s)", spname, params)
 				wf.functionDebug[fid] = function_debug
 			}
 		}

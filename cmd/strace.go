@@ -57,25 +57,13 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	/*
-		fmt.Printf("Parsing custom dwarf debug sections...\n")
-		err = wfile.ParseDwarf()
-		if err != nil {
-			panic(err)
-		}
 
-		fmt.Printf("Parsing dwarf line numbers...\n")
-		err = wfile.ParseDwarfLineNumbers()
-		if err != nil {
-			panic(err)
-		}
+	fmt.Printf("Parsing custom dwarf debug sections...\n")
+	err = wfile.ParseDwarf()
+	if err != nil {
+		panic(err)
+	}
 
-		fmt.Printf("Parsing dwarf local variables...\n")
-		err = wfile.ParseDwarfVariables()
-		if err != nil {
-			panic(err)
-		}
-	*/
 	// Add a payload to the wasm file
 	memFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "memory.wat"))
 	if err != nil {
@@ -86,7 +74,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	wfile.AddFuncsFrom(memFunctions)
 
-	payload_size := 1
+	payload_size := 2
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
 
@@ -103,7 +91,20 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	wfile.AddDataFrom(int32(data_ptr), debugFunctions)
-	wfile.AddFuncsFrom(debugFunctions)
+	wfile.AddFuncsFrom(debugFunctions) // NB: This may mean inserting an import which changes all func numbers.
+
+	// Parse the dwarf stuff *here* incase the above messed up function IDs
+	fmt.Printf("Parsing dwarf line numbers...\n")
+	err = wfile.ParseDwarfLineNumbers()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Parsing dwarf local variables...\n")
+	err = wfile.ParseDwarfVariables()
+	if err != nil {
+		panic(err)
+	}
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
@@ -127,7 +128,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			}
 
 			// Create some useful data...
-			wfile.AddData(fmt.Sprintf("$function_name_%d", functionIndex), []byte(wfile.GetFunctionIdentifier(functionIndex, false)))
+			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
+			// Get the function details...
+
+			wfile.AddData(fmt.Sprintf("$function_name_%d", functionIndex), []byte(fidentifier))
 
 			startCode := fmt.Sprintf(`%s
 			i32.const %d
@@ -138,6 +142,22 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 			// Do parameters...
 			for paramIndex, pt := range t.Param {
+				if paramIndex > 0 {
+					startCode = fmt.Sprintf(`%s
+					call $debug_param_separator
+					`, startCode)
+				}
+
+				// NB This assumes CodeSectionPtr to be correct...
+				vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
+				if vname != "" {
+					wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
+					startCode = fmt.Sprintf(`%s
+					i32.const offset($dd_param_name_%d_%d)
+					i32.const length($dd_param_name_%d_%d)
+					call $debug_param_name
+					`, startCode, functionIndex, paramIndex, functionIndex, paramIndex)
+				}
 				startCode = fmt.Sprintf(`%s
 					i32.const %d
 					i32.const %d
@@ -150,6 +170,19 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					i32.const %d
 					call $debug_enter_end
 					`, startCode, functionIndex)
+
+			// Now add a bit of debug....
+			wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(wfile.GetFunctionSignature(functionIndex)))
+			wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(wfile.GetLineNumberRange(functionIndex, c)))
+
+			startCode = fmt.Sprintf(`%s
+					i32.const offset($dd_function_debug_sig_%d)
+					i32.const length($dd_function_debug_sig_%d)
+					call $debug_func_context
+					i32.const offset($dd_function_debug_lines_%d)
+					i32.const length($dd_function_debug_lines_%d)
+					call $debug_func_context
+					`, startCode, functionIndex, functionIndex, functionIndex, functionIndex)
 
 			err = c.InsertFuncStart(wfile, startCode)
 			if err != nil {
@@ -193,28 +226,12 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	err = wfile.EncodeWat(f)
+	err = wfile.EncodeBinary(f)
 	if err != nil {
 		panic(err)
 	}
 
 	err = f.Close()
-	if err != nil {
-		panic(err)
-	}
-
-	//
-	f2, err := os.Create("debug.wasm")
-	if err != nil {
-		panic(err)
-	}
-
-	err = wfile.EncodeBinary(f2)
-	if err != nil {
-		panic(err)
-	}
-
-	err = f2.Close()
 	if err != nil {
 		panic(err)
 	}
