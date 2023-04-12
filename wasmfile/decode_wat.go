@@ -497,8 +497,6 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 		}
 	}
 
-	fmt.Printf("LocalNames %v\n", localNames)
-
 	// Then just read instructions...
 	for {
 		s = strings.Trim(s, Whitespace)

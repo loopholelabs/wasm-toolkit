@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 
@@ -35,10 +36,21 @@ var (
 	}
 )
 
+var include_line_numbers = false
+var include_func_signatures = false
+var include_param_names = false
+var include_all = false
+var func_regex = ".*"
+
 func init() {
 	rootCmd.AddCommand(cmdStrace)
 	cmdStrace.Flags().StringVarP(&Input, "input", "i", "", "Input file name")
 	cmdStrace.Flags().StringVarP(&Output, "output", "o", "output.wasm", "Output file name")
+	cmdStrace.Flags().StringVarP(&func_regex, "func", "f", ".*", "Func name regexp")
+	cmdStrace.Flags().BoolVar(&include_line_numbers, "linenumbers", false, "Include line number info")
+	cmdStrace.Flags().BoolVar(&include_func_signatures, "funcsignatures", false, "Include function signatures")
+	cmdStrace.Flags().BoolVar(&include_param_names, "paramnames", false, "Include param names")
+	cmdStrace.Flags().BoolVar(&include_all, "all", false, "Include everything")
 }
 
 func runStrace(ccmd *cobra.Command, args []string) {
@@ -119,97 +131,106 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			}
 
 			functionIndex := idx + len(wfile.Import)
-
-			blockInstr := "block"
-			f := wfile.Function[idx]
-			t := wfile.Type[f.TypeIndex]
-			if len(t.Result) > 0 {
-				blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
-			}
-
-			// Create some useful data...
 			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
-			// Get the function details...
 
-			wfile.AddData(fmt.Sprintf("$function_name_%d", functionIndex), []byte(fidentifier))
+			match, _ := regexp.MatchString(func_regex, fidentifier)
 
-			startCode := fmt.Sprintf(`%s
+			if match {
+				fmt.Printf("Patching function[%d] %s\n", idx, fidentifier)
+				blockInstr := "block"
+				f := wfile.Function[idx]
+				t := wfile.Type[f.TypeIndex]
+				if len(t.Result) > 0 {
+					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
+				}
+
+				wfile.AddData(fmt.Sprintf("$function_name_%d", functionIndex), []byte(fidentifier))
+
+				startCode := fmt.Sprintf(`%s
 			i32.const %d
 			i32.const offset($function_name_%d)
 			i32.const length($function_name_%d)
 			call $debug_enter_func
 			`, blockInstr, functionIndex, functionIndex, functionIndex)
 
-			// Do parameters...
-			for paramIndex, pt := range t.Param {
-				if paramIndex > 0 {
-					startCode = fmt.Sprintf(`%s
+				// Do parameters...
+				for paramIndex, pt := range t.Param {
+					if paramIndex > 0 {
+						startCode = fmt.Sprintf(`%s
 					call $debug_param_separator
 					`, startCode)
-				}
+					}
 
-				// NB This assumes CodeSectionPtr to be correct...
-				vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
-				if vname != "" {
-					wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
-					startCode = fmt.Sprintf(`%s
+					// NB This assumes CodeSectionPtr to be correct...
+					if include_all || include_param_names {
+						vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
+						if vname != "" {
+							wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
+							startCode = fmt.Sprintf(`%s
 					i32.const offset($dd_param_name_%d_%d)
 					i32.const length($dd_param_name_%d_%d)
 					call $debug_param_name
 					`, startCode, functionIndex, paramIndex, functionIndex, paramIndex)
-				}
-				startCode = fmt.Sprintf(`%s
+						}
+					}
+					startCode = fmt.Sprintf(`%s
 					i32.const %d
 					i32.const %d
 					local.get %d
 					call $debug_enter_%s
 					`, startCode, functionIndex, paramIndex, paramIndex, wasmfile.ByteToValType[pt])
-			}
+				}
 
-			startCode = fmt.Sprintf(`%s
+				startCode = fmt.Sprintf(`%s
 					i32.const %d
 					call $debug_enter_end
 					`, startCode, functionIndex)
 
-			// Now add a bit of debug....
-			wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(wfile.GetFunctionSignature(functionIndex)))
-			wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(wfile.GetLineNumberRange(functionIndex, c)))
-
-			startCode = fmt.Sprintf(`%s
+				// Now add a bit of debug....
+				if include_all || include_func_signatures {
+					wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(wfile.GetFunctionSignature(functionIndex)))
+					startCode = fmt.Sprintf(`%s
 					i32.const offset($dd_function_debug_sig_%d)
 					i32.const length($dd_function_debug_sig_%d)
-					call $debug_func_context
+					call $debug_func_context`, startCode, functionIndex, functionIndex)
+				}
+
+				if include_all || include_line_numbers {
+					wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(wfile.GetLineNumberRange(functionIndex, c)))
+					startCode = fmt.Sprintf(`%s
 					i32.const offset($dd_function_debug_lines_%d)
 					i32.const length($dd_function_debug_lines_%d)
 					call $debug_func_context
-					`, startCode, functionIndex, functionIndex, functionIndex, functionIndex)
+					`, startCode, functionIndex, functionIndex)
+				}
 
-			err = c.InsertFuncStart(wfile, startCode)
-			if err != nil {
-				panic(err)
-			}
+				err = c.InsertFuncStart(wfile, startCode)
+				if err != nil {
+					panic(err)
+				}
 
-			rt := wasmfile.ValNone
-			if len(t.Result) == 1 {
-				rt = t.Result[0]
-			}
+				rt := wasmfile.ValNone
+				if len(t.Result) == 1 {
+					rt = t.Result[0]
+				}
 
-			endCode := fmt.Sprintf(`i32.const %d
+				endCode := fmt.Sprintf(`i32.const %d
 			i32.const offset($function_name_%d)
 			i32.const length($function_name_%d)
 			call $debug_exit_func
 			call $debug_exit_func_%s`, functionIndex, functionIndex, functionIndex, wasmfile.ByteToValType[rt])
 
-			err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
-			if err != nil {
-				panic(err)
-			}
+				err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
+				if err != nil {
+					panic(err)
+				}
 
-			err = c.InsertFuncEnd(wfile, "end\n"+endCode)
-			if err != nil {
-				panic(err)
-			}
+				err = c.InsertFuncEnd(wfile, "end\n"+endCode)
+				if err != nil {
+					panic(err)
+				}
 
+			}
 		} else {
 			// Do any relocation adjustments...
 			err = c.InsertAfterRelocating(wfile, `global.get $debug_start_mem
