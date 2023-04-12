@@ -48,7 +48,7 @@ type WasmFile struct {
 	localNames        []*LocalNameData
 
 	// custom names section data
-	functionNames map[int]string
+	FunctionNames map[int]string
 	globalNames   map[int]string
 	dataNames     map[int]string
 }
@@ -167,6 +167,7 @@ type MemoryEntry struct {
 
 type CodeEntry struct {
 	Locals         []ValType
+	PCValid        bool
 	CodeSectionPtr uint64
 	CodeSectionLen uint64
 	Expression     []*Expression
@@ -225,7 +226,8 @@ func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 
 func (wf *WasmFile) FindFunction(pc uint64) int {
 	for index, c := range wf.Code {
-		if pc >= c.CodeSectionPtr && pc <= (c.CodeSectionPtr+c.CodeSectionLen) {
+
+		if c.PCValid && pc >= c.CodeSectionPtr && pc <= (c.CodeSectionPtr+c.CodeSectionLen) {
 			return len(wf.Import) + index
 		}
 	}
@@ -263,7 +265,7 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 		// Relocate the data
 		d.Offset = []*Expression{
 			{
-				Opcode:   instrToOpcode["i32.const"],
+				Opcode:   InstrToOpcode["i32.const"],
 				I32Value: ptr,
 			},
 		}
@@ -290,7 +292,7 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 		MemIndex: 0,
 		Offset: []*Expression{
 			{
-				Opcode:   instrToOpcode["i32.const"],
+				Opcode:   InstrToOpcode["i32.const"],
 				I32Value: ptr,
 			},
 		},
@@ -336,7 +338,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 			wf.Import = append(wf.Import, i)
 			// Need to fix up any existing code, and the function names table
 			newmap := make(map[int]string, 0)
-			for idx, name := range wf.functionNames {
+			for idx, name := range wf.FunctionNames {
 				if idx >= newidx {
 					newmap[idx+1] = name
 				} else {
@@ -347,7 +349,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 			if name != "" {
 				newmap[newidx] = name
 			}
-			wf.functionNames = newmap
+			wf.FunctionNames = newmap
 
 			rmap := make(map[int]int)
 			for i := 0; i < len(wf.Code)+len(wf.Import); i++ {
@@ -385,7 +387,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 
 		// Add the function name if there is one
 		if name != "" {
-			wf.functionNames[newidx] = name
+			wf.FunctionNames[newidx] = name
 		}
 
 		callModification[len(wfSource.Import)+idx] = newidx

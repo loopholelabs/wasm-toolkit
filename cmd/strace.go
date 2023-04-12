@@ -36,6 +36,8 @@ var (
 	}
 )
 
+var include_imports = false
+var include_timings = false
 var include_line_numbers = false
 var include_func_signatures = false
 var include_param_names = false
@@ -50,6 +52,8 @@ func init() {
 	cmdStrace.Flags().BoolVar(&include_line_numbers, "linenumbers", false, "Include line number info")
 	cmdStrace.Flags().BoolVar(&include_func_signatures, "funcsignatures", false, "Include function signatures")
 	cmdStrace.Flags().BoolVar(&include_param_names, "paramnames", false, "Include param names")
+	cmdStrace.Flags().BoolVar(&include_timings, "timing", false, "Include timing summary")
+	cmdStrace.Flags().BoolVar(&include_imports, "imports", false, "Include imports")
 	cmdStrace.Flags().BoolVar(&include_all, "all", false, "Include everything")
 }
 
@@ -80,6 +84,51 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	memFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "memory.wat"))
 	if err != nil {
 		panic(err)
+	}
+
+	// Wrap all imports if we need to...
+	// Then they will get included in normal debug logging and or timing
+	if include_all || include_imports {
+		for idx, i := range wfile.Import {
+
+			newidx := len(wfile.Import) + len(wfile.Code)
+
+			// First we create a func wrapper, then adjust all calls
+			f := &wasmfile.FunctionEntry{
+				TypeIndex: i.Index,
+			}
+
+			t := wfile.Type[i.Index]
+
+			// Load the params...
+			expr := make([]*wasmfile.Expression, 0)
+			for idx, _ := range t.Param {
+				expr = append(expr, &wasmfile.Expression{
+					Opcode:     wasmfile.InstrToOpcode["local.get"],
+					LocalIndex: idx,
+				})
+			}
+
+			expr = append(expr, &wasmfile.Expression{
+				Opcode:    wasmfile.InstrToOpcode["call"],
+				FuncIndex: idx,
+			})
+
+			c := &wasmfile.CodeEntry{
+				Locals:     make([]wasmfile.ValType, 0),
+				Expression: expr,
+			}
+
+			// Fixup any calls
+			for _, c := range wfile.Code {
+				c.ModifyAllCalls(map[int]int{idx: newidx})
+			}
+
+			wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s", wfile.GetFunctionIdentifier(idx, false))
+
+			wfile.Function = append(wfile.Function, f)
+			wfile.Code = append(wfile.Code, c)
+		}
 	}
 
 	originalFunctionLength := len(wfile.Code)
@@ -116,6 +165,11 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	err = wfile.ParseDwarfVariables()
 	if err != nil {
 		panic(err)
+	}
+
+	// Pass some config into wasm
+	if include_timings {
+		wfile.SetGlobal("$debug_do_timings", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	// Adjust any memory.size / memory.grow calls
@@ -241,7 +295,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		}
 	}
 
-	fmt.Printf("Writing wat out to %s...\n", Output)
+	fmt.Printf("Writing wasm out to %s...\n", Output)
 	f, err := os.Create(Output)
 	if err != nil {
 		panic(err)
@@ -256,5 +310,24 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	/*
+	   fmt.Printf("Writing debug.wat\n")
+	   f2, err := os.Create("debug.wat")
 
+	   	if err != nil {
+	   		panic(err)
+	   	}
+
+	   err = wfile.EncodeWat(f2)
+
+	   	if err != nil {
+	   		panic(err)
+	   	}
+
+	   err = f2.Close()
+
+	   	if err != nil {
+	   		panic(err)
+	   	}
+	*/
 }

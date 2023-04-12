@@ -34,7 +34,7 @@ const subsectionGlobalNames = 7
 const subsectionDataNames = 9
 
 func (wf *WasmFile) ParseName() error {
-	wf.functionNames = make(map[int]string)
+	wf.FunctionNames = make(map[int]string)
 	wf.globalNames = make(map[int]string)
 	wf.dataNames = make(map[int]string)
 
@@ -66,7 +66,7 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.functionNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
+				wf.FunctionNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
 			}
 
 		} else if subsectionID == subsectionGlobalNames {
@@ -107,7 +107,7 @@ func (wf *WasmFile) ParseName() error {
 }
 
 func (wf *WasmFile) GetFunctionIdentifier(fid int, defaultEmpty bool) string {
-	f, ok := wf.functionNames[fid]
+	f, ok := wf.FunctionNames[fid]
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")

@@ -170,10 +170,10 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		opcode == "i64.extend16_s" ||
 		opcode == "i64.extend32_s" {
 
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		return nil
 	} else if opcode == "br_table" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.Labels = make([]int, 0)
 		var err error
 		var br_target string
@@ -197,7 +197,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		return nil
 	} else if opcode == "br" ||
 		opcode == "br_if" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		var err error
 		var br_target string
 		br_target, s = ReadToken(s)
@@ -229,7 +229,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		opcode == "i64.store8" ||
 		opcode == "i64.store16" ||
 		opcode == "i64.store32" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		for {
 			var t string
 			s = strings.Trim(s, Whitespace)
@@ -274,14 +274,14 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		return nil
 	} else if opcode == "memory.size" ||
 		opcode == "memory.grow" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		return nil
 	} else if opcode == "block" ||
 		opcode == "if" ||
 		opcode == "loop" ||
 		opcode == "else" ||
 		opcode == "end" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.Result = ValNone
 		// Optional result type...
 		s = strings.Trim(s, Whitespace)
@@ -303,7 +303,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		}
 		return nil
 	} else if opcode == "i32.const" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		s = strings.Trim(s, Whitespace)
 		v, _ := ReadToken(s)
 		if strings.HasPrefix(v, "offset(") {
@@ -315,7 +315,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 			}
 
 			expr := wf.Data[did].Offset
-			if len(expr) != 1 || expr[0].Opcode != instrToOpcode["i32.const"] {
+			if len(expr) != 1 || expr[0].Opcode != InstrToOpcode["i32.const"] {
 				return errors.New("Can only deal with i32.const for now")
 			}
 			e.I32Value = expr[0].I32Value
@@ -344,7 +344,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		if err != nil {
 			return err
 		}
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.I64Value = int64(vv)
 		return nil
 	} else if opcode == "f32.const" {
@@ -354,7 +354,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		if err != nil {
 			return err
 		}
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.F32Value = float32(vv)
 		return nil
 	} else if opcode == "f64.const" {
@@ -364,13 +364,13 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		if err != nil {
 			return err
 		}
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.F64Value = float64(vv)
 		return nil
 	} else if opcode == "local.get" ||
 		opcode == "local.set" ||
 		opcode == "local.tee" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		var target string
 		var lid int
 		var err error
@@ -408,7 +408,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 				return err
 			}
 		}
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.GlobalIndex = gid
 		return nil
 	} else if opcode == "call" {
@@ -428,11 +428,11 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 				return err
 			}
 		}
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		e.FuncIndex = fid
 		return nil
 	} else if opcode == "call_indirect" {
-		e.Opcode = instrToOpcode[opcode]
+		e.Opcode = InstrToOpcode[opcode]
 		s = strings.Trim(s, Whitespace)
 		if s[0] == '(' {
 			typeInfo, _ := ReadElement(s)

@@ -82,7 +82,7 @@ var instrToOpcodeFC = map[string]int{
 	"table.fill":          17,
 }
 
-var instrToOpcode = map[string]Opcode{
+var InstrToOpcode = map[string]Opcode{
 	// Control
 	"unreachable":   Opcode(0x00),
 	"nop":           Opcode(0x01),
@@ -277,7 +277,7 @@ var opcodeToInstrFC map[int]string
 
 func init() {
 	opcodeToInstr = make(map[Opcode]string)
-	for s, o := range instrToOpcode {
+	for s, o := range InstrToOpcode {
 		opcodeToInstr[o] = s
 	}
 

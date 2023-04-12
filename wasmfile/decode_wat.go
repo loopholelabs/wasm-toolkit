@@ -24,7 +24,7 @@ import (
 )
 
 func (wf *WasmFile) LookupFunctionID(n string) int {
-	for idx, name := range wf.functionNames {
+	for idx, name := range wf.FunctionNames {
 		if n == name {
 			return idx
 		}
@@ -33,8 +33,8 @@ func (wf *WasmFile) LookupFunctionID(n string) int {
 }
 
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
-	idx := len(wf.functionNames)
-	wf.functionNames[idx] = n
+	idx := len(wf.FunctionNames)
+	wf.FunctionNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextGlobalName(n string) {
@@ -65,7 +65,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	*/
 	// Parse the wat file and fill in all the data...
 
-	wf.functionNames = make(map[int]string)
+	wf.FunctionNames = make(map[int]string)
 	wf.globalNames = make(map[int]string)
 	wf.dataNames = make(map[int]string)
 
@@ -745,7 +745,7 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 
 		e.Offset = []*Expression{
 			{
-				Opcode:   instrToOpcode["i32.const"],
+				Opcode:   InstrToOpcode["i32.const"],
 				I32Value: data_ptr,
 			},
 		}

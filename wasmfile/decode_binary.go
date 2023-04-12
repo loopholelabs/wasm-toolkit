@@ -236,6 +236,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 
 		c := &CodeEntry{
 			Locals:         locals,
+			PCValid:        true,
 			CodeSectionPtr: codeptr,
 			CodeSectionLen: clen,
 			Expression:     expression,
