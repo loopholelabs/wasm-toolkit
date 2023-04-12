@@ -172,6 +172,8 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		wfile.SetGlobal("$debug_do_timings", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
+	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
+
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
 		if idx < originalFunctionLength {
@@ -187,7 +189,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			functionIndex := idx + len(wfile.Import)
 			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
 
-			match, _ := regexp.MatchString(func_regex, fidentifier)
+			match, err := regexp.MatchString(func_regex, fidentifier)
+			if err != nil {
+				panic(err)
+			}
 
 			if match {
 				fmt.Printf("Patching function[%d] %s\n", idx, fidentifier)

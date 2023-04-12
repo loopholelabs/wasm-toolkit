@@ -10,6 +10,16 @@
 * wasm2wat - `./wasm-toolkit wasm2wat -i something.wasm -o something.wat`
 * strace - `./wasm-toolkit strace -i something.wasm -o something-with-strace-stderr.wasm`
 
+## Usage
+
+This will wrap imports, log all data only for imports
+
+`./wasm-toolkit strace -i ../module1.wasm -o module1_debug.wasm --all --func ".*IMPORT.*"`
+
+This will add logging for all functions starting with `$runtime`
+
+`./wasm-toolkit strace -i ../module1.wasm -o module1_debug.wasm --all --func '^\$runtime.*'`
+
 ## Example output
 
 On the left is an strace like output. On the right is a wat output with debugging info.
