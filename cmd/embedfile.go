@@ -37,11 +37,13 @@ var (
 
 var em_filename = "embedtest"
 var em_content = "Yeah!"
+var em_contentfile = ""
 
 func init() {
 	rootCmd.AddCommand(cmdEmbedfile)
-	cmdEmbedfile.Flags().StringVar(&em_filename, "filename", "embedtest", "Func name regexp")
-	cmdEmbedfile.Flags().StringVar(&em_content, "content", "Hey! This isn't really a file. It's embedded in the wasm.", "Func name regexp")
+	cmdEmbedfile.Flags().StringVar(&em_filename, "filename", "embedtest", "Embed filename")
+	cmdEmbedfile.Flags().StringVar(&em_content, "content", "Hey! This isn't really a file. It's embedded in the wasm.", "Embed content")
+	cmdEmbedfile.Flags().StringVar(&em_contentfile, "contentfile", "", "Embed content from file")
 }
 
 func runEmbedFile(ccmd *cobra.Command, args []string) {
@@ -83,11 +85,21 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 
 	// Now we can start doing interesting things...
 
-	// Add a payload to the wasm file
-	embedFunctions, err := wasmfile.NewFromWatWithData(path.Join("wat_code", "embed.wat"), map[string][]byte{
+	datamap := map[string][]byte{
 		"$file_name":    []byte(em_filename),
 		"$file_content": []byte(em_content),
-	})
+	}
+
+	if em_contentfile != "" {
+		bytes, err := os.ReadFile(em_contentfile)
+		if err != nil {
+			panic(err)
+		}
+		datamap["$file_content"] = bytes
+	}
+
+	// Add a payload to the wasm file
+	embedFunctions, err := wasmfile.NewFromWatWithData(path.Join("wat_code", "embed.wat"), datamap)
 	if err != nil {
 		panic(err)
 	}
