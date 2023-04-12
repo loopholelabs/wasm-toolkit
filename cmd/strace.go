@@ -47,8 +47,6 @@ var cfg_color = false
 
 func init() {
 	rootCmd.AddCommand(cmdStrace)
-	cmdStrace.Flags().StringVarP(&Input, "input", "i", "", "Input file name")
-	cmdStrace.Flags().StringVarP(&Output, "output", "o", "output.wasm", "Output file name")
 	cmdStrace.Flags().StringVarP(&func_regex, "func", "f", ".*", "Func name regexp")
 	cmdStrace.Flags().BoolVar(&include_line_numbers, "linenumbers", false, "Include line number info")
 	cmdStrace.Flags().BoolVar(&include_func_signatures, "funcsignatures", false, "Include function signatures")

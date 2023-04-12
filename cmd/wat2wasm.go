@@ -26,60 +26,36 @@ import (
 )
 
 var (
-	cmdWasm2Wat = &cobra.Command{
-		Use:   "wasm2wat",
-		Short: "Use wasm2wat to translate a wasm file to wat",
-		Long:  `This will include any dwarf debug information available.`,
-		Run:   runWasm2Wat,
+	cmdWat2Wasm = &cobra.Command{
+		Use:   "wat2wasm",
+		Short: "Use wat2wasm to translate a wat file to wasm",
+		Long:  ``,
+		Run:   runWat2Wasm,
 	}
 )
 
 func init() {
-	rootCmd.AddCommand(cmdWasm2Wat)
+	rootCmd.AddCommand(cmdWat2Wasm)
 }
 
-func runWasm2Wat(ccmd *cobra.Command, args []string) {
+func runWat2Wasm(ccmd *cobra.Command, args []string) {
 	if Input == "" {
 		panic("No input file")
 	}
 
-	fmt.Printf("Loading wasm file \"%s\"...\n", Input)
-	wfile, err := wasmfile.New(Input)
+	fmt.Printf("Loading wat file \"%s\"...\n", Input)
+	wfile, err := wasmfile.NewFromWat(Input)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Parsing custom dwarf debug sections...\n")
-	err = wfile.ParseDwarf()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Parsing dwarf line numbers...\n")
-	err = wfile.ParseDwarfLineNumbers()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Parsing dwarf local variables...\n")
-	err = wfile.ParseDwarfVariables()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Writing wat out to %s...\n", Output)
+	fmt.Printf("Writing wasm out to %s...\n", Output)
 	f, err := os.Create(Output)
 	if err != nil {
 		panic(err)
 	}
 
-	err = wfile.EncodeWat(f)
+	err = wfile.EncodeBinary(f)
 	if err != nil {
 		panic(err)
 	}

@@ -8,6 +8,7 @@
 ## Quickstart
 
 * wasm2wat - `./wasm-toolkit wasm2wat -i something.wasm -o something.wat`
+* wat2wasm - `./wasm-toolkit wat2wasm -i something.wat -o something.wasm`
 * strace - `./wasm-toolkit strace -i something.wasm -o something-with-strace-stderr.wasm`
 
 ## Usage

@@ -31,6 +31,11 @@ var (
 var Input string
 var Output string
 
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&Input, "input", "i", "", "Input file name")
+	rootCmd.PersistentFlags().StringVarP(&Output, "output", "o", "output", "Output file name")
+}
+
 func Execute() error {
 	return rootCmd.Execute()
 }
