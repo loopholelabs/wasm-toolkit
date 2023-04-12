@@ -111,17 +111,23 @@
       end
     end
 
-    i32.const offset($debug_ansi_context)
-    i32.const length($debug_ansi_context)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_context)
+      i32.const length($debug_ansi_context)
+      call $debug_print
+    end
 
     local.get $str_ptr
     local.get $str_len
     call $debug_print
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
 
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
@@ -129,17 +135,23 @@
 )
 
   (func $debug_param_name (param $str_ptr i32) (param $str_len i32)
-    i32.const offset($debug_ansi_param_name)
-    i32.const length($debug_ansi_param_name)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_param_name)
+      i32.const length($debug_ansi_param_name)
+      call $debug_print
+    end
 
     local.get $str_ptr
     local.get $str_len
     call $debug_print
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
 
     i32.const offset($debug_param_name_end)
     i32.const length($debug_param_name_end)
@@ -147,9 +159,12 @@
   )
 
   (func $debug_exit_func_i32 (param $value i32) (result i32)
-    i32.const offset($debug_ansi_result)
-    i32.const length($debug_ansi_result)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_result)
+      i32.const length($debug_ansi_result)
+      call $debug_print
+    end
 
     i32.const offset($debug_return_value)
     i32.const length($debug_return_value)
@@ -165,9 +180,12 @@
     i32.const length($db_number_i32)
     call $debug_print
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
 
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
@@ -179,9 +197,12 @@
 
 ;; $debug_exit_func_i64
   (func $debug_exit_func_i64 (param $value i64) (result i64)
-    i32.const offset($debug_ansi_result)
-    i32.const length($debug_ansi_result)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_result)
+      i32.const length($debug_ansi_result)
+      call $debug_print
+    end
 
     i32.const offset($debug_return_value)
     i32.const length($debug_return_value)
@@ -208,9 +229,12 @@
     i32.const length($db_number_i32)
     call $debug_print
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
 
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
@@ -222,9 +246,12 @@
 
 ;; $debug_exit_func_f32
   (func $debug_exit_func_f32 (param $value f32) (result f32)
-    i32.const offset($debug_ansi_result)
-    i32.const length($debug_ansi_result)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_result)
+      i32.const length($debug_ansi_result)
+      call $debug_print
+    end
 
     i32.const offset($debug_return_value)
     i32.const length($debug_return_value)
@@ -235,9 +262,12 @@
 
     ;; TODO
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
 
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
@@ -249,9 +279,12 @@
 
 ;; $debug_exit_func_f64
   (func $debug_exit_func_f64 (param $value f64) (result f64)
-    i32.const offset($debug_ansi_result)
-    i32.const length($debug_ansi_result)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_result)
+      i32.const length($debug_ansi_result)
+      call $debug_print
+    end
 
     i32.const offset($debug_return_value)
     i32.const length($debug_return_value)
@@ -262,9 +295,12 @@
 
     ;; TODO
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
 
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
@@ -287,10 +323,12 @@
   )
 
   (func $debug_enter_i32 (param $fid i32) (param $pid i32) (param $value i32)
-    i32.const offset($debug_ansi_param)
-    i32.const length($debug_ansi_param)
-    call $debug_print
-
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_param)
+      i32.const length($debug_ansi_param)
+      call $debug_print
+    end
 
     i32.const offset($debug_value_i32)
     i32.const length($debug_value_i32)
@@ -303,15 +341,21 @@
     i32.const length($db_number_i32)
     call $debug_print
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
   )
 
   (func $debug_enter_i64 (param $fid i32) (param $pid i32) (param $value i64)
-    i32.const offset($debug_ansi_param)
-    i32.const length($debug_ansi_param)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_param)
+      i32.const length($debug_ansi_param)
+      call $debug_print
+    end
 
     i32.const offset($debug_value_i64)
     i32.const length($debug_value_i64)
@@ -335,40 +379,54 @@
     i32.const length($db_number_i32)
     call $debug_print
 
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
-
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
   )
 
   (func $debug_enter_f32 (param $fid i32) (param $pid i32) (param $value f32)
-    i32.const offset($debug_ansi_param)
-    i32.const length($debug_ansi_param)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_param)
+      i32.const length($debug_ansi_param)
+      call $debug_print
+    end
 
     i32.const offset($debug_value_f64)
     i32.const length($debug_value_f64)
     call $debug_print
 
     ;; TODO
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
   )
 
   (func $debug_enter_f64 (param $fid i32) (param $pid i32) (param $value f64)
-    i32.const offset($debug_ansi_param)
-    i32.const length($debug_ansi_param)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_param)
+      i32.const length($debug_ansi_param)
+      call $debug_print
+    end
 
     i32.const offset($debug_value_f64)
     i32.const length($debug_value_f64)
     call $debug_print
 
     ;; TODO
-    i32.const offset($debug_ansi_none)
-    i32.const length($debug_ansi_none)
-    call $debug_print
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
   )
 
   (func $debug_enter_end (param $fid i32)
@@ -684,5 +742,7 @@
   (data $debug_ansi_none "\1b[0m")
 
   (global $debug_current_stack_depth (mut i32) (i32.const 0))
+
+  (global $debug_color i32 (i32.const 0))
 
 )

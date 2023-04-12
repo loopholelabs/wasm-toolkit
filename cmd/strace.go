@@ -43,6 +43,7 @@ var include_func_signatures = false
 var include_param_names = false
 var include_all = false
 var func_regex = ".*"
+var cfg_color = false
 
 func init() {
 	rootCmd.AddCommand(cmdStrace)
@@ -55,6 +56,8 @@ func init() {
 	cmdStrace.Flags().BoolVar(&include_timings, "timing", false, "Include timing summary")
 	cmdStrace.Flags().BoolVar(&include_imports, "imports", false, "Include imports")
 	cmdStrace.Flags().BoolVar(&include_all, "all", false, "Include everything")
+
+	cmdStrace.Flags().BoolVar(&cfg_color, "color", false, "Output ANSI color in the log")
 }
 
 func runStrace(ccmd *cobra.Command, args []string) {
@@ -170,6 +173,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	// Pass some config into wasm
 	if include_timings {
 		wfile.SetGlobal("$debug_do_timings", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
+	}
+
+	if cfg_color {
+		wfile.SetGlobal("$debug_color", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
