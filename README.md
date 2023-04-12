@@ -29,5 +29,4 @@ On the left is an strace like output. On the right is a wat output with debuggin
 ## TODO
 
 * Add function timings and summary output
-* Add import func wrapping
-* Add dwarf debug info
+* Add more dwarf debug info
