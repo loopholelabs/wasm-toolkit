@@ -136,13 +136,9 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	wfile.AddFuncsFrom(memFunctions)
 
-	payload_size := 2
-
 	data_ptr := wfile.Memory[0].LimitMin << 16
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
-	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	// Now we can start doing interesting things...
 
@@ -304,6 +300,19 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			}
 		}
 	}
+
+	// Find out how much data we need for the payload
+	total_payload_data := data_ptr
+	if len(wfile.Data) > 0 {
+		last_data := wfile.Data[len(wfile.Data)-1]
+		total_payload_data = int(last_data.Offset[0].I32Value) + len(last_data.Data) - data_ptr
+	}
+
+	payload_size := (total_payload_data + 65535) >> 16
+	fmt.Printf("Payload data of %d (%d pages)\n", total_payload_data, payload_size)
+
+	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	fmt.Printf("Writing wasm out to %s...\n", Output)
 	f, err := os.Create(Output)
