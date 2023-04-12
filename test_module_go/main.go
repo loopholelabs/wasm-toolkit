@@ -2,10 +2,22 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 )
 
 func main() {
-	fmt.Printf("Module says main()\n")
+	files := []string{"test", "embedtest"}
+
+	for _, f := range files {
+		fmt.Printf("Open '%s'\n", f)
+
+		data, err := ioutil.ReadFile(f)
+		if err == nil {
+			fmt.Printf("--------\n%s\n--------\n\n\n", data)
+		} else {
+			fmt.Printf("No such file\n")
+		}
+	}
 }
 
 //export hello

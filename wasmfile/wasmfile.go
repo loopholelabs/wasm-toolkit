@@ -215,6 +215,18 @@ func NewFromWat(filename string) (*WasmFile, error) {
 	return wf, err
 }
 
+// Create a new WasmFile from a file
+func NewFromWatWithData(filename string, datamap map[string][]byte) (*WasmFile, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	wf := &WasmFile{}
+	err = wf.DecodeWatWithData(data, datamap)
+	return wf, err
+}
+
 func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 	for _, c := range wf.Custom {
 		if c.Name == name {
@@ -229,6 +241,16 @@ func (wf *WasmFile) FindFunction(pc uint64) int {
 
 		if c.PCValid && pc >= c.CodeSectionPtr && pc <= (c.CodeSectionPtr+c.CodeSectionLen) {
 			return len(wf.Import) + index
+		}
+	}
+	return -1
+}
+
+func (wf *WasmFile) LookupImport(n string) int {
+	for idx, i := range wf.Import {
+		iname := fmt.Sprintf("%s:%s", i.Module, i.Name)
+		if iname == n {
+			return idx
 		}
 	}
 	return -1

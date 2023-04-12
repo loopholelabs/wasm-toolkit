@@ -48,6 +48,10 @@ func (wf *WasmFile) RegisterNextDataName(n string) {
 }
 
 func (wf *WasmFile) DecodeWat(data []byte) (err error) {
+	return wf.DecodeWatWithData(data, make(map[string][]byte, 0))
+}
+
+func (wf *WasmFile) DecodeWatWithData(data []byte, datamap map[string][]byte) (err error) {
 	/*
 		defer func() {
 			r := recover()
@@ -112,7 +116,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 
 		if eType == "data" {
 			de := &DataEntry{}
-			err = de.DecodeWat(e, wf)
+			err = de.DecodeWatWithData(e, wf, datamap)
 			wf.Data = append(wf.Data, de)
 		} else if eType == "elem" {
 			ee := &ElemEntry{}
@@ -706,14 +710,18 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 }
 
 func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
+	return e.DecodeWatWithData(d, wf, make(map[string][]byte, 0))
+}
+
+func (e *DataEntry) DecodeWatWithData(d string, wf *WasmFile, datamap map[string][]byte) error {
 	//	* (data $.data (i32.const 66160) "x\9c\19\f6\dc\02\01\00\00\00\00\00\9c\03\01\00\c1\82\01\00\00\00\00\00\04\00\00\00\0c\00\00\00\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\00\02\00\00\00\a8\02\01\00\98\01\00\00\01\00\00\00\ff\01\01\00\0b\00\00\00\00\00\00\00 \01\01\00\13\00\00\003\01\01\00\13"))
 	//	* (data $.data 10)
 	//	* (data $.data "hello world")
 
 	s := strings.Trim(d[5:len(d)-1], Whitespace)
+	var id string
 
 	if s[0] == '$' {
-		var id string
 		id, s = ReadToken(s)
 		wf.RegisterNextDataName(id)
 	}
@@ -782,6 +790,13 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 			return err
 		}
 		e.Data = make([]byte, length)
+	}
+
+	// remap if we were asked to...
+	remap, ok := datamap[id]
+	if ok {
+		fmt.Printf("Remapping data for %s...\n", id)
+		e.Data = remap
 	}
 
 	return nil
