@@ -928,7 +928,7 @@
   (data $dd_wasi_res_numenvs " =>num_envs = ")
   (data $dd_wasi_res_sizeenvs " =>size_envs = ")
   (data $dd_wasi_res_envs " =>envs = \22")
-
+  (data $dd_wasi_res_timestamp " =>timestamp = ")
 
   (data $dd_wasi_var_path "   path = \22")
   (data $dd_wasi_var_rename "\22 -> \22")

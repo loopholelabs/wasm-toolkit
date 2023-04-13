@@ -174,20 +174,20 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 	} else if wasi_name == "path_rename" {
 		// Print out path strings
 		return `i32.const offset($dd_wasi_var_path)
-									i32.const length($dd_wasi_var_path)
-									call $debug_func_wasi_context
-									local.get 1
-									local.get 2
-									call $debug_print
-									i32.const offset($dd_wasi_var_rename)
-									i32.const length($dd_wasi_var_rename)
-									call $debug_print
-									local.get 4
-									local.get 5
-									call $debug_print
+						i32.const length($dd_wasi_var_path)
+						call $debug_func_wasi_context
+						local.get 1
+						local.get 2
+						call $debug_print
+						i32.const offset($dd_wasi_var_rename)
+						i32.const length($dd_wasi_var_rename)
+						call $debug_print
+						local.get 4
+						local.get 5
+						call $debug_print
 
-									call $debug_func_wasi_done_string
-									`
+						call $debug_func_wasi_done_string
+						`
 	}
 	return ""
 }
@@ -231,6 +231,34 @@ func GetWasiParamCodeExit(wasi_name string) string {
 	
 						i32.const offset($db_number_i32)
 						i32.const 10
+						call $debug_print
+									
+						call $debug_func_wasi_done
+						`
+	} else if wasi_name == "clock_time_get" {
+		// Show the timestamp
+		return `i32.const offset($dd_wasi_res_timestamp)
+						i32.const length($dd_wasi_res_timestamp)
+						call $debug_func_wasi_context
+
+						local.get 2
+						i64.load
+						i64.const 32
+						i64.shr_u
+						i32.wrap_i64
+						call $db_format_i32_hex
+				
+						i32.const offset($db_number_i32)
+						i32.const 8
+						call $debug_print
+				
+						local.get 2
+						i64.load
+						i32.wrap_i64
+						call $db_format_i32_hex
+				
+						i32.const offset($db_number_i32)
+						i32.const 8
 						call $debug_print
 									
 						call $debug_func_wasi_done
