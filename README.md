@@ -14,6 +14,8 @@
 
 ## Strace
 
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/strace.png)
+
 This will wrap imports, log all data only for imports
 
 `./wasm-toolkit strace -i ../module1.wasm -o module1_debug.wasm --all --func ".*IMPORT.*"`
@@ -24,13 +26,13 @@ This will add logging for all functions starting with `$runtime`
 
 ## Embed file
 
-![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/jm/new/embed.png)
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/embed.png)
 
 ## Example output
 
 On the left is an strace like output. On the right is a wat output with debugging info.
 
-![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/jm/new/output.png)
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/output.png)
 
 ## TODO
 
