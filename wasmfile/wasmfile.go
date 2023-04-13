@@ -283,7 +283,8 @@ func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
 
 func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 	ptr := addr
-	for _, d := range wfSource.Data {
+	for idx, d := range wfSource.Data {
+		src_name := wfSource.GetDataIdentifier(idx)
 		// Relocate the data
 		d.Offset = []*Expression{
 			{
@@ -292,9 +293,14 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 			},
 		}
 
+		newidx := len(wf.Data)
+
 		wf.Data = append(wf.Data, d)
 		ptr += int32(len(d.Data))
 		ptr = (ptr + 3) & -4
+
+		// Copy over the data name
+		wf.dataNames[newidx] = src_name
 	}
 	return ptr
 }

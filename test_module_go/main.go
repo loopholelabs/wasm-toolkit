@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 )
 
 func main() {
+	os.WriteFile("newfile", []byte("Testing"), 660)
+
 	files := []string{"test", "embedtest"}
 
 	for _, f := range files {
@@ -18,6 +21,8 @@ func main() {
 			fmt.Printf("No such file\n")
 		}
 	}
+
+	os.Remove("newfile")
 }
 
 //export hello

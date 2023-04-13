@@ -3,6 +3,31 @@
   (import "wasi_snapshot_preview1" "fd_write" (func $debug_fd_write (type 0)))
 
 
+  (func $debug_func_wasi_context (param $ptr i32) (param $len i32)
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_wasi_context)
+      i32.const length($debug_ansi_wasi_context)
+      call $debug_print
+    end  
+
+    local.get $ptr
+    local.get $len
+    call $debug_print  
+  )
+
+  (func $debug_func_wasi_done
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end  
+    i32.const offset($debug_newline)
+    i32.const length($debug_newline)
+    call $debug_print
+  )
+
   (func $debug_enter_func (param $fid i32) (param $str_ptr i32) (param $str_len i32)
     (local $count i32)
     global.get $debug_current_stack_depth
@@ -185,8 +210,8 @@
 
     global.get $debug_color
     if
-      i32.const offset($debug_ansi_wasi_result)
-      i32.const length($debug_ansi_wasi_result)
+      i32.const offset($debug_ansi_wasi_context)
+      i32.const length($debug_ansi_wasi_context)
       call $debug_print
     end
 
@@ -817,7 +842,9 @@
   (data $debug_ansi_param_name "\1b[33m")
   (data $debug_ansi_none "\1b[0m")
 
-  (data $debug_ansi_wasi_result "\1b[35m")
+  (data $debug_ansi_wasi_context "\1b[35m")
+
+  (data $dd_wasi_var_path "   path = ")
 
   (data $wasi_errors 0)
   (data $wasi_error_messages 0)

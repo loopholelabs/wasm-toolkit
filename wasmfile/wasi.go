@@ -127,3 +127,65 @@ var Wasi_errors = map[string]int{
 	"WASI_EXDEV":           75,
 	"WASI_ENOTCAPABLE":     76,
 }
+
+func GetWasiParamCodeEnter(wasi_name string) string {
+
+	// Show the arguments for path_open
+	if wasi_name == "path_open" {
+		// Print out path string
+		return `i32.const offset($dd_wasi_var_path)
+					i32.const length($dd_wasi_var_path)
+					call $debug_func_wasi_context
+					local.get 2
+					local.get 3
+					call $debug_print
+					call $debug_func_wasi_done
+					`
+	} else if wasi_name == "path_create_directory" {
+		// Print out path string
+		return `i32.const offset($dd_wasi_var_path)
+					i32.const length($dd_wasi_var_path)
+					call $debug_func_wasi_context
+					local.get 1
+					local.get 2
+					call $debug_print
+					call $debug_func_wasi_done
+					`
+	} else if wasi_name == "path_remove_directory" {
+		// Print out path string
+		return `i32.const offset($dd_wasi_var_path)
+					i32.const length($dd_wasi_var_path)
+					call $debug_func_wasi_context
+					local.get 1
+					local.get 2
+					call $debug_print
+					call $debug_func_wasi_done
+					`
+	} else if wasi_name == "path_unlink_file" {
+		// Print out path string
+		return `i32.const offset($dd_wasi_var_path)
+					i32.const length($dd_wasi_var_path)
+					call $debug_func_wasi_context
+					local.get 1
+					local.get 2
+					call $debug_print
+					call $debug_func_wasi_done
+					`
+	}
+	return ""
+}
+
+func GetWasiParamCodeExit(wasi_name string) string {
+	if wasi_name == "fd_prestat_dir_name" {
+		// Show the dir_name
+		return `i32.const offset($dd_wasi_var_path)
+					i32.const length($dd_wasi_var_path)
+					call $debug_func_wasi_context
+					local.get 1
+					local.get 2
+					call $debug_print
+					call $debug_func_wasi_done
+					`
+	}
+	return ""
+}

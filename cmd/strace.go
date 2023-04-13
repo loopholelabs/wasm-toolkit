@@ -89,7 +89,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	// Keep track of wasi import wrappers
-	wasi_functions := make(map[int]bool)
+	wasi_functions := make(map[int]string)
 
 	// Wrap all imports if we need to...
 	// Then they will get included in normal debug logging and or timing
@@ -131,7 +131,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 			// If they're wasi calls. Add function signatures etc
 			if i.Module == "wasi_snapshot_preview1" {
-				wasi_functions[newidx] = true
+				wasi_functions[newidx] = i.Name
 				de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
 				if ok {
 					wfile.SetFunctionSignature(newidx, de)
@@ -302,6 +302,13 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					`, startCode, functionIndex, functionIndex)
 				}
 
+				// If it's a wasi call, then output some detail here...
+				wasi_name, is_wasi := wasi_functions[functionIndex]
+
+				// Add some code to show function parameter values...
+				startCode = fmt.Sprintf(`%s
+					%s`, startCode, wasmfile.GetWasiParamCodeEnter(wasi_name))
+
 				err = c.InsertFuncStart(wfile, startCode)
 				if err != nil {
 					panic(err)
@@ -317,10 +324,12 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			i32.const length($function_name_%d)
 			call $debug_exit_func`, functionIndex, functionIndex, functionIndex)
 
-				if wasi_functions[functionIndex] && rt == wasmfile.ValI32 {
+				if is_wasi && rt == wasmfile.ValI32 {
 					// We also want to output the error message
 					endCode = fmt.Sprintf(`%s
-					call $debug_exit_func_wasi`, endCode)
+					%s
+					call $debug_exit_func_wasi`, wasmfile.GetWasiParamCodeExit(wasi_name), endCode)
+
 				} else {
 					endCode = fmt.Sprintf(`%s
 					call $debug_exit_func_%s`, endCode, wasmfile.ByteToValType[rt])
