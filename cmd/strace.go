@@ -17,6 +17,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path"
@@ -87,6 +88,9 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
+	// Keep track of wasi import wrappers
+	wasi_functions := make(map[int]bool)
+
 	// Wrap all imports if we need to...
 	// Then they will get included in normal debug logging and or timing
 	if include_all || include_imports {
@@ -125,7 +129,16 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				c.ModifyAllCalls(map[int]int{idx: newidx})
 			}
 
-			wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s", wfile.GetFunctionIdentifier(idx, false))
+			// If they're wasi calls. Add function signatures etc
+			if i.Module == "wasi_snapshot_preview1" {
+				wasi_functions[newidx] = true
+				de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
+				if ok {
+					wfile.SetFunctionSignature(newidx, de)
+				}
+			}
+
+			wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name) //wfile.GetFunctionIdentifier(idx, false))
 
 			wfile.Function = append(wfile.Function, f)
 			wfile.Code = append(wfile.Code, c)
@@ -142,8 +155,29 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	// Now we can start doing interesting things...
 
+	datamap := make(map[string][]byte, 0)
+
+	we_data := make([]byte, 0)
+	er_data := make([]byte, 0)
+
+	errors_by_id := make([]string, 77)
+	for m, v := range wasmfile.Wasi_errors {
+		errors_by_id[v] = m
+	}
+
+	for _, m := range errors_by_id {
+		we_data = binary.LittleEndian.AppendUint32(we_data, uint32(len(er_data)))
+		we_data = binary.LittleEndian.AppendUint32(we_data, uint32(len([]byte(m))))
+		er_data = append(er_data, []byte(m)...)
+	}
+
+	datamap["$wasi_errors"] = we_data
+	datamap["$wasi_error_messages"] = er_data
+
+	//Wasi_errors
+
 	// Add a payload to the wasm file
-	debugFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "strace.wat"))
+	debugFunctions, err := wasmfile.NewFromWatWithData(path.Join("wat_code", "strace.wat"), datamap)
 	if err != nil {
 		panic(err)
 	}
@@ -223,14 +257,16 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 					// NB This assumes CodeSectionPtr to be correct...
 					if include_all || include_param_names {
-						vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
-						if vname != "" {
-							wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
-							startCode = fmt.Sprintf(`%s
+						if c.PCValid {
+							vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
+							if vname != "" {
+								wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
+								startCode = fmt.Sprintf(`%s
 					i32.const offset($dd_param_name_%d_%d)
 					i32.const length($dd_param_name_%d_%d)
 					call $debug_param_name
 					`, startCode, functionIndex, paramIndex, functionIndex, paramIndex)
+							}
 						}
 					}
 					startCode = fmt.Sprintf(`%s
@@ -247,16 +283,18 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					`, startCode, functionIndex)
 
 				// Now add a bit of debug....
-				if include_all || include_func_signatures {
-					wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(wfile.GetFunctionSignature(functionIndex)))
+				funcSig := wfile.GetFunctionSignature(functionIndex)
+				if funcSig != "" && (include_all || include_func_signatures) {
+					wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(funcSig))
 					startCode = fmt.Sprintf(`%s
 					i32.const offset($dd_function_debug_sig_%d)
 					i32.const length($dd_function_debug_sig_%d)
 					call $debug_func_context`, startCode, functionIndex, functionIndex)
 				}
 
-				if include_all || include_line_numbers {
-					wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(wfile.GetLineNumberRange(functionIndex, c)))
+				lineRange := wfile.GetLineNumberRange(functionIndex, c)
+				if lineRange != "" && (include_all || include_line_numbers) {
+					wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(lineRange))
 					startCode = fmt.Sprintf(`%s
 					i32.const offset($dd_function_debug_lines_%d)
 					i32.const length($dd_function_debug_lines_%d)
@@ -277,8 +315,16 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				endCode := fmt.Sprintf(`i32.const %d
 			i32.const offset($function_name_%d)
 			i32.const length($function_name_%d)
-			call $debug_exit_func
-			call $debug_exit_func_%s`, functionIndex, functionIndex, functionIndex, wasmfile.ByteToValType[rt])
+			call $debug_exit_func`, functionIndex, functionIndex, functionIndex)
+
+				if wasi_functions[functionIndex] && rt == wasmfile.ValI32 {
+					// We also want to output the error message
+					endCode = fmt.Sprintf(`%s
+					call $debug_exit_func_wasi`, endCode)
+				} else {
+					endCode = fmt.Sprintf(`%s
+					call $debug_exit_func_%s`, endCode, wasmfile.ByteToValType[rt])
+				}
 
 				err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
 				if err != nil {

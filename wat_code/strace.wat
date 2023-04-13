@@ -158,6 +158,82 @@
     call $debug_print
   )
 
+(func $debug_exit_func_wasi (param $value i32) (result i32)
+    (local $err_offset i32)
+    (local $err_length i32)
+    
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_result)
+      i32.const length($debug_ansi_result)
+      call $debug_print
+    end
+
+    i32.const offset($debug_return_value)
+    i32.const length($debug_return_value)
+    call $debug_print
+    i32.const offset($debug_value_i32)
+    i32.const length($debug_value_i32)
+    call $debug_print
+
+    local.get $value
+    call $db_format_i32_hex
+
+    i32.const offset($db_number_i32)
+    i32.const length($db_number_i32)
+    call $debug_print
+
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_wasi_result)
+      i32.const length($debug_ansi_wasi_result)
+      call $debug_print
+    end
+
+;; Lookup the wasi error message...
+    local.get $value
+    i32.const 77
+    i32.lt_u
+    if
+      i32.const offset($debug_sp)
+      i32.const length($debug_sp)
+      call $debug_print
+
+      i32.const offset($wasi_errors)
+      local.get $value
+      i32.const 3
+      i32.shl
+      i32.add
+      i32.load
+      i32.const offset($wasi_error_messages)
+      i32.add
+
+      i32.const offset($wasi_errors)
+      local.get $value
+      i32.const 3
+      i32.shl
+      i32.add
+      i32.load offset=4
+      ;; Length
+
+      call $debug_print
+    end
+
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end
+
+    i32.const offset($debug_newline)
+    i32.const length($debug_newline)
+    call $debug_print
+
+    call $debug_summary_maybe
+    local.get $value
+  )
+
   (func $debug_exit_func_i32 (param $value i32) (result i32)
     global.get $debug_color
     if
@@ -740,6 +816,11 @@
   (data $debug_ansi_context "\1b[36m")
   (data $debug_ansi_param_name "\1b[33m")
   (data $debug_ansi_none "\1b[0m")
+
+  (data $debug_ansi_wasi_result "\1b[35m")
+
+  (data $wasi_errors 0)
+  (data $wasi_error_messages 0)
 
   (global $debug_current_stack_depth (mut i32) (i32.const 0))
 
