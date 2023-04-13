@@ -327,8 +327,8 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				if is_wasi && rt == wasmfile.ValI32 {
 					// We also want to output the error message
 					endCode = fmt.Sprintf(`%s
-					%s
-					call $debug_exit_func_wasi`, wasmfile.GetWasiParamCodeExit(wasi_name), endCode)
+					call $debug_exit_func_wasi
+					%s`, endCode, wasmfile.GetWasiParamCodeExit(wasi_name))
 
 				} else {
 					endCode = fmt.Sprintf(`%s

@@ -17,15 +17,29 @@
   )
 
   (func $debug_func_wasi_done
+    i32.const offset($dd_wasi_var_end)
+    i32.const length($dd_wasi_var_end)
+    call $debug_print
+
     global.get $debug_color
     if
       i32.const offset($debug_ansi_none)
       i32.const length($debug_ansi_none)
       call $debug_print
     end  
-    i32.const offset($debug_newline)
-    i32.const length($debug_newline)
+  )
+
+  (func $debug_func_wasi_done_string
+    i32.const offset($dd_wasi_var_end_string)
+    i32.const length($dd_wasi_var_end_string)
     call $debug_print
+
+    global.get $debug_color
+    if
+      i32.const offset($debug_ansi_none)
+      i32.const length($debug_ansi_none)
+      call $debug_print
+    end  
   )
 
   (func $debug_enter_func (param $fid i32) (param $str_ptr i32) (param $str_len i32)
@@ -205,7 +219,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     global.get $debug_color
@@ -278,7 +292,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     global.get $debug_color
@@ -319,7 +333,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     local.get $value
@@ -327,7 +341,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     global.get $debug_color
@@ -439,7 +453,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     global.get $debug_color
@@ -469,7 +483,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     local.get $value
@@ -477,7 +491,7 @@
     call $db_format_i32_hex
 
     i32.const offset($db_number_i32)
-    i32.const length($db_number_i32)
+    i32.const 8
     call $debug_print
 
     global.get $debug_color
@@ -538,6 +552,29 @@
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
     call $debug_print
+  )
+
+  (func $debug_strlen (param $ptr i32) (result i32)
+    (local $count i32)
+
+    block
+      loop
+        local.get $count
+        local.get $ptr
+        i32.add
+        i32.load8_u
+        i32.eqz
+        br_if 1
+
+        local.get $count
+        i32.const 1
+        i32.add
+        local.set $count
+        br 0
+      end
+    end
+
+    local.get $count
   )
 
   (func $debug_print (param $ptr i32) (param $len i32)
@@ -807,6 +844,45 @@
     end
   )
 
+  (func $dd_wasi_get_something (param $argv i32) (param $argvBuf i32) (param $len i32) (param $str_ptr i32) (param $str_len i32)
+    (local $count i32)
+
+    block
+      loop
+        local.get $count
+        local.get $len
+        i32.eq
+        br_if 1
+
+        ;; Print out the arg here...
+        local.get $str_ptr
+        local.get $str_len
+				call $debug_func_wasi_context
+
+        local.get $argv
+        i32.load
+
+        local.get $argv
+        i32.load
+        call $debug_strlen
+        call $debug_print
+									
+				call $debug_func_wasi_done_string
+
+        local.get $argv
+        i32.const 4
+        i32.add
+        local.set $argv
+
+        local.get $count
+        i32.const 1
+        i32.add
+        local.set $count
+        br 0
+      end
+    end
+  )
+
   (data $db_hex "0123456789ABCDEF ")
   (data $db_number_i32 10)
   (data $db_number_i64 19)
@@ -844,7 +920,21 @@
 
   (data $debug_ansi_wasi_context "\1b[35m")
 
-  (data $dd_wasi_var_path "   path = ")
+  (data $dd_wasi_res_path " =>path = \22")
+  (data $dd_wasi_res_bytes " =>bytes = ")
+  (data $dd_wasi_res_numargs " =>num_args = ")
+  (data $dd_wasi_res_sizeargs " =>size_args = ")
+  (data $dd_wasi_res_args " =>args = \22")
+  (data $dd_wasi_res_numenvs " =>num_envs = ")
+  (data $dd_wasi_res_sizeenvs " =>size_envs = ")
+  (data $dd_wasi_res_envs " =>envs = \22")
+
+
+  (data $dd_wasi_var_path "   path = \22")
+  (data $dd_wasi_var_rename "\22 -> \22")
+  (data $dd_wasi_var_end_string "\22\0d\0a")
+  (data $dd_wasi_var_end "\0d\0a")
+
 
   (data $wasi_errors 0)
   (data $wasi_error_messages 0)
@@ -852,5 +942,8 @@
   (global $debug_current_stack_depth (mut i32) (i32.const 0))
 
   (global $debug_color i32 (i32.const 0))
+
+  (global $wasi_result_args_get_count (mut i32) (i32.const 0))
+  (global $wasi_result_envs_get_count (mut i32) (i32.const 0))
 
 )

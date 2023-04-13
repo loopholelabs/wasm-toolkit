@@ -139,7 +139,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					local.get 2
 					local.get 3
 					call $debug_print
-					call $debug_func_wasi_done
+					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_create_directory" {
 		// Print out path string
@@ -149,7 +149,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					local.get 1
 					local.get 2
 					call $debug_print
-					call $debug_func_wasi_done
+					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_remove_directory" {
 		// Print out path string
@@ -159,7 +159,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					local.get 1
 					local.get 2
 					call $debug_print
-					call $debug_func_wasi_done
+					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_unlink_file" {
 		// Print out path string
@@ -169,8 +169,25 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					local.get 1
 					local.get 2
 					call $debug_print
-					call $debug_func_wasi_done
+					call $debug_func_wasi_done_string
 					`
+	} else if wasi_name == "path_rename" {
+		// Print out path strings
+		return `i32.const offset($dd_wasi_var_path)
+									i32.const length($dd_wasi_var_path)
+									call $debug_func_wasi_context
+									local.get 1
+									local.get 2
+									call $debug_print
+									i32.const offset($dd_wasi_var_rename)
+									i32.const length($dd_wasi_var_rename)
+									call $debug_print
+									local.get 4
+									local.get 5
+									call $debug_print
+
+									call $debug_func_wasi_done_string
+									`
 	}
 	return ""
 }
@@ -178,14 +195,130 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 func GetWasiParamCodeExit(wasi_name string) string {
 	if wasi_name == "fd_prestat_dir_name" {
 		// Show the dir_name
-		return `i32.const offset($dd_wasi_var_path)
-					i32.const length($dd_wasi_var_path)
+		return `i32.const offset($dd_wasi_res_path)
+					i32.const length($dd_wasi_res_path)
 					call $debug_func_wasi_context
 					local.get 1
 					local.get 2
 					call $debug_print
+					call $debug_func_wasi_done_string
+					`
+	} else if wasi_name == "fd_read" {
+		// Show the number of bytes
+		return `i32.const offset($dd_wasi_res_bytes)
+					i32.const length($dd_wasi_res_bytes)
+					call $debug_func_wasi_context
+
+					local.get 3
+					i32.load
+					call $db_format_i32_dec
+
+					i32.const offset($db_number_i32)
+					i32.const 10
+					call $debug_print
+								
 					call $debug_func_wasi_done
 					`
+	} else if wasi_name == "fd_write" {
+		// Show the number of bytes
+		return `i32.const offset($dd_wasi_res_bytes)
+						i32.const length($dd_wasi_res_bytes)
+						call $debug_func_wasi_context
+	
+						local.get 3
+						i32.load
+						call $db_format_i32_dec
+	
+						i32.const offset($db_number_i32)
+						i32.const 10
+						call $debug_print
+									
+						call $debug_func_wasi_done
+						`
+	} else if wasi_name == "args_sizes_get" {
+		return `i32.const offset($dd_wasi_res_numargs)
+						i32.const length($dd_wasi_res_numargs)
+						call $debug_func_wasi_context
+
+						local.get 0
+						i32.load
+						global.set $wasi_result_args_get_count									
+
+						local.get 0
+						i32.load
+						call $db_format_i32_dec
+
+						i32.const offset($db_number_i32)
+						i32.const 10
+						call $debug_print
+									
+						call $debug_func_wasi_done
+
+						i32.const offset($dd_wasi_res_sizeargs)
+						i32.const length($dd_wasi_res_sizeargs)
+						call $debug_func_wasi_context
+
+						local.get 1
+						i32.load
+						call $db_format_i32_dec
+
+						i32.const offset($db_number_i32)
+						i32.const 10
+						call $debug_print
+									
+						call $debug_func_wasi_done
+						`
+	} else if wasi_name == "args_get" {
+		return `
+		local.get 0
+		local.get 1
+		global.get $wasi_result_args_get_count
+		i32.const offset($dd_wasi_res_args)
+		i32.const length($dd_wasi_res_args)
+		call $dd_wasi_get_something
+		`
+	} else if wasi_name == "environ_sizes_get" {
+		return `i32.const offset($dd_wasi_res_numenvs)
+						i32.const length($dd_wasi_res_numenvs)
+						call $debug_func_wasi_context
+
+						local.get 0
+						i32.load
+						global.set $wasi_result_envs_get_count									
+
+						local.get 0
+						i32.load
+						call $db_format_i32_dec
+
+						i32.const offset($db_number_i32)
+						i32.const 10
+						call $debug_print
+									
+						call $debug_func_wasi_done
+
+						i32.const offset($dd_wasi_res_sizeenvs)
+						i32.const length($dd_wasi_res_sizeenvs)
+						call $debug_func_wasi_context
+
+						local.get 1
+						i32.load
+						call $db_format_i32_dec
+
+						i32.const offset($db_number_i32)
+						i32.const 10
+						call $debug_print
+									
+						call $debug_func_wasi_done
+						`
+	} else if wasi_name == "environ_get" {
+		return `
+			local.get 0
+			local.get 1
+			global.get $wasi_result_envs_get_count
+			i32.const offset($dd_wasi_res_envs)
+			i32.const length($dd_wasi_res_envs)
+			call $dd_wasi_get_something
+			`
 	}
 	return ""
 }

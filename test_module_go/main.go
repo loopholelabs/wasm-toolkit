@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	fmt.Printf("TEST environment var is %v\n", os.Getenv("TEST"))
 	os.WriteFile("newfile", []byte("Testing"), 660)
 
 	files := []string{"test", "embedtest"}
@@ -22,7 +23,9 @@ func main() {
 		}
 	}
 
-	os.Remove("newfile")
+	os.Rename("newfile", "newfile2")
+
+	os.Remove("newfile2")
 }
 
 //export hello
