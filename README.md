@@ -5,6 +5,15 @@
 * Encoding and decoding from `.wasm` binary (99% done)
 * Encoding and decoding from `.wat` text (99% done)
 
+* Adding strace like output to a wasm file, which gets output to `STDERR` as it runs.
+  * All function calls, with arguments and return
+  * All calls to imported functions, with args and return
+  * Dwarf source file and line number ranges
+  * Dwarf paramater names
+  * Wasi preview1 call and return values
+
+* POC Embedding a file into a wasm which is then available to the module.
+
 ## Quickstart
 
 * wasm2wat - `./wasm-toolkit wasm2wat -i something.wasm -o something.wat`
