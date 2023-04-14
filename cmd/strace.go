@@ -309,6 +309,13 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				startCode = fmt.Sprintf(`%s
 					%s`, startCode, wasmfile.GetWasiParamCodeEnter(wasi_name))
 
+				if include_timings {
+					startCode = fmt.Sprintf(`%s
+					i32.const %d
+					call $timings_enter_func
+					`, startCode, functionIndex)
+				}
+
 				err = c.InsertFuncStart(wfile, startCode)
 				if err != nil {
 					panic(err)
@@ -319,10 +326,20 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					rt = t.Result[0]
 				}
 
-				endCode := fmt.Sprintf(`i32.const %d
+				endCode := ""
+
+				if include_timings {
+					endCode = fmt.Sprintf(`%s
+					i32.const %d
+					call $timings_exit_func
+					`, endCode, functionIndex)
+				}
+
+				endCode = fmt.Sprintf(`%s
+				i32.const %d
 			i32.const offset($function_name_%d)
 			i32.const length($function_name_%d)
-			call $debug_exit_func`, functionIndex, functionIndex, functionIndex)
+			call $debug_exit_func`, endCode, functionIndex, functionIndex, functionIndex)
 
 				if is_wasi && rt == wasmfile.ValI32 {
 					// We also want to output the error message
@@ -355,6 +372,8 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			}
 		}
 	}
+
+	// Replace the slightly dynamic data (NB This should be at the END because we don't know the size before hand)
 
 	// Find out how much data we need for the payload
 	total_payload_data := data_ptr
