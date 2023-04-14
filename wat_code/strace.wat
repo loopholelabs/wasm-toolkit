@@ -1046,12 +1046,13 @@
 
   (data $error_stack_overflow "Error: The timings stack overflowed. You win some you lose some I guess.\0d\0a")
 
-  (data $metrics_data 0)
-
   (data $wasi_errors 0)
   (data $wasi_error_messages 0)
 
   (data $debug_summary "\0d\0a-- Summary of execution --\0d\0aCount      | Time (ns)           | Function\0d\0a-----------+---------------------+\0d\0a")
+
+;; TODO: Need to adjust this etc
+  (data $metrics_data 0)
 
   (global $debug_current_stack_depth (mut i32) (i32.const 0))
 
@@ -1059,6 +1060,8 @@
 
   (global $wasi_result_args_get_count (mut i32) (i32.const 0))
   (global $wasi_result_envs_get_count (mut i32) (i32.const 0))
+
+  (global $debug_num_funcs i32 (i32.const 0))
 
   (global $debug_do_timings i32 (i32.const 0))
 )

@@ -306,5 +306,6 @@ type Expression struct {
 	MemAlign    int
 	MemOffset   int
 
-	Relocating bool
+	Relocating             bool
+	RelocationOffsetDataId string
 }

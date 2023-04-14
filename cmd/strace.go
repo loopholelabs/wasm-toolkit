@@ -363,17 +363,19 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				}
 
 			}
-		} else {
-			// Do any relocation adjustments...
-			err = c.InsertAfterRelocating(wfile, `global.get $debug_start_mem
-																						i32.add`)
-			if err != nil {
-				panic(err)
-			}
+		}
+
+		err = c.InsertAfterRelocating(wfile, `global.get $debug_start_mem
+		i32.add`)
+		if err != nil {
+			panic(err)
+		}
+
+		err = c.ResolveRelocations(wfile, data_ptr)
+		if err != nil {
+			panic(err)
 		}
 	}
-
-	// Replace the slightly dynamic data (NB This should be at the END because we don't know the size before hand)
 
 	// Find out how much data we need for the payload
 	total_payload_data := data_ptr

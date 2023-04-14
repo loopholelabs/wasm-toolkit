@@ -19,6 +19,7 @@ package wasmfile
 import (
 	"bytes"
 	"debug/dwarf"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -527,6 +528,26 @@ func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
 	}
 
 	ce.Expression = append(ce.Expression, newex...)
+	return nil
+}
+
+func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
+	for _, e := range ce.Expression {
+		if e.Relocating {
+			did := wf.LookupDataId(e.RelocationOffsetDataId)
+			if did == -1 {
+				return fmt.Errorf("Data not found %s", e.RelocationOffsetDataId)
+			}
+
+			expr := wf.Data[did].Offset
+			if len(expr) != 1 || expr[0].Opcode != InstrToOpcode["i32.const"] {
+				return errors.New("Can only deal with i32.const for now")
+			}
+
+			e.I32Value = expr[0].I32Value - int32(base_pointer)
+			fmt.Printf("Relocated %s -> %d\n", e.RelocationOffsetDataId, expr[0].I32Value)
+		}
+	}
 	return nil
 }
 

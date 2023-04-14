@@ -307,19 +307,9 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		s = strings.Trim(s, Whitespace)
 		v, _ := ReadToken(s)
 		if strings.HasPrefix(v, "offset(") {
-			// Lookup the data offset, but also mark it so we can insert modification later...
 			dname := v[7 : len(v)-1]
-			did := wf.LookupDataId(dname)
-			if did == -1 {
-				return fmt.Errorf("Data not found %s", dname)
-			}
-
-			expr := wf.Data[did].Offset
-			if len(expr) != 1 || expr[0].Opcode != InstrToOpcode["i32.const"] {
-				return errors.New("Can only deal with i32.const for now")
-			}
-			e.I32Value = expr[0].I32Value
 			e.Relocating = true
+			e.RelocationOffsetDataId = dname
 			return nil
 		} else if strings.HasPrefix(v, "length(") {
 			// Lookup the data length...
