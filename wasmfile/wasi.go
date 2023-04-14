@@ -138,7 +138,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					call $debug_func_wasi_context
 					local.get 2
 					local.get 3
-					call $debug_print
+					call $wt_print
 					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_create_directory" {
@@ -148,7 +148,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					call $debug_func_wasi_context
 					local.get 1
 					local.get 2
-					call $debug_print
+					call $wt_print
 					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_remove_directory" {
@@ -158,7 +158,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					call $debug_func_wasi_context
 					local.get 1
 					local.get 2
-					call $debug_print
+					call $wt_print
 					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_unlink_file" {
@@ -168,7 +168,7 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 					call $debug_func_wasi_context
 					local.get 1
 					local.get 2
-					call $debug_print
+					call $wt_print
 					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "path_rename" {
@@ -178,13 +178,13 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 						call $debug_func_wasi_context
 						local.get 1
 						local.get 2
-						call $debug_print
+						call $wt_print
 						i32.const offset($dd_wasi_var_rename)
 						i32.const length($dd_wasi_var_rename)
-						call $debug_print
+						call $wt_print
 						local.get 4
 						local.get 5
-						call $debug_print
+						call $wt_print
 
 						call $debug_func_wasi_done_string
 						`
@@ -200,7 +200,7 @@ func GetWasiParamCodeExit(wasi_name string) string {
 					call $debug_func_wasi_context
 					local.get 1
 					local.get 2
-					call $debug_print
+					call $wt_print
 					call $debug_func_wasi_done_string
 					`
 	} else if wasi_name == "fd_read" {
@@ -211,11 +211,11 @@ func GetWasiParamCodeExit(wasi_name string) string {
 
 					local.get 3
 					i32.load
-					call $db_format_i32_dec
+					call $wt_format_i32_dec
 
 					i32.const offset($db_number_i32)
 					i32.const 10
-					call $debug_print
+					call $wt_print
 								
 					call $debug_func_wasi_done
 					`
@@ -227,11 +227,11 @@ func GetWasiParamCodeExit(wasi_name string) string {
 	
 						local.get 3
 						i32.load
-						call $db_format_i32_dec
+						call $wt_format_i32_dec
 	
 						i32.const offset($db_number_i32)
 						i32.const 10
-						call $debug_print
+						call $wt_print
 									
 						call $debug_func_wasi_done
 						`
@@ -246,20 +246,20 @@ func GetWasiParamCodeExit(wasi_name string) string {
 						i64.const 32
 						i64.shr_u
 						i32.wrap_i64
-						call $db_format_i32_hex
+						call $wt_format_i32_hex
 				
 						i32.const offset($db_number_i32)
 						i32.const 8
-						call $debug_print
+						call $wt_print
 				
 						local.get 2
 						i64.load
 						i32.wrap_i64
-						call $db_format_i32_hex
+						call $wt_format_i32_hex
 				
 						i32.const offset($db_number_i32)
 						i32.const 8
-						call $debug_print
+						call $wt_print
 									
 						call $debug_func_wasi_done
 						`
@@ -274,11 +274,11 @@ func GetWasiParamCodeExit(wasi_name string) string {
 
 						local.get 0
 						i32.load
-						call $db_format_i32_dec
+						call $wt_format_i32_dec
 
 						i32.const offset($db_number_i32)
 						i32.const 10
-						call $debug_print
+						call $wt_print
 									
 						call $debug_func_wasi_done
 
@@ -288,11 +288,11 @@ func GetWasiParamCodeExit(wasi_name string) string {
 
 						local.get 1
 						i32.load
-						call $db_format_i32_dec
+						call $wt_format_i32_dec
 
 						i32.const offset($db_number_i32)
 						i32.const 10
-						call $debug_print
+						call $wt_print
 									
 						call $debug_func_wasi_done
 						`
@@ -316,11 +316,11 @@ func GetWasiParamCodeExit(wasi_name string) string {
 
 						local.get 0
 						i32.load
-						call $db_format_i32_dec
+						call $wt_format_i32_dec
 
 						i32.const offset($db_number_i32)
 						i32.const 10
-						call $debug_print
+						call $wt_print
 									
 						call $debug_func_wasi_done
 
@@ -330,11 +330,11 @@ func GetWasiParamCodeExit(wasi_name string) string {
 
 						local.get 1
 						i32.load
-						call $db_format_i32_dec
+						call $wt_format_i32_dec
 
 						i32.const offset($db_number_i32)
 						i32.const 10
-						call $debug_print
+						call $wt_print
 									
 						call $debug_func_wasi_done
 						`

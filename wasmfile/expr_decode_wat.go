@@ -314,11 +314,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		} else if strings.HasPrefix(v, "length(") {
 			// Lookup the data length...
 			dname := v[7 : len(v)-1]
-			did := wf.LookupDataId(dname)
-			if did == -1 {
-				return fmt.Errorf("Data not found %s", dname)
-			}
-			e.I32Value = int32(len(wf.Data[did].Data))
+			e.DataLengthNeedsLinking = true
+			e.RelocationOffsetDataId = dname
 			return nil
 		}
 		vv, err := strconv.Atoi(v)

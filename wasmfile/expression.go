@@ -309,6 +309,8 @@ type Expression struct {
 	Relocating             bool
 	RelocationOffsetDataId string
 
+	DataLengthNeedsLinking bool
+
 	GlobalNeedsLinking bool
 	GlobalId           string
 

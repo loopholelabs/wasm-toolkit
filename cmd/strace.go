@@ -82,12 +82,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	// Add a payload to the wasm file
-	memFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "memory.wat"))
-	if err != nil {
-		panic(err)
-	}
-
 	// Keep track of wasi import wrappers
 	wasi_functions := make(map[int]string)
 
@@ -147,13 +141,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	originalFunctionLength := len(wfile.Code)
 
-	wfile.AddFuncsFrom(memFunctions)
-
 	data_ptr := wfile.Memory[0].LimitMin << 16
-
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
-
-	// Now we can start doing interesting things...
 
 	datamap := make(map[string][]byte, 0)
 
@@ -176,14 +164,23 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	//Wasi_errors
 
-	// Add a payload to the wasm file
-	debugFunctions, err := wasmfile.NewFromWatWithData(path.Join("wat_code", "strace.wat"), datamap)
-	if err != nil {
-		panic(err)
+	// Load up the individual wat files, and add them in
+	files := []string{"memory.wat", "stdout.wat", "strace.wat", "color.wat"}
+
+	ptr := int32(data_ptr)
+	for _, file := range files {
+		fmt.Printf(" - Adding code from %s...\n", file)
+		mod, err := wasmfile.NewFromWatWithData(path.Join("wat_code", file), datamap)
+		if err != nil {
+			panic(err)
+		}
+		ptr = wfile.AddDataFrom(ptr, mod)
+		wfile.AddFuncsFrom(mod)
 	}
 
-	wfile.AddDataFrom(int32(data_ptr), debugFunctions)
-	wfile.AddFuncsFrom(debugFunctions) // NB: This may mean inserting an import which changes all func numbers.
+	fmt.Printf("All wat code added...\n")
+
+	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Parse the dwarf stuff *here* incase the above messed up function IDs
 	fmt.Printf("Parsing dwarf line numbers...\n")
@@ -204,7 +201,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	if cfg_color {
-		wfile.SetGlobal("$debug_color", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
+		wfile.SetGlobal("$wt_color", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
@@ -367,6 +364,11 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 		err = c.InsertAfterRelocating(wfile, `global.get $debug_start_mem
 		i32.add`)
+		if err != nil {
+			panic(err)
+		}
+
+		err = c.ResolveLengths(wfile)
 		if err != nil {
 			panic(err)
 		}

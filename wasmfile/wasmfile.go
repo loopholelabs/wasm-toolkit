@@ -581,6 +581,19 @@ func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
 	return nil
 }
 
+func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
+	for _, e := range ce.Expression {
+		if e.DataLengthNeedsLinking {
+			did := wf.LookupDataId(e.RelocationOffsetDataId)
+			if did == -1 {
+				return fmt.Errorf("Data not found %s", e.RelocationOffsetDataId)
+			}
+			e.I32Value = int32(len(wf.Data[did].Data))
+		}
+	}
+	return nil
+}
+
 func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 	for _, e := range ce.Expression {
 		if e.Relocating {
