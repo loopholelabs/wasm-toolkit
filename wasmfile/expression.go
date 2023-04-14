@@ -308,4 +308,10 @@ type Expression struct {
 
 	Relocating             bool
 	RelocationOffsetDataId string
+
+	GlobalNeedsLinking bool
+	GlobalId           string
+
+	FunctionNeedsLinking bool
+	FunctionId           string
 }

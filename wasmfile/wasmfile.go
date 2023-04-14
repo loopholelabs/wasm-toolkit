@@ -343,6 +343,8 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 
 	callModification := make(map[int]int) // old fid -> new fid
 
+	importFuncModifications := make(map[string]string) // old name -> new name
+
 	// Deal with any imports
 	for idx, i := range wfSource.Import {
 		// Check if it's already being imported as something else...
@@ -354,6 +356,11 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 			}
 		}
 		if newidx != -1 {
+			// Add the name modification
+			fnFrom := wfSource.GetFunctionIdentifier(idx, false)
+			fnTo := wf.GetFunctionIdentifier(newidx, false)
+			fmt.Printf("Got to map import from %s => %s\n", fnFrom, fnTo)
+			importFuncModifications[fnFrom] = fnTo
 			callModification[idx] = newidx
 		} else {
 			// Need to add a new import then... (This means relocating every call as well)
@@ -398,7 +405,6 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 			for _, ce := range wf.Code {
 				ce.ModifyAllCalls(rmap)
 			}
-
 		}
 	}
 
@@ -427,6 +433,9 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 
 		c.ModifyAllCalls(callModification)
 		c.ModifyAllGlobals(globalModification)
+
+		c.ModifyUnresolvedFunctions(importFuncModifications)
+
 		wf.Code = append(wf.Code, c)
 	}
 
@@ -446,6 +455,19 @@ func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 		newid, ok := m[e.FuncIndex]
 		if ok {
 			e.FuncIndex = newid
+		}
+	}
+}
+
+func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
+	fmt.Printf("Adjusting unresolved functions %v\n", m)
+	for _, e := range ce.Expression {
+		if e.FunctionNeedsLinking {
+			newid, ok := m[e.FunctionId]
+			if ok {
+				fmt.Printf("Adjusting %s => %s\n", e.FunctionId, newid)
+				e.FunctionId = newid
+			}
 		}
 	}
 }
@@ -531,6 +553,34 @@ func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
 	return nil
 }
 
+func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {
+	for _, e := range ce.Expression {
+		if e.GlobalNeedsLinking {
+			// Lookup the global and get the ID
+			gid := wf.LookupGlobalID(e.GlobalId)
+			if gid == -1 {
+				return fmt.Errorf("Global target not found (%s)", e.GlobalId)
+			}
+			e.GlobalIndex = gid
+		}
+	}
+	return nil
+}
+
+func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
+	for _, e := range ce.Expression {
+		if e.FunctionNeedsLinking {
+			// Lookup the function and get the ID
+			fid := wf.LookupFunctionID(e.FunctionId)
+			if fid == -1 {
+				return fmt.Errorf("Function target not found (%s)", e.FunctionId)
+			}
+			e.FuncIndex = fid
+		}
+	}
+	return nil
+}
+
 func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 	for _, e := range ce.Expression {
 		if e.Relocating {
@@ -545,7 +595,6 @@ func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 			}
 
 			e.I32Value = expr[0].I32Value - int32(base_pointer)
-			fmt.Printf("Relocated %s -> %d\n", e.RelocationOffsetDataId, expr[0].I32Value)
 		}
 	}
 	return nil

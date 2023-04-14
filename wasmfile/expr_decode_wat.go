@@ -382,45 +382,41 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		return nil
 	} else if opcode == "global.get" ||
 		opcode == "global.set" {
+		e.Opcode = InstrToOpcode[opcode]
 		var target string
 		var gid int
 		var err error
 		target, s = ReadToken(s)
 		if target[0] == '$' {
-			// Lookup the function and get the ID
-			gid = wf.LookupGlobalID(target)
-			if gid == -1 {
-				return fmt.Errorf("Global target not found (%s)", target)
-			}
+			e.GlobalNeedsLinking = true
+			e.GlobalId = target
+			return nil
 		} else {
 			gid, err = strconv.Atoi(target)
 			if err != nil {
 				return err
 			}
+			e.GlobalIndex = gid
+			return nil
 		}
-		e.Opcode = InstrToOpcode[opcode]
-		e.GlobalIndex = gid
-		return nil
 	} else if opcode == "call" {
+		e.Opcode = InstrToOpcode[opcode]
 		var target string
 		var fid int
 		var err error
 		target, s = ReadToken(s)
 		if target[0] == '$' {
-			// Lookup the function and get the ID
-			fid = wf.LookupFunctionID(target)
-			if fid == -1 {
-				return fmt.Errorf("Function call target not found (%s)", target)
-			}
+			e.FunctionNeedsLinking = true
+			e.FunctionId = target
+			return nil
 		} else {
 			fid, err = strconv.Atoi(target)
 			if err != nil {
 				return err
 			}
+			e.FuncIndex = fid
+			return nil
 		}
-		e.Opcode = InstrToOpcode[opcode]
-		e.FuncIndex = fid
-		return nil
 	} else if opcode == "call_indirect" {
 		e.Opcode = InstrToOpcode[opcode]
 		s = strings.Trim(s, Whitespace)

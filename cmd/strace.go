@@ -375,6 +375,16 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		if err != nil {
 			panic(err)
 		}
+
+		err = c.ResolveGlobals(wfile)
+		if err != nil {
+			panic(err)
+		}
+
+		err = c.ResolveFunctions(wfile)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// Find out how much data we need for the payload
