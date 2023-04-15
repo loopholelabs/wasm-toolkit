@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 )
 
@@ -469,6 +470,15 @@ func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
 			if ok {
 				fmt.Printf("Adjusting %s => %s\n", e.FunctionId, newid)
 				e.FunctionId = newid
+				// Special case
+				if !strings.HasPrefix(newid, "$") {
+					fid, err := strconv.Atoi(newid)
+					if err != nil {
+						panic(err)
+					}
+					e.FunctionNeedsLinking = false
+					e.FuncIndex = fid
+				}
 			}
 		}
 	}
