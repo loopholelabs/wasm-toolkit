@@ -48,3 +48,4 @@ On the left is an strace like output. On the right is a wat output with debuggin
 ## TODO
 
 * Dwarf watched globals - automatically determine type/length from dwarf data, support many types.
+* Hook unreachable calls and add far more context to aid debugging. eg show all watched variables.

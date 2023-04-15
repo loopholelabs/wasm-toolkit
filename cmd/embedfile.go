@@ -156,6 +156,27 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 				panic(err)
 			}
 		}
+
+		err = c.ResolveLengths(wfile)
+		if err != nil {
+			panic(err)
+		}
+
+		err = c.ResolveRelocations(wfile, data_ptr)
+		if err != nil {
+			panic(err)
+		}
+
+		err = c.ResolveGlobals(wfile)
+		if err != nil {
+			panic(err)
+		}
+
+		err = c.ResolveFunctions(wfile)
+		if err != nil {
+			panic(err)
+		}
+
 	}
 
 	fmt.Printf("Writing wasm out to %s...\n", Output)
