@@ -32,6 +32,8 @@ func main() {
 	exampleFunction(12, 46)
 
 	fmt.Printf("some_global is %d, another_global is %d\n", some_global, another_global)
+
+	panic("Something happened")
 }
 
 //export hello

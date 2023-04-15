@@ -300,7 +300,7 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 
 		wf.Data = append(wf.Data, d)
 		ptr += int32(len(d.Data))
-		ptr = (ptr + 3) & -4
+		ptr = (ptr + 7) & -8
 
 		// Copy over the data name
 		wf.dataNames[newidx] = src_name
@@ -316,7 +316,7 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 	}
 
 	// Align things...
-	ptr = (ptr + 3) & -4
+	ptr = (ptr + 7) & -8
 
 	idx := len(wf.Data)
 	wf.Data = append(wf.Data, &DataEntry{

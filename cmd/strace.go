@@ -150,8 +150,8 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	datamap := make(map[string][]byte, 0)
 
-	we_data := make([]byte, 0)
-	er_data := make([]byte, 0)
+	data_wasi_err := make([]byte, 0)
+	data_wasi_err_ptrs := make([]byte, 0)
 
 	errors_by_id := make([]string, 77)
 	for m, v := range wasmfile.Wasi_errors {
@@ -159,18 +159,20 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	for _, m := range errors_by_id {
-		we_data = binary.LittleEndian.AppendUint32(we_data, uint32(len(er_data)))
-		we_data = binary.LittleEndian.AppendUint32(we_data, uint32(len([]byte(m))))
-		er_data = append(er_data, []byte(m)...)
+		data_wasi_err = binary.LittleEndian.AppendUint32(data_wasi_err, uint32(len(data_wasi_err_ptrs)))
+		data_wasi_err = binary.LittleEndian.AppendUint32(data_wasi_err, uint32(len([]byte(m))))
+		data_wasi_err_ptrs = append(data_wasi_err_ptrs, []byte(m)...)
 	}
 
-	datamap["$wasi_errors"] = we_data
-	datamap["$wasi_error_messages"] = er_data
+	/*
+		datamap["$wasi_errors"] = we_data
+		datamap["$wasi_error_messages"] = er_data
+	*/
 
 	//Wasi_errors
 
 	// Load up the individual wat files, and add them in
-	files := []string{"memory.wat", "stdout.wat", "strace.wat", "color.wat", "timings.wat"}
+	files := []string{"memory.wat", "stdout.wat", "strace.wat", "color.wat", "timings.wat", "function_enter_exit.wat"}
 
 	ptr := int32(data_ptr)
 	for _, file := range files {
@@ -245,6 +247,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	// Add those data elements into the mix...
+
+	wfile.AddData("$wasi_errors", []byte(data_wasi_err))
+	wfile.AddData("$wasi_error_messages", []byte(data_wasi_err_ptrs))
+
 	wfile.AddData("$wt_all_function_names", []byte(data_function_names))
 	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_locs))
 	wfile.AddData("$metrics_data", []byte(data_metrics_data))
