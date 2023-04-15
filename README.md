@@ -11,6 +11,8 @@
   * Dwarf source file and line number ranges
   * Dwarf paramater names
   * Wasi preview1 call and return values
+  * Function call count and timings summary
+  * Watch globals by name (i32 only so far)
 
 * POC Embedding a file into a wasm which is then available to the module.
 
@@ -45,5 +47,4 @@ On the left is an strace like output. On the right is a wat output with debuggin
 
 ## TODO
 
-* Add function timings and summary output
-* Add more dwarf debug info
+* Dwarf watched globals - automatically determine type/length from dwarf data, support many types.
