@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 
@@ -45,6 +46,7 @@ var include_param_names = false
 var include_all = false
 var func_regex = ".*"
 var cfg_color = false
+var watch_globals = ""
 
 func init() {
 	rootCmd.AddCommand(cmdStrace)
@@ -57,6 +59,9 @@ func init() {
 	cmdStrace.Flags().BoolVar(&include_all, "all", false, "Include everything")
 
 	cmdStrace.Flags().BoolVar(&cfg_color, "color", false, "Output ANSI color in the log")
+
+	cmdStrace.Flags().StringVarP(&watch_globals, "watch", "w", "", "List of globals to watch (, separated)")
+
 }
 
 func runStrace(ccmd *cobra.Command, args []string) {
@@ -82,7 +87,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	// Keep track of wasi import wrappers
+	// Keep track of wasi import wrappers so that we can add context to them later.
 	wasi_functions := make(map[int]string)
 
 	// Wrap all imports if we need to...
@@ -165,7 +170,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	//Wasi_errors
 
 	// Load up the individual wat files, and add them in
-	files := []string{"memory.wat", "stdout.wat", "strace.wat", "color.wat"}
+	files := []string{"memory.wat", "stdout.wat", "strace.wat", "color.wat", "timings.wat"}
 
 	ptr := int32(data_ptr)
 	for _, file := range files {
@@ -195,6 +200,9 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
+	// Get watch code
+	watch_code := GetWatchCode(wfile)
+
 	// Pass some config into wasm
 	if include_timings {
 		wfile.SetGlobal("$debug_do_timings", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
@@ -203,6 +211,44 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	if cfg_color {
 		wfile.SetGlobal("$wt_color", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
 	}
+
+	// Get a function name map, and add it as data...
+	data_function_names := make([]byte, 0)
+	data_function_locs := make([]byte, 0)
+	data_metrics_data := make([]byte, 0)
+	for idx, _ := range wfile.Import {
+		functionIndex := idx
+		name := wfile.GetFunctionIdentifier(functionIndex, false)
+
+		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
+		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
+
+		data_function_names = append(data_function_names, []byte(name)...)
+
+		// Just add another 16 bytes on for now...
+		data_metrics_data = append(data_metrics_data, make([]byte, 16)...)
+	}
+
+	for idx, _ := range wfile.Code {
+		functionIndex := len(wfile.Import) + idx
+		name := wfile.GetFunctionIdentifier(functionIndex, false)
+
+		fmt.Printf("Saving name %d as %s\n", functionIndex, name)
+
+		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
+		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
+
+		data_function_names = append(data_function_names, []byte(name)...)
+
+		// Just add another 16 bytes on for now...
+		data_metrics_data = append(data_metrics_data, make([]byte, 16)...)
+	}
+
+	// Add those data elements into the mix...
+	wfile.AddData("$wt_all_function_names", []byte(data_function_names))
+	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_locs))
+	wfile.AddData("$metrics_data", []byte(data_metrics_data))
+	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", len(wfile.Import)+len(wfile.Code)))
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
 
@@ -235,14 +281,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
 				}
 
-				wfile.AddData(fmt.Sprintf("$function_name_%d", functionIndex), []byte(fidentifier))
-
 				startCode := fmt.Sprintf(`%s
 			i32.const %d
-			i32.const offset($function_name_%d)
-			i32.const length($function_name_%d)
 			call $debug_enter_func
-			`, blockInstr, functionIndex, functionIndex, functionIndex)
+			`, blockInstr, functionIndex)
 
 				// Do parameters...
 				for paramIndex, pt := range t.Param {
@@ -313,6 +355,12 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					`, startCode, functionIndex)
 				}
 
+				// Add any watches
+				if watch_globals != "" {
+					startCode = fmt.Sprintf(`%s
+					%s`, startCode, watch_code)
+				}
+
 				err = c.InsertFuncStart(wfile, startCode)
 				if err != nil {
 					panic(err)
@@ -334,9 +382,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 				endCode = fmt.Sprintf(`%s
 				i32.const %d
-			i32.const offset($function_name_%d)
-			i32.const length($function_name_%d)
-			call $debug_exit_func`, endCode, functionIndex, functionIndex, functionIndex)
+				call $debug_exit_func`, endCode, functionIndex)
 
 				if is_wasi && rt == wasmfile.ValI32 {
 					// We also want to output the error message
@@ -347,6 +393,12 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				} else {
 					endCode = fmt.Sprintf(`%s
 					call $debug_exit_func_%s`, endCode, wasmfile.ByteToValType[rt])
+				}
+
+				// Add any watches
+				if watch_globals != "" {
+					endCode = fmt.Sprintf(`%s
+					%s`, endCode, watch_code)
 				}
 
 				err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
@@ -437,4 +489,35 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	   		panic(err)
 	   	}
 	*/
+}
+
+func GetWatchCode(wf *wasmfile.WasmFile) string {
+	if watch_globals == "" {
+		return ""
+	}
+
+	code := ""
+	watches := strings.Split(watch_globals, ",")
+	for widx, w := range watches {
+		// Lookup the address...
+		addr, ok := wf.GlobalAddresses[w]
+		if !ok {
+			fmt.Printf("WARNING: I can't find the global %s\n", w)
+			for n, _ := range wf.GlobalAddresses {
+				fmt.Printf(" - Global %s\n", n)
+			}
+			panic("Global name not found")
+		} else {
+			// Insert some code to show global...
+			wf.AddData(fmt.Sprintf("$watch_name_%d", widx), []byte(w))
+
+			code = fmt.Sprintf(`%s
+				i32.const offset($watch_name_%d)
+				i32.const length($watch_name_%d)
+				i32.const %d
+				call $wt_watch_i32
+			`, code, widx, widx, addr)
+		}
+	}
+	return code
 }

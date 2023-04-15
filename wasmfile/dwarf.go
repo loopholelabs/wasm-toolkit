@@ -165,6 +165,9 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 		wf.functionSignature = make(map[int]string)
 	}
 	wf.localNames = make([]*LocalNameData, 0)
+
+	wf.GlobalAddresses = make(map[string]int32)
+
 	entryReader := wf.dwarfData.Reader()
 
 	for {
@@ -173,6 +176,32 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 		if entry == nil || err == io.EOF {
 			// We've reached the end of DWARF entries
 			break
+		}
+
+		if entry.Tag == dwarf.TagVariable {
+			// Parse the location address
+			vname := ""
+			var vaddr []byte
+			for _, field := range entry.Field {
+				//				log.Printf("Field %v\n", field)
+				if field.Attr == dwarf.AttrName {
+					vname = field.Val.(string)
+				} else if field.Attr == dwarf.AttrLocation {
+					// Parse the expression
+					switch field.Val.(type) {
+					case []byte:
+						vaddr = field.Val.([]byte)
+					}
+				}
+			}
+			if vaddr != nil && vname != "" {
+				// Parse the expression
+				if len(vaddr) == 5 && vaddr[0] == DW_OP_addr {
+					addr := binary.LittleEndian.Uint32(vaddr[1:])
+					fmt.Printf("Found a variable %s at %d - %d\n", vname, vaddr, addr)
+					wf.GlobalAddresses[vname] = int32(addr)
+				}
+			}
 		}
 
 		if entry.Tag == dwarf.TagSubprogram {
@@ -305,6 +334,8 @@ const DW_Location_Local = 0
 const DW_Location_Global = 1
 const DW_Location_Stack = 2 // 0 = bottom of the stack
 const DW_Location_Global_i32 = 3
+
+const DW_OP_addr = 0x03
 
 const DW_OP_stack_value = 0x9f
 const DW_OP_piece = 0x93

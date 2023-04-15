@@ -8,6 +8,8 @@
   (data $wt_ansi_none "\1b[0m")
   (data $wt_ansi_wasi_context "\1b[35m")
 
+  (data $wt_ansi_watch "\1b[33m")
+
   ;; Flag - is color enabled or not?
   (global $wt_color i32 (i32.const 0))
 )

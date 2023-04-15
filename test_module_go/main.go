@@ -6,6 +6,9 @@ import (
 	"os"
 )
 
+var some_global int32 = 0x1234
+var another_global int32 = 1
+
 func main() {
 	fmt.Printf("TEST environment var is %v\n", os.Getenv("TEST"))
 	os.WriteFile("newfile", []byte("Testing"), 660)
@@ -24,13 +27,17 @@ func main() {
 	}
 
 	os.Rename("newfile", "newfile2")
-
 	os.Remove("newfile2")
+
+	exampleFunction(12, 46)
+
+	fmt.Printf("some_global is %d, another_global is %d\n", some_global, another_global)
 }
 
 //export hello
 //go:linkname hello
 func hello() {
+	some_global = 1
 	v := make([]byte, 1024)
 	fmt.Printf("Module says hello() I have a byte array len %d\n", len(v))
 
@@ -40,6 +47,8 @@ func hello() {
 
 //go:noinline
 func exampleFunction(x_value int32, y_value int32) int32 {
+	some_global = 2
+	another_global = 0x999
 	var zoobs int32 = 45
 	if x_value == 0 {
 		return -1
