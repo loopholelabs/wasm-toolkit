@@ -86,8 +86,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		opcode == "i32.shl" ||
 		opcode == "i32.shr_s" ||
 		opcode == "i32.shr_u" ||
-		opcode == "i32.rotl_s" ||
-		opcode == "i32.rotr_u" ||
+		opcode == "i32.rotl" ||
+		opcode == "i32.rotr" ||
 
 		opcode == "i64.clz" ||
 		opcode == "i64.ctz" ||
@@ -105,8 +105,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		opcode == "i64.shl" ||
 		opcode == "i64.shr_s" ||
 		opcode == "i64.shr_u" ||
-		opcode == "i64.rotl_s" ||
-		opcode == "i64.rotr_u" ||
+		opcode == "i64.rotl" ||
+		opcode == "i64.rotr" ||
 
 		opcode == "f32.abs" ||
 		opcode == "f32.neg" ||

@@ -420,7 +420,10 @@ func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 	}
 
 	for _, e := range c.Expression {
-		e.EncodeBinary(&buf)
+		err := e.EncodeBinary(&buf)
+		if err != nil {
+			return err
+		}
 	}
 	buf.WriteByte(0x0b) // END
 

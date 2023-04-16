@@ -84,8 +84,8 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 		e.Opcode == InstrToOpcode["i32.shl"] ||
 		e.Opcode == InstrToOpcode["i32.shr_s"] ||
 		e.Opcode == InstrToOpcode["i32.shr_u"] ||
-		e.Opcode == InstrToOpcode["i32.rotl_s"] ||
-		e.Opcode == InstrToOpcode["i32.rotr_u"] ||
+		e.Opcode == InstrToOpcode["i32.rotl"] ||
+		e.Opcode == InstrToOpcode["i32.rotr"] ||
 
 		e.Opcode == InstrToOpcode["i64.clz"] ||
 		e.Opcode == InstrToOpcode["i64.ctz"] ||
@@ -103,8 +103,8 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 		e.Opcode == InstrToOpcode["i64.shl"] ||
 		e.Opcode == InstrToOpcode["i64.shr_s"] ||
 		e.Opcode == InstrToOpcode["i64.shr_u"] ||
-		e.Opcode == InstrToOpcode["i64.rotl_s"] ||
-		e.Opcode == InstrToOpcode["i64.rotr_u"] ||
+		e.Opcode == InstrToOpcode["i64.rotl"] ||
+		e.Opcode == InstrToOpcode["i64.rotr"] ||
 
 		e.Opcode == InstrToOpcode["f32.abs"] ||
 		e.Opcode == InstrToOpcode["f32.neg"] ||

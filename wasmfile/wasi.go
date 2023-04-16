@@ -188,6 +188,10 @@ func GetWasiParamCodeEnter(wasi_name string) string {
 
 						call $debug_func_wasi_done_string
 						`
+	} else if wasi_name == "proc_exit" {
+		// Print out timings summary here for definite
+		return `call $show_timings_summary
+		`
 	}
 	return ""
 }
