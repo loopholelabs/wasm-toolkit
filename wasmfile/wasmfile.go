@@ -57,6 +57,30 @@ type WasmFile struct {
 	dataNames     map[int]string
 }
 
+func (wf *WasmFile) Renumber_functions(remap map[int]int) {
+	// This modifies FunctionNames, functionDebug, functionSignature
+	newFunctionNames := make(map[int]string)
+	newFunctionDebug := make(map[int]string)
+	newFunctionSignature := make(map[int]string)
+	for o, n := range remap {
+		v, ok := wf.FunctionNames[o]
+		if ok {
+			newFunctionNames[n] = v
+		}
+		v, ok = wf.functionDebug[o]
+		if ok {
+			newFunctionDebug[n] = v
+		}
+		v, ok = wf.functionSignature[o]
+		if ok {
+			newFunctionSignature[n] = v
+		}
+	}
+	wf.FunctionNames = newFunctionNames
+	wf.functionDebug = newFunctionDebug
+	wf.functionSignature = newFunctionSignature
+}
+
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
 
@@ -333,7 +357,7 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 	wf.dataNames[idx] = name
 }
 
-func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
+func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap map[int]int)) {
 	globalModification := make(map[int]int)
 	for idx, g := range wfSource.Global {
 		newidx := len(wf.Global)
@@ -375,27 +399,21 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 			i.Index = wf.AddTypeMaybe(t)
 
 			wf.Import = append(wf.Import, i)
-			// Need to fix up any existing code, and the function names table
-			newmap := make(map[int]string, 0)
-			for idx, name := range wf.FunctionNames {
-				if idx >= newidx {
-					newmap[idx+1] = name
-				} else {
-					newmap[idx] = name
-				}
-			}
-			name := wfSource.GetFunctionIdentifier(idx, true)
-			if name != "" {
-				newmap[newidx] = name
-			}
-			wf.FunctionNames = newmap
 
 			rmap := make(map[int]int)
 			for i := 0; i < len(wf.Code)+len(wf.Import); i++ {
 				// Relocate everything at or above newidx
 				if i >= newidx {
 					rmap[i] = i + 1
+				} else {
+					rmap[i] = i
 				}
+			}
+
+			wf.Renumber_functions(rmap)
+			name := wfSource.GetFunctionIdentifier(idx, true)
+			if name != "" {
+				wf.FunctionNames[newidx] = name
 			}
 
 			// Modify any exports
@@ -414,15 +432,15 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 				for idx, funcidx := range el.Indexes {
 					newidx, ok := rmap[int(funcidx)]
 					if ok {
-						fmt.Printf("Remapping elem entry from %d -> %d\n", funcidx, newidx)
 						el.Indexes[idx] = uint64(newidx)
 					}
 				}
 			}
+
+			// Do some callbacks
+			remap_callback(rmap)
 		}
 	}
-
-	fmt.Printf("Imports sorted out... %v\n", callModification) // 0->0 ok
 
 	for idx, f := range wfSource.Function {
 		t := wfSource.Type[f.TypeIndex]
@@ -474,12 +492,10 @@ func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 }
 
 func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
-	fmt.Printf("Adjusting unresolved functions %v\n", m)
 	for _, e := range ce.Expression {
 		if e.FunctionNeedsLinking {
 			newid, ok := m[e.FunctionId]
 			if ok {
-				fmt.Printf("Adjusting %s => %s\n", e.FunctionId, newid)
 				e.FunctionId = newid
 				// Special case
 				if !strings.HasPrefix(newid, "$") {

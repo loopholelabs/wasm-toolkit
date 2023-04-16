@@ -73,7 +73,7 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 
 	originalFunctionLength := len(wfile.Code)
 
-	wfile.AddFuncsFrom(memFunctions)
+	wfile.AddFuncsFrom(memFunctions, func(m map[int]int) {})
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
 	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
@@ -114,7 +114,7 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
-	wfile.AddFuncsFrom(embedFunctions) // NB: This may mean inserting an import which changes all func numbers.
+	wfile.AddFuncsFrom(embedFunctions, func(m map[int]int) {}) // NB: This may mean inserting an import which changes all func numbers.
 
 	// Redirect some imports...
 	import_redirect_map := map[string]string{

@@ -182,7 +182,18 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			panic(err)
 		}
 		ptr = wfile.AddDataFrom(ptr, mod)
-		wfile.AddFuncsFrom(mod)
+		wfile.AddFuncsFrom(mod, func(remap map[int]int) {
+			// Fixup
+			// wasi_functions
+			newmap := make(map[int]string)
+			for f, t := range remap {
+				n, ok := wasi_functions[f]
+				if ok {
+					newmap[t] = n
+				}
+			}
+			wasi_functions = newmap
+		})
 	}
 
 	fmt.Printf("All wat code added...\n")
@@ -235,8 +246,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		functionIndex := len(wfile.Import) + idx
 		name := wfile.GetFunctionIdentifier(functionIndex, false)
 
-		fmt.Printf("Saving name %d as %s\n", functionIndex, name)
-
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
 
@@ -280,6 +289,13 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 			if match {
 				fmt.Printf("Patching function[%d] %s\n", idx, fidentifier)
+				// If it's a wasi call, then output some detail here...
+				wasi_name, is_wasi := wasi_functions[functionIndex]
+
+				if is_wasi {
+					fmt.Printf(" (Wasi call to %s)\n", wasi_name)
+				}
+
 				blockInstr := "block"
 				f := wfile.Function[idx]
 				t := wfile.Type[f.TypeIndex]
@@ -346,9 +362,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					call $debug_func_context
 					`, startCode, functionIndex, functionIndex)
 				}
-
-				// If it's a wasi call, then output some detail here...
-				wasi_name, is_wasi := wasi_functions[functionIndex]
 
 				// Add some code to show function parameter values...
 				startCode = fmt.Sprintf(`%s
