@@ -43,22 +43,23 @@ func (wf *WasmFile) ParseDwarf() error {
 		len(debug_pubnames),
 		len(debug_ranges),
 		len(debug_str))
-
-	if len(debug_abbrev) == 0 ||
-		len(debug_aranges) == 0 ||
-		len(debug_info) == 0 ||
-		len(debug_line) == 0 ||
-		len(debug_pubnames) == 0 ||
-		len(debug_ranges) == 0 ||
-		len(debug_str) == 0 {
-		return nil
-	}
-
+	/*
+		if len(debug_abbrev) == 0 ||
+			len(debug_aranges) == 0 ||
+			len(debug_info) == 0 ||
+			len(debug_line) == 0 ||
+			len(debug_pubnames) == 0 ||
+			len(debug_ranges) == 0 ||
+			len(debug_str) == 0 {
+			return nil
+		}
+	*/
 	debug_frame := make([]byte, 0) // call frame info
 
 	dd, err := dwarf.New(debug_abbrev, debug_aranges, debug_frame, debug_info, debug_line, debug_pubnames, debug_ranges, debug_str)
 	if err != nil {
-		return err
+		fmt.Printf("WARNING: Could not read dwarf data... %e", err)
+		return nil // ok, but lets move on
 	}
 
 	wf.dwarfData = dd
@@ -81,6 +82,8 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 			break
 		}
 
+		fmt.Printf("Dwarf entry %v\n", entry)
+
 		if entry.Tag == dwarf.TagCompileUnit {
 			liner, err := wf.dwarfData.LineReader(entry)
 
@@ -94,6 +97,8 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 					if err == io.EOF {
 						break
 					}
+
+					fmt.Printf("Dwarf line %s %d\n", ent.File.Name, ent.Line)
 
 					wf.lineNumbers[ent.Address] = LineInfo{
 						Filename:   ent.File.Name,
