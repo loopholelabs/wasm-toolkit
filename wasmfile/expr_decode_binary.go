@@ -38,8 +38,6 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 		opcode := data[ptr]
 		ptr++
 
-		fmt.Printf("Expression decoding: %x\n", opcode)
-
 		// First deal with simple opcodes (No args)
 		if Opcode(opcode) == InstrToOpcode["unreachable"] ||
 			Opcode(opcode) == InstrToOpcode["nop"] ||
