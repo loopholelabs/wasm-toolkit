@@ -1,5 +1,7 @@
 # Go wasmtoolkit
 
+* TODO: Some issues with wasm built by rust at the moment.
+
 ## Features
 
 * Encoding and decoding from `.wasm` binary (99% done)
