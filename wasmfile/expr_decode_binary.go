@@ -38,6 +38,8 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 		opcode := data[ptr]
 		ptr++
 
+		fmt.Printf("Expression decoding: %x\n", opcode)
+
 		// First deal with simple opcodes (No args)
 		if Opcode(opcode) == InstrToOpcode["unreachable"] ||
 			Opcode(opcode) == InstrToOpcode["nop"] ||
@@ -98,8 +100,8 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 			Opcode(opcode) == InstrToOpcode["i32.shl"] ||
 			Opcode(opcode) == InstrToOpcode["i32.shr_s"] ||
 			Opcode(opcode) == InstrToOpcode["i32.shr_u"] ||
-			Opcode(opcode) == InstrToOpcode["i32.rotl_s"] ||
-			Opcode(opcode) == InstrToOpcode["i32.rotr_u"] ||
+			Opcode(opcode) == InstrToOpcode["i32.rotl"] ||
+			Opcode(opcode) == InstrToOpcode["i32.rotr"] ||
 
 			Opcode(opcode) == InstrToOpcode["i64.clz"] ||
 			Opcode(opcode) == InstrToOpcode["i64.ctz"] ||
@@ -117,8 +119,8 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 			Opcode(opcode) == InstrToOpcode["i64.shl"] ||
 			Opcode(opcode) == InstrToOpcode["i64.shr_s"] ||
 			Opcode(opcode) == InstrToOpcode["i64.shr_u"] ||
-			Opcode(opcode) == InstrToOpcode["i64.rotl_s"] ||
-			Opcode(opcode) == InstrToOpcode["i64.rotr_u"] ||
+			Opcode(opcode) == InstrToOpcode["i64.rotl"] ||
+			Opcode(opcode) == InstrToOpcode["i64.rotr"] ||
 
 			Opcode(opcode) == InstrToOpcode["f32.abs"] ||
 			Opcode(opcode) == InstrToOpcode["f32.neg"] ||
