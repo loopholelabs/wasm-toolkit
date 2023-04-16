@@ -408,6 +408,17 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile) {
 			for _, ce := range wf.Code {
 				ce.ModifyAllCalls(rmap)
 			}
+
+			// We also need to fixup any Elems sections
+			for _, el := range wf.Elem {
+				for idx, funcidx := range el.Indexes {
+					newidx, ok := rmap[int(funcidx)]
+					if ok {
+						fmt.Printf("Remapping elem entry from %d -> %d\n", funcidx, newidx)
+						el.Indexes[idx] = uint64(newidx)
+					}
+				}
+			}
 		}
 	}
 
