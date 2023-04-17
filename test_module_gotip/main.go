@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	_ "unsafe"
 )
 
 var some_global int32 = 0x1234

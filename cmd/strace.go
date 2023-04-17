@@ -20,14 +20,33 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"path"
 	"regexp"
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 
+	_ "embed"
+
 	"github.com/spf13/cobra"
 )
+
+//go:embed memory.wat
+var wat_memory []byte
+
+//go:embed stdout.wat
+var wat_stdout []byte
+
+//go:embed strace.wat
+var wat_strace []byte
+
+//go:embed color.wat
+var wat_color []byte
+
+//go:embed timings.wat
+var wat_timings []byte
+
+//go:embed function_enter_exit.wat
+var wat_function_enter_exit []byte
 
 var (
 	cmdStrace = &cobra.Command{
@@ -148,8 +167,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
 
-	datamap := make(map[string][]byte, 0)
-
 	data_wasi_err := make([]byte, 0)
 	data_wasi_err_ptrs := make([]byte, 0)
 
@@ -172,12 +189,21 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	//Wasi_errors
 
 	// Load up the individual wat files, and add them in
-	files := []string{"memory.wat", "stdout.wat", "strace.wat", "color.wat", "timings.wat", "function_enter_exit.wat"}
+	files := map[string][]byte{
+		"memory.wat":              wat_memory,
+		"stdout.wat":              wat_stdout,
+		"strace.wat":              wat_strace,
+		"color.wat":               wat_color,
+		"timings.wat":             wat_timings,
+		"function_enter_exit.wat": wat_function_enter_exit}
 
 	ptr := int32(data_ptr)
-	for _, file := range files {
-		fmt.Printf(" - Adding code from %s...\n", file)
-		mod, err := wasmfile.NewFromWatWithData(path.Join("wat_code", file), datamap)
+	for file, data := range files {
+		fmt.Printf(" - Adding code from %s (%d bytes)...\n", file, len(data))
+		mod := &wasmfile.WasmFile{}
+		err = mod.DecodeWat(data)
+
+		//		mod, err := wasmfile.NewFromWat(path.Join("wat_code", file))
 		if err != nil {
 			panic(err)
 		}
@@ -199,20 +225,20 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	fmt.Printf("All wat code added...\n")
 
 	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	/*
+		// Parse the dwarf stuff *here* incase the above messed up function IDs
+		fmt.Printf("Parsing dwarf line numbers...\n")
+		err = wfile.ParseDwarfLineNumbers()
+		if err != nil {
+			panic(err)
+		}
 
-	// Parse the dwarf stuff *here* incase the above messed up function IDs
-	fmt.Printf("Parsing dwarf line numbers...\n")
-	err = wfile.ParseDwarfLineNumbers()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Parsing dwarf local variables...\n")
-	err = wfile.ParseDwarfVariables()
-	if err != nil {
-		panic(err)
-	}
-
+		fmt.Printf("Parsing dwarf local variables...\n")
+		err = wfile.ParseDwarfVariables()
+		if err != nil {
+			panic(err)
+		}
+	*/
 	// Get watch code
 	watch_code := GetWatchCode(wfile)
 
@@ -269,6 +295,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
+		fmt.Printf("Processing functions [%d/%d]\n", idx, len(wfile.Code))
 		if idx < originalFunctionLength {
 			err = c.ReplaceInstr(wfile, "memory.grow", "call $debug_memory_grow")
 			if err != nil {

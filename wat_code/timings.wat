@@ -90,15 +90,11 @@
   )
 
   (func $debug_summary_maybe
-    global.get $debug_do_timings
-    i32.eqz
-    br_if 0
-
-    global.get $debug_current_stack_depth
-    i32.eqz
-    if
-      call $show_timings_summary
-    end
+;;    global.get $debug_current_stack_depth
+;;    i32.eqz
+;;    if
+;;      call $show_timings_summary
+;;    end
   )
 
 
@@ -152,6 +148,11 @@
 
   (func $show_timings_summary
       (local $f_id i32)
+
+      global.get $debug_do_timings
+      i32.eqz
+      br_if 0
+
       i32.const offset($debug_summary)
       i32.const length($debug_summary)
       call $wt_print
