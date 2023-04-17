@@ -82,8 +82,6 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 			break
 		}
 
-		fmt.Printf("Dwarf entry %v\n", entry)
-
 		if entry.Tag == dwarf.TagCompileUnit {
 			liner, err := wf.dwarfData.LineReader(entry)
 
@@ -98,8 +96,6 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 						break
 					}
 
-					fmt.Printf("Dwarf line %s %d\n", ent.File.Name, ent.Line)
-
 					wf.lineNumbers[ent.Address] = LineInfo{
 						Filename:   ent.File.Name,
 						Linenumber: ent.Line,
@@ -109,6 +105,9 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 			}
 		}
 	}
+
+	fmt.Printf("Parsed Dwarf lines %d\n", len(wf.lineNumbers))
+
 	return nil
 }
 
@@ -270,11 +269,15 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 						if field.Attr == dwarf.AttrName {
 							vname = field.Val.(string)
 						} else if field.Attr == dwarf.AttrType {
-							t := field.Val.(dwarf.Offset)
-							ty, err := wf.dwarfData.Type(t)
-							if err == nil {
-								vtype = ty.String()
-							}
+							/*
+								fmt.Printf("Getting vtype...\n")
+								t := field.Val.(dwarf.Offset)
+								ty, err := wf.dwarfData.Type(t)
+								if err == nil {
+									vtype = ty.String()
+								}
+								fmt.Printf("Type is %s\n", vtype)
+							*/
 						} else if field.Attr == dwarf.AttrLocation {
 							switch field.Val.(type) {
 							case int64:
@@ -341,6 +344,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 
 				}
 			}
+
 			function_debug := fmt.Sprintf(";; %s(%s)\n%s", spname, params, locals)
 
 			fid := wf.FindFunction(sploc)
