@@ -1,6 +1,6 @@
 # Go wasmtoolkit
 
-* TODO: Some issues with wasm built by rust at the moment.
+* TODO: Not everything is implemented yet. Wasm compatibility is 99%. You may be the 1%.
 
 ## Features
 
@@ -36,6 +36,8 @@ This will wrap imports, log all data only for imports
 This will add logging for all functions starting with `$runtime`
 
 `./wasm-toolkit strace -i ../module1.wasm -o module1_debug.wasm --all --func '^\$runtime.*'`
+
+You can also compile wasm-toolkit to wasm and add tracing to it :)
 
 ## Embed file
 
