@@ -66,6 +66,7 @@ var include_all = false
 var func_regex = ".*"
 var cfg_color = false
 var watch_globals = ""
+var config_parse_dwarf = false
 
 func init() {
 	rootCmd.AddCommand(cmdStrace)
@@ -78,6 +79,7 @@ func init() {
 	cmdStrace.Flags().BoolVar(&include_all, "all", false, "Include everything")
 
 	cmdStrace.Flags().BoolVar(&cfg_color, "color", false, "Output ANSI color in the log")
+	cmdStrace.Flags().BoolVar(&config_parse_dwarf, "dwarf", false, "Parse dwarf line numbers and variables")
 
 	cmdStrace.Flags().StringVarP(&watch_globals, "watch", "w", "", "List of globals to watch (, separated)")
 
@@ -225,7 +227,9 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	fmt.Printf("All wat code added...\n")
 
 	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
-	/*
+
+	if config_parse_dwarf {
+
 		// Parse the dwarf stuff *here* incase the above messed up function IDs
 		fmt.Printf("Parsing dwarf line numbers...\n")
 		err = wfile.ParseDwarfLineNumbers()
@@ -238,7 +242,9 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		if err != nil {
 			panic(err)
 		}
-	*/
+
+	}
+
 	// Get watch code
 	watch_code := GetWatchCode(wfile)
 
