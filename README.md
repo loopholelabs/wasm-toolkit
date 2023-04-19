@@ -16,6 +16,8 @@
   * Function call count and timings summary
   * Watch globals by name (i32 only so far)
 
+* wasm2wat but including dwarf debug information - line numbers, variable names, etc
+
 * POC Embedding a file into a wasm which is then available to the module.
 
 ## Quickstart
@@ -27,19 +29,36 @@
 
 ## Strace
 
-![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/strace.png)
+### Simple example
 
-This will wrap imports, log all data only for imports
+`./wasm-toolkit strace -i ../module1.wasm -o module1_strace.wasm --all --color --func '^\$IMPORT.*|\_start'`
 
-`./wasm-toolkit strace -i ../module1.wasm -o module1_debug.wasm --all --func ".*IMPORT.*"`
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/strace1.png)
 
-This will add logging for all functions starting with `$runtime`
+### Filter functions
 
-`./wasm-toolkit strace -i ../module1.wasm -o module1_debug.wasm --all --func '^\$runtime.*'`
+`./wasm-toolkit strace -i ../module1.wasm -o module1_strace.wasm --all --color --func '^\$main'`
+
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/strace2.png)
+
+### Profiling
+
+`./wasm-toolkit strace -i ../module1.wasm -o module1_strace.wasm --all --color --func '.*' --timing true`
+
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/strace3.png)
+
+### Watch global variables
+
+`./wasm-toolkit strace -i ../module1.wasm -o module1_strace.wasm --all --color --func '^\$main' --watch main.some_global,main.another_global`
+
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/strace4.png)
+
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/strace5.png)
+
 
 You can also compile wasm-toolkit to wasm and add tracing to it :)
 
-## Embed file
+## Embed file (POC)
 
 ![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/embed.png)
 
