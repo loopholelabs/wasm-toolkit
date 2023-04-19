@@ -17,7 +17,8 @@
 package wasmfile
 
 import (
-	"debug/dwarf"
+	"github.com/loopholelabs/wasm-toolkit/dwarf"
+	//	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -208,6 +209,8 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			break
 		}
 
+		fmt.Printf("Dwarf entry %v\n", entry)
+
 		if entry.Tag == dwarf.TagVariable {
 			// Parse the location address
 			vname := ""
@@ -269,6 +272,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 						if field.Attr == dwarf.AttrName {
 							vname = field.Val.(string)
 						} else if field.Attr == dwarf.AttrType {
+							// This currently crashes when compiled to wasm.
 							/*
 								fmt.Printf("Getting vtype...\n")
 								t := field.Val.(dwarf.Offset)
@@ -355,6 +359,9 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			}
 		}
 	}
+
+	fmt.Printf("Parsed Dwarf variables %d localNames, %d globals found.\n", len(wf.localNames), len(wf.GlobalAddresses))
+
 	return nil
 }
 

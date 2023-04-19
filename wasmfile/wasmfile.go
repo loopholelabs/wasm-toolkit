@@ -18,7 +18,10 @@ package wasmfile
 
 import (
 	"bytes"
-	"debug/dwarf"
+
+	"github.com/loopholelabs/wasm-toolkit/dwarf"
+
+	//"debug/dwarf"
 	"errors"
 	"fmt"
 	"io/ioutil"
