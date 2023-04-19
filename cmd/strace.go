@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 
@@ -188,7 +189,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	ptr := int32(data_ptr)
 	for _, file := range files {
 		fmt.Printf(" - Adding code from %s...\n", file)
-		mod, err := wasmfile.NewFromWat(file)
+		mod, err := wasmfile.NewFromWat(path.Join("wat_code", file))
 
 		if err != nil {
 			panic(err)
