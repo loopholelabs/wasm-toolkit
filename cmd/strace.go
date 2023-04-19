@@ -17,6 +17,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -30,23 +31,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:embed memory.wat
-var wat_memory []byte
-
-//go:embed stdout.wat
-var wat_stdout []byte
-
-//go:embed strace.wat
-var wat_strace []byte
-
-//go:embed color.wat
-var wat_color []byte
-
-//go:embed timings.wat
-var wat_timings []byte
-
-//go:embed function_enter_exit.wat
-var wat_function_enter_exit []byte
+//go:embed wat_code/*
+var wat_content embed.FS
 
 var (
 	cmdStrace = &cobra.Command{
@@ -191,21 +177,19 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	//Wasi_errors
 
 	// Load up the individual wat files, and add them in
-	files := map[string][]byte{
-		"memory.wat":              wat_memory,
-		"stdout.wat":              wat_stdout,
-		"strace.wat":              wat_strace,
-		"color.wat":               wat_color,
-		"timings.wat":             wat_timings,
-		"function_enter_exit.wat": wat_function_enter_exit}
+	files := []string{
+		"memory.wat",
+		"stdout.wat",
+		"strace.wat",
+		"color.wat",
+		"timings.wat",
+		"function_enter_exit.wat"}
 
 	ptr := int32(data_ptr)
-	for file, data := range files {
-		fmt.Printf(" - Adding code from %s (%d bytes)...\n", file, len(data))
-		mod := &wasmfile.WasmFile{}
-		err = mod.DecodeWat(data)
+	for _, file := range files {
+		fmt.Printf(" - Adding code from %s...\n", file)
+		mod, err := wasmfile.NewFromWat(file)
 
-		//		mod, err := wasmfile.NewFromWat(path.Join("wat_code", file))
 		if err != nil {
 			panic(err)
 		}
