@@ -1,6 +1,13 @@
 #!/bin/bash
-tinygo build -opt=0 -o module1.wasm -scheduler=none -target=wasi -x ./test_module_go/main.go
 
-GOARCH=wasm GOOS=wasip1 gotip build -o main.wasm -work -x -gcflags="-N -dwarf=true -dwarflocationlists=false" -ldflags "-w=false" test_module_gotip/main.go
+echo "Building tinygo example module..."
+tinygo build -opt=0 -o module_tinygo.wasm -scheduler=none -target=wasi -x ./test_module_go/main.go
 
-# GOOS=js GOARCH=wasm go build -a -work -x -gcflags="-N -dwarf=true -dwarflocationlists=false" -ldflags="-w=false" -ldflags="-extldflags=\"-g\"" -o mmm . >build2.log 2>&1
+echo "Building using gotip..."
+GOARCH=wasm GOOS=wasip1 gotip build -o module_gotip.wasm test_module_gotip/main.go
+
+echo "Building using rust..."
+cd test_module_rs
+cargo build --release --target=wasm32-wasi
+mv target/wasm32-wasi/release/hello_world.wasm ../module_rust.wasm
+cd ..

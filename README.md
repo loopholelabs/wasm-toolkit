@@ -72,3 +72,8 @@ On the left is an strace like output. On the right is a wat output with debuggin
 
 * Dwarf watched globals - automatically determine type/length from dwarf data, support many types.
 * Hook unreachable calls and add far more context to aid debugging. eg show all watched variables.
+* Output to open telemetry standard.
+* More dwarf data - check up on the rust generated data.
+* Implement remainder of wasm instructions, fix bugs in wat parsing (comments etc).
+* More work on linking / composability.
+* Finish wasi file embed.
