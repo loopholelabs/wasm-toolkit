@@ -395,7 +395,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 			newidx := len(wf.Import)
 
 			// TODO: Might need to add a type if there isn't one already
-			t := wfSource.Type[i.Type]
+			t := wfSource.Type[i.Index]
 			i.Index = wf.AddTypeMaybe(t)
 
 			wf.Import = append(wf.Import, i)
