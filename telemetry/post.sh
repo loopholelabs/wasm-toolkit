@@ -1,0 +1,1 @@
+curl -X POST -H "Content-Type: application/json" -d @example_trace.json http://localhost:4318/v1/traces
