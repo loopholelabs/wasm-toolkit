@@ -79,6 +79,60 @@
     end
   )
 
+;; $wt_format_i64 as hex into the buffer ($db_number_i64)
+  (func $wt_format_i64_hex (param $num i64)
+    (local $count i32)
+    (local $ptr i32)
+    (local $shift_val i64)
+
+    i32.const offset($db_number_i64)
+    local.set $ptr
+
+    i64.const 60
+    local.set $shift_val
+
+    i32.const 0
+    local.set $count
+
+    loop
+      ;; Work out the value to store...
+
+      local.get $ptr
+
+      local.get $num
+      local.get $shift_val
+      i64.shr_u
+      i64.const 15
+      i64.and
+      i32.wrap_i64
+
+      i32.const offset($db_hex)
+      i32.add
+
+      i32.load8_u
+
+      i32.store8
+
+      local.get $ptr
+      i32.const 1
+      i32.add
+      local.set $ptr
+
+      local.get $shift_val
+      i64.const 4
+      i64.sub
+      local.set $shift_val
+
+      local.get $count
+      i32.const 1
+      i32.add
+      local.tee $count
+      i32.const 16
+      i32.lt_u
+      br_if 0
+    end
+  )
+
 ;; $wt_format_i32 as dec into the buffer ($db_number_i32)
   (func $wt_format_i32_dec (param $num i32)
     (local $count i32)
@@ -425,6 +479,49 @@
         br 0
       end
     end
+  )
+
+  ;; write a byte as 3 decimal string
+  (func $wt_conv_byte_dec (param $val i32) (param $dest i32)
+
+    ;; 1st digit
+    local.get $dest
+
+    local.get $val
+    i32.const 100
+    i32.div_u
+
+    i32.const offset($db_hex)
+    i32.add
+
+    i32.load8_u
+    i32.store8
+
+    ;; 2nd digit
+    local.get $dest
+
+    local.get $val
+    i32.const 10
+    i32.div_u
+    i32.const 10
+    i32.rem_u
+    i32.const offset($db_hex)
+    i32.add
+
+    i32.load8_u
+    i32.store8 offset=1
+
+    ;; 3rd digit
+    local.get $dest
+
+    local.get $val
+    i32.const 10
+    i32.rem_u
+    i32.const offset($db_hex)
+    i32.add
+
+    i32.load8_u
+    i32.store8 offset=2
   )
 
   ;; Structures needed for fd_write

@@ -262,12 +262,28 @@ func runOtel(ccmd *cobra.Command, args []string) {
 
 			if match {
 				fmt.Printf("Patching function[%d] %s\n", idx, fidentifier)
+
+				f := wfile.Function[idx]
+				t := wfile.Type[f.TypeIndex]
+
 				// If it's a wasi call, then output some detail here...
 				//				wasi_name, is_wasi := wasi_functions[functionIndex]
 
+				// First deal with args. Create a mirror set of locals and copy params there.
+				// This is so that they're definitely available unmodified at the function exit.
+
+				local_index_local := len(t.Param)
+				local_index_mirrored_params := local_index_local + len(c.Locals)
+
+				new_locals := make([]wasmfile.ValType, 0)
+				new_locals = append(new_locals, c.Locals...)
+				for _, vt := range t.Param {
+					new_locals = append(new_locals, vt)
+				}
+				// Now set the new locals, and setup some code to mirror the params into these new locals
+				c.Locals = new_locals
+
 				blockInstr := "block"
-				f := wfile.Function[idx]
-				t := wfile.Type[f.TypeIndex]
 				if len(t.Result) > 0 {
 					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
 				}
@@ -275,6 +291,15 @@ func runOtel(ccmd *cobra.Command, args []string) {
 				startCode := fmt.Sprintf(`%s
 				i32.const %d
 				call $otel_enter_func`, blockInstr, functionIndex)
+
+				// Copy the params to our locals for func exit
+				for idx, _ := range t.Param {
+					target_idx := local_index_mirrored_params + idx
+					startCode = fmt.Sprintf(`%s
+					local.get %d
+					local.set %d
+				`, startCode, idx, target_idx)
+				}
 
 				err = c.InsertFuncStart(wfile, startCode)
 				if err != nil {
@@ -286,6 +311,30 @@ func runOtel(ccmd *cobra.Command, args []string) {
 				endCode = fmt.Sprintf(`%s
 				i32.const %d
 				call $otel_exit_func`, endCode, functionIndex)
+
+				// Process params for exit
+				for idx, vt := range t.Param {
+					target_idx := local_index_mirrored_params + idx
+					endCode = fmt.Sprintf(`%s
+					i32.const %d
+					i32.const %d
+					local.get %d
+					call $otel_exit_func_%s
+					`, endCode, functionIndex, idx, target_idx, wasmfile.ByteToValType[vt])
+				}
+
+				// Add result values to the trace
+				if len(t.Result) == 1 {
+					rt := t.Result[0]
+					endCode = fmt.Sprintf(`%s
+						i32.const %d
+						call $otel_exit_func_result_%s
+						`, endCode, functionIndex, wasmfile.ByteToValType[rt])
+				}
+
+				endCode = fmt.Sprintf(`%s
+				i32.const %d
+				call $otel_exit_func_done`, endCode, functionIndex)
 
 				err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
 				if err != nil {
@@ -355,24 +404,24 @@ func runOtel(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
+	/*
+	   fmt.Printf("Writing debug.wat\n")
+	   f2, err := os.Create("debug.wat")
 
-	fmt.Printf("Writing debug.wat\n")
-	f2, err := os.Create("debug.wat")
+	   	if err != nil {
+	   		panic(err)
+	   	}
 
-	if err != nil {
-		panic(err)
-	}
+	   err = wfile.EncodeWat(f2)
 
-	err = wfile.EncodeWat(f2)
+	   	if err != nil {
+	   		panic(err)
+	   	}
 
-	if err != nil {
-		panic(err)
-	}
+	   err = f2.Close()
 
-	err = f2.Close()
-
-	if err != nil {
-		panic(err)
-	}
-
+	   	if err != nil {
+	   		panic(err)
+	   	}
+	*/
 }
