@@ -308,14 +308,14 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		v, _ := ReadToken(s)
 		if strings.HasPrefix(v, "offset(") {
 			dname := v[7 : len(v)-1]
-			e.Relocating = true
-			e.RelocationOffsetDataId = dname
+			e.DataOffsetNeedsLinking = true
+			e.I32DataId = dname
 			return nil
 		} else if strings.HasPrefix(v, "length(") {
 			// Lookup the data length...
 			dname := v[7 : len(v)-1]
 			e.DataLengthNeedsLinking = true
-			e.RelocationOffsetDataId = dname
+			e.I32DataId = dname
 			return nil
 		}
 		vv, err := strconv.Atoi(v)

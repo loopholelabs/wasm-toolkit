@@ -57,30 +57,6 @@ type WasmFile struct {
 	dataNames     map[int]string
 }
 
-func (wf *WasmFile) Renumber_functions(remap map[int]int) {
-	// This modifies FunctionNames, functionDebug, functionSignature
-	newFunctionNames := make(map[int]string)
-	newFunctionDebug := make(map[int]string)
-	newFunctionSignature := make(map[int]string)
-	for o, n := range remap {
-		v, ok := wf.FunctionNames[o]
-		if ok {
-			newFunctionNames[n] = v
-		}
-		v, ok = wf.functionDebug[o]
-		if ok {
-			newFunctionDebug[n] = v
-		}
-		v, ok = wf.functionSignature[o]
-		if ok {
-			newFunctionSignature[n] = v
-		}
-	}
-	wf.FunctionNames = newFunctionNames
-	wf.functionDebug = newFunctionDebug
-	wf.functionSignature = newFunctionSignature
-}
-
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
 
@@ -623,9 +599,9 @@ func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
 func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 	for _, e := range ce.Expression {
 		if e.DataLengthNeedsLinking {
-			did := wf.LookupDataId(e.RelocationOffsetDataId)
+			did := wf.LookupDataId(e.I32DataId)
 			if did == -1 {
-				return fmt.Errorf("Data not found %s", e.RelocationOffsetDataId)
+				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
 			e.I32Value = int32(len(wf.Data[did].Data))
 		}
@@ -635,10 +611,10 @@ func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 
 func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 	for _, e := range ce.Expression {
-		if e.Relocating {
-			did := wf.LookupDataId(e.RelocationOffsetDataId)
+		if e.DataOffsetNeedsLinking {
+			did := wf.LookupDataId(e.I32DataId)
 			if did == -1 {
-				return fmt.Errorf("Data not found %s", e.RelocationOffsetDataId)
+				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
 
 			expr := wf.Data[did].Offset
@@ -662,7 +638,7 @@ func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
 	adjustedExpression := make([]*Expression, 0)
 	for _, e := range ce.Expression {
 		adjustedExpression = append(adjustedExpression, e)
-		if e.Relocating {
+		if e.DataOffsetNeedsLinking {
 			for _, ne := range newex {
 				adjustedExpression = append(adjustedExpression, ne)
 			}
@@ -687,4 +663,29 @@ func (te *TypeEntry) Equals(te2 *TypeEntry) bool {
 		}
 	}
 	return true
+}
+
+// Renumber functions using a remap
+func (wf *WasmFile) Renumber_functions(remap map[int]int) {
+	// This modifies FunctionNames, functionDebug, functionSignature
+	newFunctionNames := make(map[int]string)
+	newFunctionDebug := make(map[int]string)
+	newFunctionSignature := make(map[int]string)
+	for o, n := range remap {
+		v, ok := wf.FunctionNames[o]
+		if ok {
+			newFunctionNames[n] = v
+		}
+		v, ok = wf.functionDebug[o]
+		if ok {
+			newFunctionDebug[n] = v
+		}
+		v, ok = wf.functionSignature[o]
+		if ok {
+			newFunctionSignature[n] = v
+		}
+	}
+	wf.FunctionNames = newFunctionNames
+	wf.functionDebug = newFunctionDebug
+	wf.functionSignature = newFunctionSignature
 }

@@ -189,7 +189,13 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	ptr := int32(data_ptr)
 	for _, file := range files {
 		fmt.Printf(" - Adding code from %s...\n", file)
-		mod, err := wasmfile.NewFromWat(path.Join("wat_code", file))
+		data, err := wat_content.ReadFile(path.Join("wat_code", file))
+		if err != nil {
+			panic(err)
+		}
+
+		mod := &wasmfile.WasmFile{}
+		err = mod.DecodeWat(data)
 
 		if err != nil {
 			panic(err)
