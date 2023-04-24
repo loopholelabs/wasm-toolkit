@@ -57,30 +57,6 @@ type WasmFile struct {
 	dataNames     map[int]string
 }
 
-func (wf *WasmFile) Renumber_functions(remap map[int]int) {
-	// This modifies FunctionNames, functionDebug, functionSignature
-	newFunctionNames := make(map[int]string)
-	newFunctionDebug := make(map[int]string)
-	newFunctionSignature := make(map[int]string)
-	for o, n := range remap {
-		v, ok := wf.FunctionNames[o]
-		if ok {
-			newFunctionNames[n] = v
-		}
-		v, ok = wf.functionDebug[o]
-		if ok {
-			newFunctionDebug[n] = v
-		}
-		v, ok = wf.functionSignature[o]
-		if ok {
-			newFunctionSignature[n] = v
-		}
-	}
-	wf.FunctionNames = newFunctionNames
-	wf.functionDebug = newFunctionDebug
-	wf.functionSignature = newFunctionSignature
-}
-
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
 
@@ -687,4 +663,29 @@ func (te *TypeEntry) Equals(te2 *TypeEntry) bool {
 		}
 	}
 	return true
+}
+
+// Renumber functions using a remap
+func (wf *WasmFile) Renumber_functions(remap map[int]int) {
+	// This modifies FunctionNames, functionDebug, functionSignature
+	newFunctionNames := make(map[int]string)
+	newFunctionDebug := make(map[int]string)
+	newFunctionSignature := make(map[int]string)
+	for o, n := range remap {
+		v, ok := wf.FunctionNames[o]
+		if ok {
+			newFunctionNames[n] = v
+		}
+		v, ok = wf.functionDebug[o]
+		if ok {
+			newFunctionDebug[n] = v
+		}
+		v, ok = wf.functionSignature[o]
+		if ok {
+			newFunctionSignature[n] = v
+		}
+	}
+	wf.FunctionNames = newFunctionNames
+	wf.functionDebug = newFunctionDebug
+	wf.functionSignature = newFunctionSignature
 }
