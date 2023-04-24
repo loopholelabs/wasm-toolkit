@@ -623,9 +623,9 @@ func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
 func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 	for _, e := range ce.Expression {
 		if e.DataLengthNeedsLinking {
-			did := wf.LookupDataId(e.RelocationOffsetDataId)
+			did := wf.LookupDataId(e.I32DataId)
 			if did == -1 {
-				return fmt.Errorf("Data not found %s", e.RelocationOffsetDataId)
+				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
 			e.I32Value = int32(len(wf.Data[did].Data))
 		}
@@ -635,10 +635,10 @@ func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 
 func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 	for _, e := range ce.Expression {
-		if e.Relocating {
-			did := wf.LookupDataId(e.RelocationOffsetDataId)
+		if e.DataOffsetNeedsLinking {
+			did := wf.LookupDataId(e.I32DataId)
 			if did == -1 {
-				return fmt.Errorf("Data not found %s", e.RelocationOffsetDataId)
+				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
 
 			expr := wf.Data[did].Offset
@@ -662,7 +662,7 @@ func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
 	adjustedExpression := make([]*Expression, 0)
 	for _, e := range ce.Expression {
 		adjustedExpression = append(adjustedExpression, e)
-		if e.Relocating {
+		if e.DataOffsetNeedsLinking {
 			for _, ne := range newex {
 				adjustedExpression = append(adjustedExpression, ne)
 			}

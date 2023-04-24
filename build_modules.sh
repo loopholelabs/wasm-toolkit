@@ -8,6 +8,7 @@ GOARCH=wasm GOOS=wasip1 gotip build -o module_gotip.wasm test_module_gotip/main.
 
 echo "Building using rust..."
 cd test_module_rs
+rm -rf target
 cargo build --release --target=wasm32-wasi
 mv target/wasm32-wasi/release/hello_world.wasm ../module_rust.wasm
 cd ..
