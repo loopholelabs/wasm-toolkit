@@ -339,9 +339,10 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 		newidx := len(wf.Global)
 		globalModification[idx] = newidx
 		wf.Global = append(wf.Global, g)
-		name := wfSource.GetGlobalIdentifier(idx)
-
-		wf.globalNames[newidx] = name
+		name := wfSource.GetGlobalIdentifier(idx, true)
+		if name != "" {
+			wf.globalNames[newidx] = name
+		}
 	}
 
 	callModification := make(map[int]int) // old fid -> new fid

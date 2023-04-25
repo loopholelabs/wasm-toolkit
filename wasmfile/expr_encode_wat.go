@@ -111,7 +111,7 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		return err
 	} else if e.Opcode == InstrToOpcode["global.get"] ||
 		e.Opcode == InstrToOpcode["global.set"] {
-		g := wf.GetGlobalIdentifier(e.GlobalIndex)
+		g := wf.GetGlobalIdentifier(e.GlobalIndex, false)
 		globalTarget := fmt.Sprintf(" %s", g)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
 		return err
