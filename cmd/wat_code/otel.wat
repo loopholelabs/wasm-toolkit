@@ -127,12 +127,34 @@
   )
 
   (func $otel_exit_func_result_f32 (param $val f32) (param $fid i32) (result f32)
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $wt_print
+
   ;; TODO
+
+    i32.const offset($ot_at_result)
+    i32.const length($ot_at_result)
+    i32.const offset($ot_at_todo)
+    i32.const length($ot_at_todo)
+    call $otel_output_attr_string
+
     local.get $val
   )
 
   (func $otel_exit_func_result_f64 (param $val f64) (param $fid i32) (result f64)
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $wt_print
+
   ;; TODO
+
+    i32.const offset($ot_at_result)
+    i32.const length($ot_at_result)
+    i32.const offset($ot_at_todo)
+    i32.const length($ot_at_todo)
+    call $otel_output_attr_string
+
     local.get $val
   )
 
@@ -182,12 +204,40 @@
 
   ;; Exit function with param f32
   (func $otel_exit_func_f32 (param $fid i32) (param $pid i32) (param $val f32)
-  ;; TODO
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $wt_print
+
+    local.get $pid
+    i32.const offset($ot_at_param)
+    i32.const 6
+    i32.add
+    call $wt_conv_byte_dec
+
+    i32.const offset($ot_at_param)
+    i32.const length($ot_at_param)
+    i32.const offset($ot_at_todo)
+    i32.const length($ot_at_todo)
+    call $otel_output_attr_string
   )
 
   ;; Exit function with param f64
   (func $otel_exit_func_f64 (param $fid i32) (param $pid i32) (param $val f64)
-  ;; TODO
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $wt_print
+
+    local.get $pid
+    i32.const offset($ot_at_param)
+    i32.const 6
+    i32.add
+    call $wt_conv_byte_dec
+
+    i32.const offset($ot_at_param)
+    i32.const length($ot_at_param)
+    i32.const offset($ot_at_todo)
+    i32.const length($ot_at_todo)
+    call $otel_output_attr_string
   )
 
   ;; Exit a function all done
@@ -443,6 +493,8 @@
 
   (data $ot_at_result "result")
   (data $ot_at_param "param_000")
+
+  (data $ot_at_todo "TODO")
 
   (data $ot_comma ",")
   (data $ot_speech "\22")
