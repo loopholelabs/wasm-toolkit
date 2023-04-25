@@ -360,7 +360,6 @@ func (c *TableEntry) EncodeBinary(w io.Writer) error {
 		buf.WriteByte(LimitTypeMinMax)
 		writeUvarint(&buf, uint64(c.LimitMin))
 		writeUvarint(&buf, uint64(c.LimitMax))
-
 	}
 
 	_, err := w.Write(buf.Bytes())
