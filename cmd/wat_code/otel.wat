@@ -15,11 +15,18 @@
     i64.load
   )
 
+  (func $otel_output_trace_data (param $ptr i32) (param $len i32)
+    ;; For now, just print to stderr
+    local.get $ptr
+    local.get $len
+    call $wt_print
+  )
+
   ;; Enter a function for otel (Just pushes the time data onto a stack, creates a random spanID)
   ;; TODO: We need to save these parameters somewhere... Could either create mirror locals and store there, or store in the call stack
   ;;
   (func $otel_enter_func (param $fid i32)
-  
+
     ;; Store enter timestamp in metrics stack
     global.get $debug_timestamps_stack_pointer
     i32.const offset($debug_timestamps_stack)
@@ -42,7 +49,7 @@
     i32.const 16
     i32.add
     global.set $debug_timestamps_stack_pointer
-  
+
     global.get $debug_timestamps_stack_pointer
     i32.const 800
     i32.ge_u
@@ -65,37 +72,37 @@
   (func $otel_output_attr_string (param $name i32) (param $name_len i32) (param $val i32) (param $val_len i32)
     i32.const offset($ot_attr_start)
     i32.const length($ot_attr_start)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $name
     local.get $name_len
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_attr_mid)
     i32.const length($ot_attr_mid)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_attr_string_start)
     i32.const length($ot_attr_string_start)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $val
     local.get $val_len
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_attr_string_end)
     i32.const length($ot_attr_string_end)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_attr_end)
     i32.const length($ot_attr_end)
-    call $wt_print
+    call $otel_output_trace_data
   )
 
   (func $otel_exit_func_result_i32 (param $val i32) (param $fid i32) (result i32)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $val
     call $wt_format_i32_hex
@@ -112,7 +119,7 @@
   (func $otel_exit_func_result_i64 (param $val i64) (param $fid i32) (result i64)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $val
     call $wt_format_i64_hex
@@ -129,7 +136,7 @@
   (func $otel_exit_func_result_f32 (param $val f32) (param $fid i32) (result f32)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
   ;; TODO
 
@@ -145,7 +152,7 @@
   (func $otel_exit_func_result_f64 (param $val f64) (param $fid i32) (result f64)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
   ;; TODO
 
@@ -162,7 +169,7 @@
   (func $otel_exit_func_i32 (param $fid i32) (param $pid i32) (param $val i32)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $val
     call $wt_format_i32_hex
@@ -184,7 +191,7 @@
   (func $otel_exit_func_i64 (param $fid i32) (param $pid i32) (param $val i64)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $val
     call $wt_format_i64_hex
@@ -206,7 +213,7 @@
   (func $otel_exit_func_f32 (param $fid i32) (param $pid i32) (param $val f32)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $pid
     i32.const offset($ot_at_param)
@@ -225,7 +232,7 @@
   (func $otel_exit_func_f64 (param $fid i32) (param $pid i32) (param $val f64)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     local.get $pid
     i32.const offset($ot_at_param)
@@ -245,19 +252,18 @@
 
     i32.const offset($ot_attributes_end)
     i32.const length($ot_attributes_end)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_end)
     i32.const length($ot_end)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
-    call $wt_print
+    call $otel_output_trace_data
   )
 
   ;; Exit a function. This is where the otel stuff gets sent out.
-  ;; TODO: Add params and result
   (func $otel_exit_func (param $fid i32)
     (local $time_end i64)
 
@@ -286,31 +292,28 @@
 
     i32.const offset($ot_start)
     i32.const length($ot_start)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_resource)
     i32.const length($ot_resource)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_resource_name)
     i32.const length($ot_resource_name)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_resource_end)
     i32.const length($ot_resource_end)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_start_scope_spans)
     i32.const length($ot_start_scope_spans)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Print out the start time
-;;    i32.const offset($ot_comma)
-;;    i32.const length($ot_comma)
-;;    call $wt_print
     i32.const offset($ot_start_time)
     i32.const length($ot_start_time)
-    call $wt_print
+    call $otel_output_trace_data
     global.get $debug_timestamps_stack_pointer
     i32.const offset($debug_timestamps_stack)
     i32.add
@@ -320,42 +323,42 @@
 
     i32.const offset($db_number_i64)
     i32.const length($db_number_i64)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Print out the end time
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
     i32.const offset($ot_end_time)
     i32.const length($ot_end_time)
-    call $wt_print
+    call $otel_output_trace_data
     local.get $time_end
     call $wt_format_i64_dec
 
     i32.const offset($db_number_i64)
     i32.const length($db_number_i64)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Print out the name
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
     i32.const offset($ot_name)
     i32.const length($ot_name)
-    call $wt_print
+    call $otel_output_trace_data
     i32.const offset($ot_speech)
     i32.const length($ot_speech)
-    call $wt_print
+    call $otel_output_trace_data
     local.get 0
-    call $wt_print_function_name    
+    call $otel_output_trace_data_function_name    
     i32.const offset($ot_speech)
     i32.const length($ot_speech)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Print out the trace_id
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($trace_id)
     i32.const 16
@@ -366,12 +369,12 @@
 
     i32.const offset($ot_trace_id)
     i32.const length($ot_trace_id)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Print out the span_id
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     global.get $debug_timestamps_stack_pointer
     i32.const offset($debug_timestamps_stack)
@@ -386,7 +389,7 @@
 
     i32.const offset($ot_span_id)
     i32.const length($ot_span_id)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Get the parent if there is one...
     global.get $debug_timestamps_stack_pointer
@@ -396,7 +399,7 @@
       ;; If there is a parent span, print it out here...
       i32.const offset($ot_comma)
       i32.const length($ot_comma)
-      call $wt_print
+      call $otel_output_trace_data
 
       global.get $debug_timestamps_stack_pointer
       i32.const offset($debug_timestamps_stack)
@@ -411,28 +414,60 @@
 
       i32.const offset($ot_parent_span_id)
       i32.const length($ot_parent_span_id)
-      call $wt_print
+      call $otel_output_trace_data
     end
 
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
-    call $wt_print
+    call $otel_output_trace_data
 
     i32.const offset($ot_attributes_start)
     i32.const length($ot_attributes_start)
-    call $wt_print
+    call $otel_output_trace_data
 
     ;; Output a dummy attribute for now...
-
     i32.const offset($ot_at_type)
     i32.const length($ot_at_type)
     i32.const offset($ot_at_type_fun)
     i32.const length($ot_at_type_fun)
     call $otel_output_attr_string
+
+    ;; Output the function signature and line number info...
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_start)
+    i32.const length($ot_attr_start)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_at_fn_sig)
+    i32.const length($ot_at_fn_sig)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_mid)
+    i32.const length($ot_attr_mid)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_string_start)
+    i32.const length($ot_attr_string_start)
+    call $otel_output_trace_data
+
+    local.get $fid
+    call $otel_output_trace_data_function_signature
+
+    i32.const offset($ot_attr_string_end)
+    i32.const length($ot_attr_string_end)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_end)
+    i32.const length($ot_attr_end)
+    call $otel_output_trace_data
+
   )
 
   ;; wt_print_function_name - Given a function ID, print out the function name.
-  (func $wt_print_function_name (param $fid i32)
+  (func $otel_output_trace_data_function_name (param $fid i32)
     (local $ptr i32)
     i32.const offset($wt_all_function_names_locs)
     local.get $fid
@@ -451,7 +486,53 @@
     ;; Get the offset
     local.get $ptr
     i32.load offset=4
-    call $wt_print
+    call $otel_output_trace_data
+  )
+
+  ;; wt_print_function_signature - Given a function ID, print out the function signature.
+  (func $otel_output_trace_data_function_signature (param $fid i32)
+    (local $ptr i32)
+    i32.const offset($wt_all_function_sigs_locs)
+    local.get $fid
+    i32.const 3
+    i32.shl
+    i32.add
+    local.tee $ptr
+
+    ;; Get the address
+    i32.load
+
+    ;; We need to adjust this address manually
+    i32.const offset($wt_all_function_sigs)
+    i32.add
+
+    ;; Get the offset
+    local.get $ptr
+    i32.load offset=4
+    call $otel_output_trace_data
+  )
+
+  ;; wt_print_function_debug - Given a function ID, print out the function debug.
+  (func $otel_output_trace_data_function_debug (param $fid i32)
+    (local $ptr i32)
+    i32.const offset($wt_all_function_debugs_locs)
+    local.get $fid
+    i32.const 3
+    i32.shl
+    i32.add
+    local.tee $ptr
+
+    ;; Get the address
+    i32.load
+
+    ;; We need to adjust this address manually
+    i32.const offset($wt_all_function_debugs)
+    i32.add
+
+    ;; Get the offset
+    local.get $ptr
+    i32.load offset=4
+    call $otel_output_trace_data
   )
 
   (data $ot_resource_name "loop-wasm-otel")
@@ -490,6 +571,8 @@
 
   (data $ot_at_type "type")
   (data $ot_at_type_fun "wasm function")
+
+  (data $ot_at_fn_sig "function")
 
   (data $ot_at_result "result")
   (data $ot_at_param "param_000")

@@ -199,32 +199,31 @@ func runOtel(ccmd *cobra.Command, args []string) {
 
 	// Get a function name map, and add it as data...
 	data_function_names := make([]byte, 0)
-	data_function_locs := make([]byte, 0)
-	data_metrics_data := make([]byte, 0)
-	for idx, _ := range wfile.Import {
+	data_function_names_locs := make([]byte, 0)
+	data_function_sigs := make([]byte, 0)
+	data_function_sigs_locs := make([]byte, 0)
+	data_function_debugs := make([]byte, 0)
+	data_function_debugs_locs := make([]byte, 0)
+
+	num_functions := len(wfile.Import) + len(wfile.Code)
+
+	for idx := 0; idx < num_functions; idx++ {
 		functionIndex := idx
 		name := wfile.GetFunctionIdentifier(functionIndex, false)
+		signature := wfile.GetFunctionSignature(functionIndex)
+		debug := wfile.GetFunctionDebug(functionIndex)
 
-		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
-		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
-
+		data_function_names_locs = binary.LittleEndian.AppendUint32(data_function_names_locs, uint32(len(data_function_names)))
+		data_function_names_locs = binary.LittleEndian.AppendUint32(data_function_names_locs, uint32(len([]byte(name))))
 		data_function_names = append(data_function_names, []byte(name)...)
 
-		// Just add another 16 bytes on for now...
-		data_metrics_data = append(data_metrics_data, make([]byte, 16)...)
-	}
+		data_function_sigs_locs = binary.LittleEndian.AppendUint32(data_function_sigs_locs, uint32(len(data_function_sigs)))
+		data_function_sigs_locs = binary.LittleEndian.AppendUint32(data_function_sigs_locs, uint32(len([]byte(signature))))
+		data_function_sigs = append(data_function_sigs, []byte(signature)...)
 
-	for idx, _ := range wfile.Code {
-		functionIndex := len(wfile.Import) + idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
-
-		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
-		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
-
-		data_function_names = append(data_function_names, []byte(name)...)
-
-		// Just add another 16 bytes on for now...
-		data_metrics_data = append(data_metrics_data, make([]byte, 16)...)
+		data_function_debugs_locs = binary.LittleEndian.AppendUint32(data_function_debugs_locs, uint32(len(data_function_debugs)))
+		data_function_debugs_locs = binary.LittleEndian.AppendUint32(data_function_debugs_locs, uint32(len([]byte(debug))))
+		data_function_debugs = append(data_function_debugs, []byte(debug)...)
 	}
 
 	// Add those data elements into the mix...
@@ -233,9 +232,12 @@ func runOtel(ccmd *cobra.Command, args []string) {
 	wfile.AddData("$wasi_error_messages", []byte(data_wasi_err_ptrs))
 
 	wfile.AddData("$wt_all_function_names", []byte(data_function_names))
-	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_locs))
-	wfile.AddData("$metrics_data", []byte(data_metrics_data))
-	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", len(wfile.Import)+len(wfile.Code)))
+	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_names_locs))
+	wfile.AddData("$wt_all_function_sigs", []byte(data_function_sigs))
+	wfile.AddData("$wt_all_function_sigs_locs", []byte(data_function_sigs_locs))
+	wfile.AddData("$wt_all_function_debugs", []byte(data_function_debugs))
+	wfile.AddData("$wt_all_function_debugs_locs", []byte(data_function_debugs_locs))
+	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", num_functions))
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", otel_func_regex)
 
