@@ -377,7 +377,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					call $debug_func_context`, startCode, functionIndex, functionIndex)
 				}
 
-				lineRange := wfile.GetLineNumberRange(functionIndex, c)
+				lineRange := wfile.GetLineNumberRange(c)
 				if lineRange != "" && (include_all || include_line_numbers) {
 					wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(lineRange))
 					startCode = fmt.Sprintf(`%s

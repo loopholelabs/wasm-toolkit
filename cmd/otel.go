@@ -202,8 +202,8 @@ func runOtel(ccmd *cobra.Command, args []string) {
 	data_function_names_locs := make([]byte, 0)
 	data_function_sigs := make([]byte, 0)
 	data_function_sigs_locs := make([]byte, 0)
-	data_function_debugs := make([]byte, 0)
-	data_function_debugs_locs := make([]byte, 0)
+	data_function_srcs := make([]byte, 0)
+	data_function_srcs_locs := make([]byte, 0)
 
 	num_functions := len(wfile.Import) + len(wfile.Code)
 
@@ -211,7 +211,11 @@ func runOtel(ccmd *cobra.Command, args []string) {
 		functionIndex := idx
 		name := wfile.GetFunctionIdentifier(functionIndex, false)
 		signature := wfile.GetFunctionSignature(functionIndex)
-		debug := wfile.GetFunctionDebug(functionIndex)
+		debug := ""
+		if idx >= len(wfile.Import) {
+			c := wfile.Code[idx-len(wfile.Import)]
+			debug = wfile.GetLineNumberRange(c)
+		}
 
 		data_function_names_locs = binary.LittleEndian.AppendUint32(data_function_names_locs, uint32(len(data_function_names)))
 		data_function_names_locs = binary.LittleEndian.AppendUint32(data_function_names_locs, uint32(len([]byte(name))))
@@ -221,9 +225,9 @@ func runOtel(ccmd *cobra.Command, args []string) {
 		data_function_sigs_locs = binary.LittleEndian.AppendUint32(data_function_sigs_locs, uint32(len([]byte(signature))))
 		data_function_sigs = append(data_function_sigs, []byte(signature)...)
 
-		data_function_debugs_locs = binary.LittleEndian.AppendUint32(data_function_debugs_locs, uint32(len(data_function_debugs)))
-		data_function_debugs_locs = binary.LittleEndian.AppendUint32(data_function_debugs_locs, uint32(len([]byte(debug))))
-		data_function_debugs = append(data_function_debugs, []byte(debug)...)
+		data_function_srcs_locs = binary.LittleEndian.AppendUint32(data_function_srcs_locs, uint32(len(data_function_srcs)))
+		data_function_srcs_locs = binary.LittleEndian.AppendUint32(data_function_srcs_locs, uint32(len([]byte(debug))))
+		data_function_srcs = append(data_function_srcs, []byte(debug)...)
 	}
 
 	// Add those data elements into the mix...
@@ -235,8 +239,8 @@ func runOtel(ccmd *cobra.Command, args []string) {
 	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_names_locs))
 	wfile.AddData("$wt_all_function_sigs", []byte(data_function_sigs))
 	wfile.AddData("$wt_all_function_sigs_locs", []byte(data_function_sigs_locs))
-	wfile.AddData("$wt_all_function_debugs", []byte(data_function_debugs))
-	wfile.AddData("$wt_all_function_debugs_locs", []byte(data_function_debugs_locs))
+	wfile.AddData("$wt_all_function_srcs", []byte(data_function_srcs))
+	wfile.AddData("$wt_all_function_srcs_locs", []byte(data_function_srcs_locs))
 	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", num_functions))
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", otel_func_regex)

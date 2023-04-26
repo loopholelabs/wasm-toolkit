@@ -432,7 +432,7 @@
     i32.const length($ot_at_type_fun)
     call $otel_output_attr_string
 
-    ;; Output the function signature and line number info...
+    ;; Output the function signature...
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
     call $otel_output_trace_data
@@ -455,6 +455,38 @@
 
     local.get $fid
     call $otel_output_trace_data_function_signature
+
+    i32.const offset($ot_attr_string_end)
+    i32.const length($ot_attr_string_end)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_end)
+    i32.const length($ot_attr_end)
+    call $otel_output_trace_data
+
+    ;; Output the function source...
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_start)
+    i32.const length($ot_attr_start)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_at_fn_src)
+    i32.const length($ot_at_fn_src)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_mid)
+    i32.const length($ot_attr_mid)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_string_start)
+    i32.const length($ot_attr_string_start)
+    call $otel_output_trace_data
+
+    local.get $fid
+    call $otel_output_trace_data_function_source
 
     i32.const offset($ot_attr_string_end)
     i32.const length($ot_attr_string_end)
@@ -512,10 +544,10 @@
     call $otel_output_trace_data
   )
 
-  ;; wt_print_function_debug - Given a function ID, print out the function debug.
-  (func $otel_output_trace_data_function_debug (param $fid i32)
+  ;; wt_print_function_src - Given a function ID, print out the function src.
+  (func $otel_output_trace_data_function_source (param $fid i32)
     (local $ptr i32)
-    i32.const offset($wt_all_function_debugs_locs)
+    i32.const offset($wt_all_function_srcs_locs)
     local.get $fid
     i32.const 3
     i32.shl
@@ -526,7 +558,7 @@
     i32.load
 
     ;; We need to adjust this address manually
-    i32.const offset($wt_all_function_debugs)
+    i32.const offset($wt_all_function_srcs)
     i32.add
 
     ;; Get the offset
@@ -573,6 +605,7 @@
   (data $ot_at_type_fun "wasm function")
 
   (data $ot_at_fn_sig "function")
+  (data $ot_at_fn_src "source")
 
   (data $ot_at_result "result")
   (data $ot_at_param "param_000")

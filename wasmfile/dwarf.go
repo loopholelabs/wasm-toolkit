@@ -153,7 +153,7 @@ func (wf *WasmFile) GetFunctionSignature(fid int) string {
 	return ""
 }
 
-func (wf *WasmFile) GetLineNumberRange(fid int, c *CodeEntry) string {
+func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
 	filename := "<unknown>"
 	minLine := -1
 	maxLine := -1
