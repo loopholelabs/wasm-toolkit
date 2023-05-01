@@ -30,8 +30,8 @@
     i32.const length($otel_output_buffer)
     i32.ge_u
     if
-      i32.const offset($error_stack_overflow)
-      i32.const length($error_stack_overflow)
+      i32.const offset($error_buffer_overflow)
+      i32.const length($error_buffer_overflow)
       call $wt_print   
       unreachable
     end
@@ -651,16 +651,17 @@
   (data $trace_id 16)
 
   (data $error_stack_overflow "Error: The timings stack overflowed. You win some you lose some I guess.\0d\0a")
+  (data $error_buffer_overflow "Error: The output buffer overflowed. You win some you lose some I guess.\0d\0a")
   (data $debug_newline "\0a")
 
   (data $debug_clock_loc 8)
 
-  (data $otel_output_buffer 1024)
+  (data $otel_output_buffer 4096)
 
   (global $otel_output_buffer_ptr (mut i32) (i32.const 0))
 
   ;; Timestamp stack (8 bytes per entry)
-  (data $debug_timestamps_stack 8000)
+  (data $debug_timestamps_stack 80000)
 
   (global $debug_timestamps_stack_pointer (mut i32) (i32.const 0))
 

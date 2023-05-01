@@ -235,20 +235,6 @@
     call $debug_gettime
     local.set $time_end
 
-    ;; Set the trace_id if it hasn't already been set
-    ;; TODO: Clear this
-    global.get $trace_id_set
-    i32.eqz
-    if
-      i32.const 1
-      global.set $trace_id_set
-
-      i32.const offset($trace_id)
-      i32.const length($trace_id)
-      call $debug_random_get
-      drop
-    end
-
     ;; Pop timestamp off the timestamp stack
     global.get $debug_timestamps_stack_pointer
     i32.const 16
