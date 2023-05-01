@@ -80,26 +80,26 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 
 	// Now we can start doing interesting things...
 
-	datamap := map[string][]byte{
-		"$file_name":    []byte(em_filename),
-		"$file_content": []byte(em_content),
-	}
+	em_content_data := []byte(em_content)
 
 	if em_contentfile != "" {
 		bytes, err := os.ReadFile(em_contentfile)
 		if err != nil {
 			panic(err)
 		}
-		datamap["$file_content"] = bytes
+		em_content_data = bytes
 	}
 
 	// Add a payload to the wasm file
-	embedFunctions, err := wasmfile.NewFromWatWithData(path.Join("wat_code", "embed.wat"), datamap)
+	embedFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "embed.wat"))
 	if err != nil {
 		panic(err)
 	}
 
 	wfile.AddDataFrom(int32(data_ptr), embedFunctions)
+
+	wfile.AddData("$file_name", []byte(em_filename))
+	wfile.AddData("$file_content", em_content_data)
 
 	// Find out how much data we need for the payload
 	total_payload_data := data_ptr

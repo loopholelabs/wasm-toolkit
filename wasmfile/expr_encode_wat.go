@@ -93,10 +93,22 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		return err
 	} else if e.Opcode == InstrToOpcode["f32.const"] {
 		value := fmt.Sprintf(" %f", e.F32Value)
+		if value == " +Inf" || value == " -Inf" {
+			value = " inf"
+		} else if value == " NaN" {
+			value = " nan"
+		}
+
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
 		return err
 	} else if e.Opcode == InstrToOpcode["f64.const"] {
 		value := fmt.Sprintf(" %f", e.F64Value)
+		if value == " +Inf" || value == " -Inf" {
+			value = " inf"
+		} else if value == " NaN" {
+			value = " nan"
+		}
+
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], value, comment))
 		return err
 	} else if e.Opcode == InstrToOpcode["local.get"] ||

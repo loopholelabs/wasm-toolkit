@@ -474,7 +474,8 @@ func (wf *WasmFile) ParseSectionExport(data []byte) error {
  *
  */
 func (wf *WasmFile) ParseSectionStart(data []byte) error {
-	return fmt.Errorf("TODO: ParseSectionStart %d\n", len(data))
+	return nil
+	//return fmt.Errorf("TODO: ParseSectionStart %d\n", len(data))
 }
 
 /**

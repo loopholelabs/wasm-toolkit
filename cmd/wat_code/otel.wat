@@ -51,7 +51,7 @@
     global.set $debug_timestamps_stack_pointer
 
     global.get $debug_timestamps_stack_pointer
-    i32.const 800
+    i32.const length($debug_timestamps_stack)
     i32.ge_u
     ;; Detect stack overflow
     if
@@ -99,6 +99,7 @@
     call $otel_output_trace_data
   )
 
+
   (func $otel_exit_func_result_i32 (param $val i32) (param $fid i32) (result i32)
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
@@ -127,7 +128,7 @@
     i32.const offset($ot_at_result)
     i32.const length($ot_at_result)
     i32.const offset($db_number_i64)
-    i32.const 8
+    i32.const 16
     call $otel_output_attr_string
 
     local.get $val
@@ -348,7 +349,7 @@
     call $otel_output_trace_data
     i32.const offset($ot_speech)
     i32.const length($ot_speech)
-    call $otel_output_trace_data
+    call $otel_output_trace_data    
     local.get 0
     call $otel_output_trace_data_function_name    
     i32.const offset($ot_speech)
@@ -622,8 +623,8 @@
 
   (data $debug_clock_loc 8)
 
-  ;; Only allow 100 function stack for now
-  (data $debug_timestamps_stack 800)
+  ;; Timestamp stack (8 bytes per entry)
+  (data $debug_timestamps_stack 8000)
 
   (global $debug_timestamps_stack_pointer (mut i32) (i32.const 0))
 

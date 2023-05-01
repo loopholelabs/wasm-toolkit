@@ -44,10 +44,12 @@ var (
 )
 
 var otel_func_regex = ".*"
+var otel_quickjs = false
 
 func init() {
 	rootCmd.AddCommand(cmdOtel)
 	cmdOtel.Flags().StringVarP(&otel_func_regex, "func", "f", ".*", "Func name regexp")
+	cmdOtel.Flags().BoolVarP(&otel_quickjs, "qjs", "j", false, "Do quickjs otel")
 }
 
 func runOtel(ccmd *cobra.Command, args []string) {
@@ -151,6 +153,10 @@ func runOtel(ccmd *cobra.Command, args []string) {
 		"memory.wat",
 		"stdout.wat",
 		"otel.wat"}
+
+	if otel_quickjs {
+		files = append(files, "quickjs.wat")
+	}
 
 	ptr := int32(data_ptr)
 	for _, file := range files {
@@ -314,33 +320,65 @@ func runOtel(ccmd *cobra.Command, args []string) {
 
 				endCode := ""
 
-				endCode = fmt.Sprintf(`%s
-				i32.const %d
-				call $otel_exit_func`, endCode, functionIndex)
+				if otel_quickjs && fidentifier == "$JS_CallInternal" {
 
-				// Process params for exit
-				for idx, vt := range t.Param {
-					target_idx := local_index_mirrored_params + idx
 					endCode = fmt.Sprintf(`%s
+						local.get %d
+						local.get %d
+						call $qjs_otel_exit_func`, endCode,
+						local_index_mirrored_params,   // context
+						local_index_mirrored_params+1, // funcObj
+					)
+
+					// QuickJS specific. Testing...
+					endCode = fmt.Sprintf(`%s
+						local.get %d
+						local.get %d
+						local.get %d
+						local.get %d
+						local.get %d
+						call $otel_quickjs_call
+						`, endCode,
+						local_index_mirrored_params,   // context
+						local_index_mirrored_params+1, // funcObj
+						local_index_mirrored_params+2, // thisObj
+						local_index_mirrored_params+4, // argc
+						local_index_mirrored_params+5) // args
+
+					endCode = fmt.Sprintf(`%s
+							i32.const %d
+							call $otel_exit_func_done`, endCode, functionIndex)
+
+				} else {
+
+					endCode = fmt.Sprintf(`%s
+					i32.const %d
+					call $otel_exit_func`, endCode, functionIndex)
+
+					// Process params for exit
+					for idx, vt := range t.Param {
+						target_idx := local_index_mirrored_params + idx
+						endCode = fmt.Sprintf(`%s
 					i32.const %d
 					i32.const %d
 					local.get %d
 					call $otel_exit_func_%s
 					`, endCode, functionIndex, idx, target_idx, wasmfile.ByteToValType[vt])
-				}
+					}
 
-				// Add result values to the trace
-				if len(t.Result) == 1 {
-					rt := t.Result[0]
-					endCode = fmt.Sprintf(`%s
+					// Add result values to the trace
+					if len(t.Result) == 1 {
+						rt := t.Result[0]
+						endCode = fmt.Sprintf(`%s
 						i32.const %d
 						call $otel_exit_func_result_%s
 						`, endCode, functionIndex, wasmfile.ByteToValType[rt])
-				}
+					}
 
-				endCode = fmt.Sprintf(`%s
-				i32.const %d
-				call $otel_exit_func_done`, endCode, functionIndex)
+					endCode = fmt.Sprintf(`%s
+						i32.const %d
+						call $otel_exit_func_done`, endCode, functionIndex)
+				}
 
 				err = c.ReplaceInstr(wfile, "return", endCode+"\nreturn")
 				if err != nil {
@@ -410,24 +448,24 @@ func runOtel(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	/*
-	   fmt.Printf("Writing debug.wat\n")
-	   f2, err := os.Create("debug.wat")
 
-	   	if err != nil {
-	   		panic(err)
-	   	}
+	fmt.Printf("Writing debug.wat\n")
+	f2, err := os.Create("debug.wat")
 
-	   err = wfile.EncodeWat(f2)
+	if err != nil {
+		panic(err)
+	}
 
-	   	if err != nil {
-	   		panic(err)
-	   	}
+	err = wfile.EncodeWat(f2)
 
-	   err = f2.Close()
+	if err != nil {
+		panic(err)
+	}
 
-	   	if err != nil {
-	   		panic(err)
-	   	}
-	*/
+	err = f2.Close()
+
+	if err != nil {
+		panic(err)
+	}
+
 }

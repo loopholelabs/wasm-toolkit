@@ -219,18 +219,6 @@ func NewFromWat(filename string) (*WasmFile, error) {
 	return wf, err
 }
 
-// Create a new WasmFile from a file
-func NewFromWatWithData(filename string, datamap map[string][]byte) (*WasmFile, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	wf := &WasmFile{}
-	err = wf.DecodeWatWithData(data, datamap)
-	return wf, err
-}
-
 func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 	for _, c := range wf.Custom {
 		if c.Name == name {

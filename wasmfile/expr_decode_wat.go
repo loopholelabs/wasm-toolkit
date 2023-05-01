@@ -318,6 +318,16 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 			e.I32DataId = dname
 			return nil
 		}
+		// Support other bases...
+		if strings.HasPrefix(v, "0x") {
+			vv, err := strconv.ParseUint(v[2:], 16, 32)
+			if err != nil {
+				return err
+			}
+			e.I32Value = int32(vv)
+			return nil
+		}
+
 		vv, err := strconv.Atoi(v)
 		if err != nil {
 			return err
@@ -325,13 +335,24 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		e.I32Value = int32(vv)
 		return nil
 	} else if opcode == "i64.const" {
+		e.Opcode = InstrToOpcode[opcode]
 		s = strings.Trim(s, Whitespace)
 		v, _ := ReadToken(s)
+		// Support other bases...
+		if strings.HasPrefix(v, "0x") {
+			vv, err := strconv.ParseUint(v[2:], 16, 64)
+			if err != nil {
+				return err
+			}
+
+			e.I64Value = int64(vv)
+
+			return nil
+		}
 		vv, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return err
 		}
-		e.Opcode = InstrToOpcode[opcode]
 		e.I64Value = int64(vv)
 		return nil
 	} else if opcode == "f32.const" {
