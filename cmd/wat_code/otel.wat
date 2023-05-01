@@ -1,8 +1,13 @@
 (module
   (type (func (param i32 i64 i32) (result i32)))
   (type (func (param i32 i32) (result i32)))
+  (type (func (param i32)))
+  (type (func (param i32 i32)))
   (import "wasi_snapshot_preview1" "clock_time_get" (func $debug_clock_time_get (type 0)))
   (import "wasi_snapshot_preview1" "random_get" (func $debug_random_get (type 1)))
+
+  (import "scale" "get_invocation_id" (func $get_invocation_id (type 2)))
+  (import "scale" "send_otel_trace_json" (func $send_otel_trace_json (type 3)))
 
   ;; Get the current timestamp as an i64
   (func $debug_gettime (result i64)
@@ -16,14 +21,50 @@
   )
 
   (func $otel_output_trace_data (param $ptr i32) (param $len i32)
-    ;; For now, just print to stderr
+    ;; Copy it to the output buffer...
+
+    ;; Detect buffer overflow here...
+    global.get $otel_output_buffer_ptr
+    local.get $len
+    i32.add
+    i32.const length($otel_output_buffer)
+    i32.ge_u
+    if
+      i32.const offset($error_stack_overflow)
+      i32.const length($error_stack_overflow)
+      call $wt_print   
+      unreachable
+    end
+
+    global.get $otel_output_buffer_ptr
+    i32.const offset($otel_output_buffer)
+    i32.add
     local.get $ptr
     local.get $len
-    call $wt_print
+    ;; dest / src / size
+    memory.copy
+
+    global.get $otel_output_buffer_ptr
+    local.get $len
+    i32.add
+    global.set $otel_output_buffer_ptr
+  )
+
+  (func $otel_output_trace_data_flush
+    ;; Flush
+    i32.const offset($otel_output_buffer)
+    global.get $otel_output_buffer_ptr
+    call $send_otel_trace_json
+    ;; call $wt_print
+
+    ;; TODO: We can now do a single host call here to say we have some otel data.
+
+    ;; Reset
+    i32.const 0
+    global.set $otel_output_buffer_ptr
   )
 
   ;; Enter a function for otel (Just pushes the time data onto a stack, creates a random spanID)
-  ;; TODO: We need to save these parameters somewhere... Could either create mirror locals and store there, or store in the call stack
   ;;
   (func $otel_enter_func (param $fid i32)
 
@@ -262,6 +303,8 @@
     i32.const offset($debug_newline)
     i32.const length($debug_newline)
     call $otel_output_trace_data
+
+    call $otel_output_trace_data_flush
   )
 
   ;; Exit a function. This is where the otel stuff gets sent out.
@@ -270,20 +313,6 @@
 
     call $debug_gettime
     local.set $time_end
-
-    ;; Set the trace_id if it hasn't already been set
-    ;; TODO: Clear this
-    global.get $trace_id_set
-    i32.eqz
-    if
-      i32.const 1
-      global.set $trace_id_set
-
-      i32.const offset($trace_id)
-      i32.const length($trace_id)
-      call $debug_random_get
-      drop
-    end
 
     ;; Pop timestamp off the timestamp stack
     global.get $debug_timestamps_stack_pointer
@@ -360,6 +389,9 @@
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
     call $otel_output_trace_data
+
+    i32.const offset($trace_id)
+    call $get_invocation_id
 
     i32.const offset($trace_id)
     i32.const 16
@@ -623,6 +655,10 @@
 
   (data $debug_clock_loc 8)
 
+  (data $otel_output_buffer 1024)
+
+  (global $otel_output_buffer_ptr (mut i32) (i32.const 0))
+
   ;; Timestamp stack (8 bytes per entry)
   (data $debug_timestamps_stack 8000)
 
@@ -630,5 +666,4 @@
 
   (global $wt_all_function_length i32 (i32.const 0))
 
-  (global $trace_id_set (mut i32) (i32.const 0))
 )
