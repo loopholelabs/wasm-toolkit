@@ -1,13 +1,8 @@
 (module
   (type (func (param i32 i64 i32) (result i32)))
   (type (func (param i32 i32) (result i32)))
-  (type (func (param i32)))
-  (type (func (param i32 i32)))
   (import "wasi_snapshot_preview1" "clock_time_get" (func $debug_clock_time_get (type 0)))
   (import "wasi_snapshot_preview1" "random_get" (func $debug_random_get (type 1)))
-
-  (import "scale" "get_invocation_id" (func $get_invocation_id (type 2)))
-  (import "scale" "send_otel_trace_json" (func $send_otel_trace_json (type 3)))
 
   ;; Get the current timestamp as an i64
   (func $debug_gettime (result i64)

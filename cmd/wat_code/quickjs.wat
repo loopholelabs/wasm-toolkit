@@ -328,6 +328,9 @@
     call $otel_output_trace_data
 
     i32.const offset($trace_id)
+    call $get_invocation_id
+
+    i32.const offset($trace_id)
     i32.const 16
     i32.const offset($ot_trace_id)
     i32.const 12

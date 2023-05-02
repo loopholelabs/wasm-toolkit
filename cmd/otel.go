@@ -45,11 +45,13 @@ var (
 
 var otel_func_regex = ".*"
 var otel_quickjs = false
+var is_scale_host = false
 
 func init() {
 	rootCmd.AddCommand(cmdOtel)
 	cmdOtel.Flags().StringVarP(&otel_func_regex, "func", "f", ".*", "Func name regexp")
 	cmdOtel.Flags().BoolVarP(&otel_quickjs, "qjs", "j", false, "Do quickjs otel")
+	cmdOtel.Flags().BoolVarP(&is_scale_host, "scale", "s", false, "Is scale host")
 }
 
 func runOtel(ccmd *cobra.Command, args []string) {
@@ -156,6 +158,12 @@ func runOtel(ccmd *cobra.Command, args []string) {
 
 	if otel_quickjs {
 		files = append(files, "quickjs.wat")
+	}
+
+	if is_scale_host {
+		files = append(files, "otel_scale.wat")
+	} else {
+		files = append(files, "otel_stderr.wat")
 	}
 
 	ptr := int32(data_ptr)

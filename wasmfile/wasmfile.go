@@ -291,6 +291,12 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 		ptr += int32(len(d.Data))
 		ptr = (ptr + 7) & -8
 
+		for _, n := range wf.dataNames {
+			if n == src_name {
+				panic(fmt.Sprintf("Data conflict for '%s'", src_name))
+			}
+		}
+
 		// Copy over the data name
 		wf.dataNames[newidx] = src_name
 	}
