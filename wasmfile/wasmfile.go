@@ -357,7 +357,6 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 			// Add the name modification
 			fnFrom := wfSource.GetFunctionIdentifier(idx, false)
 			fnTo := wf.GetFunctionIdentifier(newidx, false)
-			fmt.Printf("Got to map import from %s => %s\n", fnFrom, fnTo)
 			importFuncModifications[fnFrom] = fnTo
 			callModification[idx] = newidx
 		} else {
@@ -365,7 +364,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 			callModification[idx] = len(wf.Import)
 			newidx := len(wf.Import)
 
-			// TODO: Might need to add a type if there isn't one already
+			// Might need to add a type if there isn't one already
 			t := wfSource.Type[i.Index]
 			i.Index = wf.AddTypeMaybe(t)
 
@@ -455,9 +454,13 @@ func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
 
 func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 	for _, e := range ce.Expression {
-		newid, ok := m[e.FuncIndex]
-		if ok {
-			e.FuncIndex = newid
+		if e.Opcode == InstrToOpcode["call"] {
+			newid, ok := m[e.FuncIndex]
+			if ok {
+				if e.FuncIndex != newid {
+					e.FuncIndex = newid
+				}
+			}
 		}
 	}
 }

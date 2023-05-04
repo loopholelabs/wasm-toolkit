@@ -83,7 +83,6 @@ func (wf *WasmFile) ParseName() error {
 
 					if !exists {
 						wf.FunctionNames[int(idx)] = fname
-						fmt.Printf(" - Found function name %d %s -> %s\n", idx, nameValue, fname)
 						break
 					}
 					dupidx++
@@ -104,8 +103,6 @@ func (wf *WasmFile) ParseName() error {
 				data = data[nameLength:]
 
 				wf.globalNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
-
-				fmt.Printf(" - Found global name %d %s\n", idx, nameValue)
 			}
 		} else if subsectionID == subsectionDataNames {
 			nameVecLength, l := binary.Uvarint(data)
@@ -120,8 +117,6 @@ func (wf *WasmFile) ParseName() error {
 				data = data[nameLength:]
 
 				wf.dataNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
-
-				fmt.Printf(" - Found data name %d %s\n", idx, nameValue)
 			}
 
 		} else {

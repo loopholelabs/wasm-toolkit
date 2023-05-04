@@ -35,31 +35,11 @@ func (wf *WasmFile) ParseDwarf() error {
 	debug_loc := wf.GetCustomSectionData(".debug_loc")
 	wf.dwarfLoc = debug_loc
 
-	fmt.Printf("Dwarf sections abbrev=%d aranges=%d info=%d line=%d pubnames=%d ranges=%d str=%d\n",
-		len(debug_abbrev),
-		len(debug_aranges),
-		len(debug_info),
-		len(debug_line),
-		len(debug_pubnames),
-		len(debug_ranges),
-		len(debug_str))
-	/*
-		if len(debug_abbrev) == 0 ||
-			len(debug_aranges) == 0 ||
-			len(debug_info) == 0 ||
-			len(debug_line) == 0 ||
-			len(debug_pubnames) == 0 ||
-			len(debug_ranges) == 0 ||
-			len(debug_str) == 0 {
-			return nil
-		}
-	*/
 	debug_frame := make([]byte, 0) // call frame info
 
 	dd, err := dwarf.New(debug_abbrev, debug_aranges, debug_frame, debug_info, debug_line, debug_pubnames, debug_ranges, debug_str)
 	if err != nil {
-		fmt.Printf("WARNING: Could not read dwarf data... %e", err)
-		return nil // ok, but lets move on
+		return nil // ok, but lets move on and ignore the error.
 	}
 
 	wf.dwarfData = dd

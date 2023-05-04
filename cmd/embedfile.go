@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 
 	"github.com/spf13/cobra"
@@ -64,7 +65,12 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	}
 
 	// Add a payload to the wasm file
-	memFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "memory.wat"))
+	memFunctions := &wasmfile.WasmFile{}
+	data, err := wat.Wat_content.ReadFile(path.Join("wat_code", "memory.wat"))
+	if err != nil {
+		panic(err)
+	}
+	err = memFunctions.DecodeWat(data)
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +97,12 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	}
 
 	// Add a payload to the wasm file
-	embedFunctions, err := wasmfile.NewFromWat(path.Join("wat_code", "embed.wat"))
+	embedFunctions := &wasmfile.WasmFile{}
+	data, err = wat.Wat_content.ReadFile(path.Join("wat_code", "embed.wat"))
+	if err != nil {
+		panic(err)
+	}
+	err = embedFunctions.DecodeWat(data)
 	if err != nil {
 		panic(err)
 	}

@@ -17,7 +17,6 @@
 package main
 
 import (
-	"embed"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -25,15 +24,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
-
-	_ "embed"
 
 	"github.com/spf13/cobra"
 )
-
-//go:embed wat_code/*
-var wat_content embed.FS
 
 var (
 	cmdStrace = &cobra.Command{
@@ -114,7 +109,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 			// Load the params...
 			expr := make([]*wasmfile.Expression, 0)
-			for idx, _ := range t.Param {
+			for idx := range t.Param {
 				expr = append(expr, &wasmfile.Expression{
 					Opcode:     wasmfile.InstrToOpcode["local.get"],
 					LocalIndex: idx,
@@ -189,7 +184,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	ptr := int32(data_ptr)
 	for _, file := range files {
 		fmt.Printf(" - Adding code from %s...\n", file)
-		data, err := wat_content.ReadFile(path.Join("wat_code", file))
+		data, err := wat.Wat_content.ReadFile(path.Join("wat_code", file))
 		if err != nil {
 			panic(err)
 		}
@@ -252,7 +247,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	data_function_names := make([]byte, 0)
 	data_function_locs := make([]byte, 0)
 	data_metrics_data := make([]byte, 0)
-	for idx, _ := range wfile.Import {
+	for idx := range wfile.Import {
 		functionIndex := idx
 		name := wfile.GetFunctionIdentifier(functionIndex, false)
 
@@ -265,7 +260,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		data_metrics_data = append(data_metrics_data, make([]byte, 16)...)
 	}
 
-	for idx, _ := range wfile.Code {
+	for idx := range wfile.Code {
 		functionIndex := len(wfile.Import) + idx
 		name := wfile.GetFunctionIdentifier(functionIndex, false)
 
@@ -546,7 +541,7 @@ func GetWatchCode(wf *wasmfile.WasmFile) string {
 		addr, ok := wf.GlobalAddresses[w]
 		if !ok {
 			fmt.Printf("WARNING: I can't find the global %s\n", w)
-			for n, _ := range wf.GlobalAddresses {
+			for n := range wf.GlobalAddresses {
 				fmt.Printf(" - Global %s\n", n)
 			}
 			panic("Global name not found")
