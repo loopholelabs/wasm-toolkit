@@ -26,7 +26,7 @@
     global.get $debug_mem_size
     i32.const 16
     i32.shl
-
+    ;; dest / src / size
     memory.copy
 
     global.get $debug_start_mem

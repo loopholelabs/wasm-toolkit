@@ -1,0 +1,34 @@
+{
+  "resource_spans": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {
+            "stringValue": "wasm-toolkit"
+          }}
+          ,{"key": "telemetry.sdk.name", "value": {
+            "stringValue": "wasm-toolkit"
+          }}
+        ]
+      },
+      "scope_spans": [
+        {
+          "spans": [
+            {
+              "trace_id": "b5dd69fce623bfcecfa6747ac6c7a243",
+              "span_id": "1122334455667783",
+              "name": "wasm-test",
+              "start_time_unix_nano": 1544712660300000000,
+              "end_time_unix_nano": 1544712660600000000,
+              "attributes": [
+                {"key": "hello", "value": {
+                  "stringValue": "world"
+                }}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

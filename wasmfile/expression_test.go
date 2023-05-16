@@ -138,25 +138,36 @@ func TestBlockIfLoop(t *testing.T) {
 }
 
 func TestI32Const(t *testing.T) {
-	expr := &Expression{
-		Opcode:   InstrToOpcode["i32.const"],
-		I32Value: 123456,
-	}
+	for _, v := range []int32{1, -90, 123456, 90000000} {
+		expr := &Expression{
+			Opcode:   InstrToOpcode["i32.const"],
+			I32Value: v,
+		}
 
-	expr2 := verifyEncodeDecode(t, expr)
-	assert.Equal(t, expr2.Opcode, expr.Opcode)
-	assert.Equal(t, expr.I32Value, expr2.I32Value)
+		expr2 := verifyEncodeDecode(t, expr)
+		assert.Equal(t, expr2.Opcode, expr.Opcode)
+		assert.Equal(t, expr.I32Value, expr2.I32Value)
+	}
 }
 
 func TestI64Const(t *testing.T) {
-	expr := &Expression{
-		Opcode:   InstrToOpcode["i64.const"],
-		I64Value: 123456789,
-	}
+	for _, v := range []int64{1, -90, 123456, 90000000, -0xffebd6e0} {
+		expr := &Expression{
+			Opcode:   InstrToOpcode["i64.const"],
+			I64Value: v,
+		}
 
-	expr2 := verifyEncodeDecode(t, expr)
-	assert.Equal(t, expr2.Opcode, expr.Opcode)
-	assert.Equal(t, expr.I64Value, expr2.I64Value)
+		var buf bytes.Buffer
+
+		err := expr.EncodeBinary(&buf)
+		if err != nil {
+			panic(err)
+		}
+
+		expr2 := verifyEncodeDecode(t, expr)
+		assert.Equal(t, expr2.Opcode, expr.Opcode)
+		assert.Equal(t, expr.I64Value, expr2.I64Value)
+	}
 }
 
 func TestF32Const(t *testing.T) {

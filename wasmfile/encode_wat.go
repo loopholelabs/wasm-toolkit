@@ -97,7 +97,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			}
 		}
 
-		gname := wf.GetGlobalIdentifier(index)
+		gname := wf.GetGlobalIdentifier(index, true)
 
 		edata := fmt.Sprintf("    (global %s %s (%s))\n", gname, t, buf.Bytes())
 		_, err = wr.WriteString(edata)

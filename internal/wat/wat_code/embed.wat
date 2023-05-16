@@ -504,8 +504,6 @@
   (data $debug_here "HERE\0d\0a")
 
 ;; TODO: Support multiple files here...
-  (data $file_name "embedtest")
-  (data $file_content "Hello, this file doesn't really exist. It's just for fun.\0d\0aIt's been embedded inside the wasm file, and is accessible from the wasm code.")
   (global $debug_fp (mut i32) (i32.const 0))
 
 )

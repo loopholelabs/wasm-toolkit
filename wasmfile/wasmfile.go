@@ -219,18 +219,6 @@ func NewFromWat(filename string) (*WasmFile, error) {
 	return wf, err
 }
 
-// Create a new WasmFile from a file
-func NewFromWatWithData(filename string, datamap map[string][]byte) (*WasmFile, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	wf := &WasmFile{}
-	err = wf.DecodeWatWithData(data, datamap)
-	return wf, err
-}
-
 func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 	for _, c := range wf.Custom {
 		if c.Name == name {
@@ -303,6 +291,12 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 		ptr += int32(len(d.Data))
 		ptr = (ptr + 7) & -8
 
+		for _, n := range wf.dataNames {
+			if n == src_name {
+				panic(fmt.Sprintf("Data conflict for '%s'", src_name))
+			}
+		}
+
 		// Copy over the data name
 		wf.dataNames[newidx] = src_name
 	}
@@ -339,9 +333,10 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 		newidx := len(wf.Global)
 		globalModification[idx] = newidx
 		wf.Global = append(wf.Global, g)
-		name := wfSource.GetGlobalIdentifier(idx)
-
-		wf.globalNames[newidx] = name
+		name := wfSource.GetGlobalIdentifier(idx, true)
+		if name != "" {
+			wf.globalNames[newidx] = name
+		}
 	}
 
 	callModification := make(map[int]int) // old fid -> new fid
@@ -362,7 +357,6 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 			// Add the name modification
 			fnFrom := wfSource.GetFunctionIdentifier(idx, false)
 			fnTo := wf.GetFunctionIdentifier(newidx, false)
-			fmt.Printf("Got to map import from %s => %s\n", fnFrom, fnTo)
 			importFuncModifications[fnFrom] = fnTo
 			callModification[idx] = newidx
 		} else {
@@ -370,7 +364,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 			callModification[idx] = len(wf.Import)
 			newidx := len(wf.Import)
 
-			// TODO: Might need to add a type if there isn't one already
+			// Might need to add a type if there isn't one already
 			t := wfSource.Type[i.Index]
 			i.Index = wf.AddTypeMaybe(t)
 
@@ -460,9 +454,13 @@ func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
 
 func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 	for _, e := range ce.Expression {
-		newid, ok := m[e.FuncIndex]
-		if ok {
-			e.FuncIndex = newid
+		if e.Opcode == InstrToOpcode["call"] {
+			newid, ok := m[e.FuncIndex]
+			if ok {
+				if e.FuncIndex != newid {
+					e.FuncIndex = newid
+				}
+			}
 		}
 	}
 }

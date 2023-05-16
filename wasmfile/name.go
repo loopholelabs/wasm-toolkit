@@ -66,9 +66,27 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.FunctionNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
+				// Make sure it's unique and doesn't already exist...
+				dupidx := 1
+				for {
+					fname := fmt.Sprintf("$%s", string(nameValue))
+					if dupidx > 1 {
+						fname = fmt.Sprintf("%s_%d", fname, dupidx)
+					}
+					exists := false
+					for _, n := range wf.FunctionNames {
+						if n == fname {
+							exists = true
+							break
+						}
+					}
 
-				fmt.Printf(" - Found function name %d %s\n", idx, nameValue)
+					if !exists {
+						wf.FunctionNames[int(idx)] = fname
+						break
+					}
+					dupidx++
+				}
 			}
 
 		} else if subsectionID == subsectionGlobalNames {
@@ -85,8 +103,6 @@ func (wf *WasmFile) ParseName() error {
 				data = data[nameLength:]
 
 				wf.globalNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
-
-				fmt.Printf(" - Found global name %d %s\n", idx, nameValue)
 			}
 		} else if subsectionID == subsectionDataNames {
 			nameVecLength, l := binary.Uvarint(data)
@@ -101,8 +117,6 @@ func (wf *WasmFile) ParseName() error {
 				data = data[nameLength:]
 
 				wf.dataNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
-
-				fmt.Printf(" - Found data name %d %s\n", idx, nameValue)
 			}
 
 		} else {
@@ -130,12 +144,15 @@ func (wf *WasmFile) GetFunctionIdentifier(fid int, defaultEmpty bool) string {
 	return fmt.Sprintf("%d", fid)
 }
 
-func (wf *WasmFile) GetGlobalIdentifier(gid int) string {
+func (wf *WasmFile) GetGlobalIdentifier(gid int, defaultEmpty bool) string {
 	f, ok := wf.globalNames[gid]
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
 		return f
+	}
+	if defaultEmpty {
+		return ""
 	}
 	return fmt.Sprintf("%d", gid)
 }

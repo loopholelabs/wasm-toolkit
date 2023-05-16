@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
@@ -28,26 +29,22 @@ import (
 )
 
 var (
-	cmdEmbedfile = &cobra.Command{
-		Use:   "embedfile",
-		Short: "Add a file to the wasm",
-		Long:  `This will embed a file within the wasm`,
-		Run:   runEmbedFile,
+	cmdAddSource = &cobra.Command{
+		Use:   "addsource",
+		Short: "Add some source code to an interpreter wasm",
+		Long:  `This will embed some source code into the wasm`,
+		Run:   runAddSource,
 	}
 )
 
-var em_filename = "embedtest"
-var em_content = "Yeah!"
-var em_contentfile = ""
+var source_file string
 
 func init() {
-	rootCmd.AddCommand(cmdEmbedfile)
-	cmdEmbedfile.Flags().StringVar(&em_filename, "filename", "embedtest", "Embed filename")
-	cmdEmbedfile.Flags().StringVar(&em_content, "content", "Hey! This isn't really a file. It's embedded in the wasm.", "Embed content")
-	cmdEmbedfile.Flags().StringVar(&em_contentfile, "contentfile", "", "Embed content from file")
+	rootCmd.AddCommand(cmdAddSource)
+	cmdAddSource.Flags().StringVar(&source_file, "filename", "", "Source filename")
 }
 
-func runEmbedFile(ccmd *cobra.Command, args []string) {
+func runAddSource(ccmd *cobra.Command, args []string) {
 	if Input == "" {
 		panic("No input file")
 	}
@@ -64,6 +61,8 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
+	originalFunctionLength := len(wfile.Code)
+
 	// Add a payload to the wasm file
 	memFunctions := &wasmfile.WasmFile{}
 	data, err := wat.Wat_content.ReadFile(path.Join("wat_code", "memory.wat"))
@@ -75,42 +74,102 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	// TODO: Wrap file imports so we can do what we want to...
-
-	originalFunctionLength := len(wfile.Code)
-
+	fmt.Printf("Adding functions from memory.wat...\n")
 	wfile.AddFuncsFrom(memFunctions, func(m map[int]int) {})
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
 	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
-	// Now we can start doing interesting things...
+	// Now we can start doing what we want...
 
-	em_content_data := []byte(em_content)
-
-	if em_contentfile != "" {
-		bytes, err := os.ReadFile(em_contentfile)
-		if err != nil {
-			panic(err)
-		}
-		em_content_data = bytes
+	bytes, err := os.ReadFile(source_file)
+	if err != nil {
+		panic(err)
 	}
+
+	// Now we just need to adjust the imported functions get_source_len and get_source_ptr and then remove them.
 
 	// Add a payload to the wasm file
-	embedFunctions := &wasmfile.WasmFile{}
-	data, err = wat.Wat_content.ReadFile(path.Join("wat_code", "embed.wat"))
+	replacedFunctions := &wasmfile.WasmFile{}
+	data, err = wat.Wat_content.ReadFile(path.Join("wat_code", "addsource.wat"))
 	if err != nil {
 		panic(err)
 	}
-	err = embedFunctions.DecodeWat(data)
+	err = replacedFunctions.DecodeWat(data)
 	if err != nil {
 		panic(err)
 	}
 
-	wfile.AddDataFrom(int32(data_ptr), embedFunctions)
+	fmt.Printf("Adding functions from addsource.wat...\n")
+	wfile.AddFuncsFrom(replacedFunctions, func(m map[int]int) {})
 
-	wfile.AddData("$file_name", []byte(em_filename))
-	wfile.AddData("$file_content", em_content_data)
+	wfile.AddDataFrom(int32(data_ptr), replacedFunctions)
+
+	fmt.Printf("Adding source data %d bytes...\n", len(bytes))
+	wfile.AddData("$source_data", bytes)
+
+	// Now we need to remap any calls to the new functions
+
+	fid_get_source_len := wfile.LookupFunctionID("$get_source_len")
+	fid_get_source_ptr := wfile.LookupFunctionID("$get_source")
+
+	remap := map[int]int{}
+	remap_imports := map[int]int{}
+
+	// Now we need to REMOVE the old imports.
+	newImports := make([]*wasmfile.ImportEntry, 0)
+	for n, i := range wfile.Import {
+		if i.Module == "env" && i.Name == "get_source_len" {
+			remap_imports[n] = fid_get_source_len
+		} else if i.Module == "env" && i.Name == "get_source" {
+			remap_imports[n] = fid_get_source_ptr
+		} else {
+			remap[n] = len(newImports)
+			// Keep them for now...
+			newImports = append(newImports, i)
+		}
+
+	}
+
+	// Remap everything in the Code section because we're removing 2 imports.
+	for n, _ := range wfile.Code {
+		remap[len(wfile.Import)+n] = len(newImports) + n
+	}
+
+	// Remap the imports, and THEN remap due to removing the imports.
+	for idx, c := range wfile.Code {
+		if idx < originalFunctionLength {
+			c.ModifyAllCalls(remap_imports)
+			c.ModifyAllCalls(remap)
+		}
+	}
+
+	wfile.Import = newImports
+
+	// We also need to fixup any Elems sections
+	for _, el := range wfile.Elem {
+		for idx, funcidx := range el.Indexes {
+			newidx, ok := remap[int(funcidx)]
+			if ok {
+				el.Indexes[idx] = uint64(newidx)
+			}
+		}
+	}
+
+	// Fixup exports
+	for _, ex := range wfile.Export {
+		if ex.Type == wasmfile.ExportFunc {
+			newidx, ok := remap[ex.Index]
+			if ok {
+				ex.Index = newidx
+			}
+		}
+	}
+
+	// Now we need to remap any calls to the new functions
+
+	// Does this work ok?
+	wfile.Renumber_functions(remap)
 
 	// Find out how much data we need for the payload
 	total_payload_data := data_ptr
@@ -120,33 +179,16 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	}
 
 	payload_size := (total_payload_data + 65535) >> 16
-	fmt.Printf("Payload data of %d (%d pages)\n", total_payload_data, payload_size)
 
 	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
-	wfile.AddFuncsFrom(embedFunctions, func(m map[int]int) {}) // NB: This may mean inserting an import which changes all func numbers.
-
-	// Redirect some imports...
-	import_redirect_map := map[string]string{
-		"wasi_snapshot_preview1:fd_prestat_get": "$wrap_fd_prestat_get",
-		"wasi_snapshot_preview1:path_open":      "$wrap_path_open",
-		"wasi_snapshot_preview1:fd_read":        "$wrap_fd_read",
+	// Pass on the fact of if source_file is gzip or not.
+	source_gzipped := 0
+	if strings.HasSuffix(source_file, ".gz") {
+		source_gzipped = 1
 	}
-
-	for from, to := range import_redirect_map {
-		fromId := wfile.LookupImport(from)
-		toId := wfile.LookupFunctionID(to)
-
-		fmt.Printf("Redirecting code from %d to %d\n", fromId, toId)
-
-		for idx, c := range wfile.Code {
-			if idx < originalFunctionLength {
-				c.ModifyAllCalls(map[int]int{fromId: toId})
-			}
-		}
-
-	}
+	wfile.SetGlobal("$source_gzipped", wasmfile.ValI32, fmt.Sprintf("i32.const %d", source_gzipped))
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
@@ -187,7 +229,6 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 		if err != nil {
 			panic(err)
 		}
-
 	}
 
 	fmt.Printf("Writing wasm out to %s...\n", Output)
@@ -205,7 +246,6 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-
 	/*
 	   fmt.Printf("Writing debug.wat\n")
 	   f2, err := os.Create("debug.wat")

@@ -35,31 +35,11 @@ func (wf *WasmFile) ParseDwarf() error {
 	debug_loc := wf.GetCustomSectionData(".debug_loc")
 	wf.dwarfLoc = debug_loc
 
-	fmt.Printf("Dwarf sections abbrev=%d aranges=%d info=%d line=%d pubnames=%d ranges=%d str=%d\n",
-		len(debug_abbrev),
-		len(debug_aranges),
-		len(debug_info),
-		len(debug_line),
-		len(debug_pubnames),
-		len(debug_ranges),
-		len(debug_str))
-	/*
-		if len(debug_abbrev) == 0 ||
-			len(debug_aranges) == 0 ||
-			len(debug_info) == 0 ||
-			len(debug_line) == 0 ||
-			len(debug_pubnames) == 0 ||
-			len(debug_ranges) == 0 ||
-			len(debug_str) == 0 {
-			return nil
-		}
-	*/
 	debug_frame := make([]byte, 0) // call frame info
 
 	dd, err := dwarf.New(debug_abbrev, debug_aranges, debug_frame, debug_info, debug_line, debug_pubnames, debug_ranges, debug_str)
 	if err != nil {
-		fmt.Printf("WARNING: Could not read dwarf data... %e", err)
-		return nil // ok, but lets move on
+		return nil // ok, but lets move on and ignore the error.
 	}
 
 	wf.dwarfData = dd
@@ -106,8 +86,6 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 		}
 	}
 
-	fmt.Printf("Parsed Dwarf lines %d\n", len(wf.lineNumbers))
-
 	return nil
 }
 
@@ -153,29 +131,45 @@ func (wf *WasmFile) GetFunctionSignature(fid int) string {
 	return ""
 }
 
-func (wf *WasmFile) GetLineNumberRange(fid int, c *CodeEntry) string {
-	filename := "<unknown>"
-	minLine := -1
-	maxLine := -1
-	notfound := true
+func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
+	// Collect all the ranges together...
+	ranges := make(map[string][]int)
+
 	for pc := c.CodeSectionPtr; pc < c.CodeSectionPtr+c.CodeSectionLen; pc++ {
 		// Look it up...
 		li, ok := wf.lineNumbers[pc]
 		if ok {
-			notfound = false
-			filename = li.Filename
-			if minLine == -1 || li.Linenumber < minLine {
-				minLine = li.Linenumber
-			}
-			if maxLine == -1 || li.Linenumber > maxLine {
-				maxLine = li.Linenumber
+			m, ok2 := ranges[li.Filename]
+			if ok2 {
+				// Add it on...
+				m = append(m, li.Linenumber)
+			} else {
+				ranges[li.Filename] = []int{li.Linenumber}
 			}
 		}
 	}
-	if notfound {
-		return ""
+
+	// Now lets bring things together...
+	info := ""
+
+	for filename, rg := range ranges {
+		min := -1
+		max := -1
+		for _, v := range rg {
+			if (min == -1) || (v < min) {
+				min = v
+			}
+			if (max == -1) || (v > max) {
+				max = v
+			}
+		}
+		if info != "" {
+			info = fmt.Sprintf("%s,", info)
+		}
+		info = fmt.Sprintf("%s%s(%d-%d)", info, filename, min, max)
 	}
-	return fmt.Sprintf("%s(%d-%d)", filename, minLine, maxLine)
+
+	return info
 }
 
 type LocalNameData struct {
@@ -228,7 +222,6 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 				// Parse the expression
 				if len(vaddr) == 5 && vaddr[0] == DW_OP_addr {
 					addr := binary.LittleEndian.Uint32(vaddr[1:])
-					fmt.Printf("Found a variable %s at %d - %d\n", vname, vaddr, addr)
 					wf.GlobalAddresses[vname] = int32(addr)
 				}
 			}

@@ -233,34 +233,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 		if err != nil {
 			return err
 		}
-		/*
-			original := code[locptr:]
-			// Check it's the same when encoded...
-			var buf bytes.Buffer
-			for _, e := range expression {
-				err = e.EncodeBinary(&buf)
-				if err != nil {
-					panic(err)
-				}
-			}
-			buf.WriteByte(0x0b)
 
-			// Compare and contrast
-			toutput := buf.Bytes()
-			if len(toutput) != len(original) {
-				fmt.Printf("Code differs! Investigate.\n")
-				fmt.Printf("Original code %x\n", original)
-				fmt.Printf("Mangled code %x\n", toutput)
-				panic("Error")
-			}
-			for idx, b1 := range original {
-				b2 := toutput[idx]
-				if b1 != b2 {
-					fmt.Printf("Code differs! Investigate.\n")
-					panic("Error")
-				}
-			}
-		*/
 		c := &CodeEntry{
 			Locals:         locals,
 			PCValid:        true,
@@ -501,7 +474,8 @@ func (wf *WasmFile) ParseSectionExport(data []byte) error {
  *
  */
 func (wf *WasmFile) ParseSectionStart(data []byte) error {
-	return fmt.Errorf("TODO: ParseSectionStart %d\n", len(data))
+	return nil
+	//return fmt.Errorf("TODO: ParseSectionStart %d\n", len(data))
 }
 
 /**
