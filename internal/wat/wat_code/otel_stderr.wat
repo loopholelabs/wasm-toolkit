@@ -27,6 +27,13 @@
     call $wt_print  
   )
 
+  (func $cache_service_name
+    ;; Nothing to do...
+  )
+
   (global $trace_id_set (mut i32) (i32.const 0))
   (data $trace_id_stderr 16)
+
+  (data $service_name "unknown")
+  (global $service_name_len (mut i32) (i32.const 7))
 )

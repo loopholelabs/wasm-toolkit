@@ -323,8 +323,11 @@
     i32.const length($ot_resource)
     call $otel_output_trace_data
 
-    i32.const offset($ot_resource_name)
-    i32.const length($ot_resource_name)
+;; Service name
+    call $cache_service_name
+
+    i32.const offset($service_name)
+    global.get $service_name_len
     call $otel_output_trace_data
 
     i32.const offset($ot_resource_end)
@@ -594,8 +597,6 @@
     i32.load offset=4
     call $otel_output_trace_data
   )
-
-  (data $ot_resource_name "loop-wasm-otel")
 
 ;; Prelude
   (data $ot_start "{\22resource_spans\22:[{")
