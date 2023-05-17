@@ -179,6 +179,13 @@ type LocalNameData struct {
 	VarName string
 }
 
+type GlobalNameData struct {
+	Name    string
+	Address uint64
+	Size    uint64
+	Type    string
+}
+
 func (wf *WasmFile) ParseDwarfVariables() error {
 	wf.functionDebug = make(map[int]string)
 	if wf.functionSignature == nil {
@@ -186,7 +193,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 	}
 	wf.localNames = make([]*LocalNameData, 0)
 
-	wf.GlobalAddresses = make(map[string]int32)
+	wf.GlobalAddresses = make(map[string]*GlobalNameData)
 
 	if wf.dwarfData == nil {
 		return nil
@@ -206,8 +213,9 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			// Parse the location address
 			vname := ""
 			var vaddr []byte
+			vsize := int64(0)
+			vtype := ""
 			for _, field := range entry.Field {
-				//				log.Printf("Field %v\n", field)
 				if field.Attr == dwarf.AttrName {
 					vname = field.Val.(string)
 				} else if field.Attr == dwarf.AttrLocation {
@@ -216,13 +224,30 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 					case []byte:
 						vaddr = field.Val.([]byte)
 					}
+				} else if field.Attr == dwarf.AttrType {
+					offset := field.Val.(dwarf.Offset)
+					ty, err := wf.dwarfData.Type(offset)
+					if err == nil {
+						vsize = ty.Size()
+						vtype = ty.String()
+					}
 				}
 			}
+
 			if vaddr != nil && vname != "" {
 				// Parse the expression
 				if len(vaddr) == 5 && vaddr[0] == DW_OP_addr {
 					addr := binary.LittleEndian.Uint32(vaddr[1:])
-					wf.GlobalAddresses[vname] = int32(addr)
+
+					globalInfo := &GlobalNameData{
+						Name:    vname,
+						Address: uint64(addr),
+						Size:    uint64(vsize),
+						Type:    vtype,
+					}
+					wf.GlobalAddresses[vname] = globalInfo
+				} else {
+					fmt.Printf("Variable but not simple expr... %s %x\n", vname, vaddr)
 				}
 			}
 		}

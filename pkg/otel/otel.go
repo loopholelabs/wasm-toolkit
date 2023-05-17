@@ -28,9 +28,11 @@ import (
 )
 
 type Otel_config struct {
-	Func_regexp string
-	Quickjs     bool
-	Scale_api   bool
+	Func_regexp     string
+	Quickjs         bool
+	Scale_api       bool
+	Watch_variables []string
+	Language        string // go | rust | javascript
 }
 
 /**
@@ -68,7 +70,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	files := []string{
 		"memory.wat",
 		"stdout.wat",
-		"otel.wat"}
+		"otel.wat",
+		"otel_data_tinygo.wat"}
 
 	if config.Quickjs {
 		files = append(files, "quickjs.wat")
@@ -119,6 +122,26 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	err = wfile.ParseDwarfVariables()
 	if err != nil {
 		return nil, err
+	}
+
+	// Get a list of available watch variables.
+	globalNames := "["
+	for n := range wfile.GlobalAddresses {
+		if globalNames != "[" {
+			globalNames = globalNames + ", "
+		}
+		globalNames = globalNames + n
+	}
+	globalNames = globalNames + "]"
+
+	// Lookup any global watch variables we need
+	for _, n := range config.Watch_variables {
+		ginfo, ok := wfile.GlobalAddresses[n]
+		if !ok {
+			return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
+		} else {
+			fmt.Printf("Using watch variable %s at address %d size %d with type %s\n", n, ginfo.Address, ginfo.Size, ginfo.Type)
+		}
 	}
 
 	// Add the wasi error info
@@ -241,6 +264,34 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						endCode = fmt.Sprintf(`%s
 							i32.const %d
 							call $otel_exit_func_result_%s`, endCode, functionIndex, wasmfile.ByteToValType[rt])
+					}
+
+					// Add any watch variables...
+					for i, n := range config.Watch_variables {
+						ginfo := wfile.GlobalAddresses[n]
+						// We should add the name, and then call...
+
+						//						fmt.Printf("Watch variable %s - type %s\n", n, ginfo.Type)
+
+						watch_name := fmt.Sprintf("watch_%s", n)
+						wfile.AddData(fmt.Sprintf("$_watch_%d", i), []byte(watch_name))
+
+						// Show some data a bit nicer...
+						watch_fn := "$otel_watch_global"
+						if config.Language == "go" {
+							if ginfo.Type == "struct string" {
+								watch_fn = "$otel_watch_global_go_string"
+							} else if ginfo.Type == "struct []byte" {
+								watch_fn = "$otel_watch_global_go_byte_slice"
+							}
+						}
+
+						endCode = fmt.Sprintf(`%s
+						i32.const offset($_watch_%d)
+						i32.const length($_watch_%d)
+						i32.const %d
+						i32.const %d
+						call %s`, endCode, i, i, ginfo.Address, ginfo.Size, watch_fn)
 					}
 
 					endCode = fmt.Sprintf(`%s

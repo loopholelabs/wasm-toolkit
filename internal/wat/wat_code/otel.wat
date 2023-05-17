@@ -135,6 +135,80 @@
     call $otel_output_trace_data
   )
 
+  (func $otel_output_attr_hexdata (param $name i32) (param $name_len i32) (param $val i32) (param $val_len i32)
+    (local $i i32)
+    i32.const offset($ot_attr_start)
+    i32.const length($ot_attr_start)
+    call $otel_output_trace_data
+
+    local.get $name
+    local.get $name_len
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_mid)
+    i32.const length($ot_attr_mid)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_string_start)
+    i32.const length($ot_attr_string_start)
+    call $otel_output_trace_data
+
+    ;; Loop round and output hex bytes...
+    block
+      loop
+        local.get $i
+        local.get $val_len
+        i32.ge_u
+        br_if 1
+
+        ;; Now print out the hex byte...
+        local.get $val
+        local.get $i
+        i32.add
+        i32.load8_u
+
+        ;; Byte is on stack ready to output.
+        i32.const 4
+        i32.shr_u
+
+        i32.const offset($db_hex)
+        i32.add
+        i32.const 1
+        call $otel_output_trace_data
+
+        local.get $val
+        local.get $i
+        i32.add
+        i32.load8_u
+        i32.const 15
+        i32.and
+
+        i32.const offset($db_hex)
+        i32.add
+        i32.const 1
+        call $otel_output_trace_data
+
+        i32.const offset($ot_space)
+        i32.const length($ot_space)
+        call $otel_output_trace_data
+
+        local.get $i
+        i32.const 1
+        i32.add
+        local.set $i
+        br 0
+      end
+    end
+
+    i32.const offset($ot_attr_string_end)
+    i32.const length($ot_attr_string_end)
+    call $otel_output_trace_data
+
+    i32.const offset($ot_attr_end)
+    i32.const length($ot_attr_end)
+    call $otel_output_trace_data
+  )
+
 
   (func $otel_exit_func_result_i32 (param $val i32) (param $fid i32) (result i32)
     i32.const offset($ot_comma)
@@ -200,6 +274,51 @@
     call $otel_output_attr_string
 
     local.get $val
+  )
+
+  (func $otel_watch_global (param $name_ptr i32) (param $name_len i32) (param $ptr i32) (param $len i32)
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $otel_output_trace_data
+
+    local.get $len
+    i32.const 4
+    i32.eq
+    if
+      local.get $ptr
+      i32.load
+      call $wt_format_i32_hex
+
+      local.get $name_ptr
+      local.get $name_len
+      i32.const offset($db_number_i32)
+      i32.const 8
+      call $otel_output_attr_string
+      return
+    end
+
+    local.get $len
+    i32.const 8
+    i32.eq
+    if
+      local.get $ptr
+      i64.load
+      call $wt_format_i64_hex
+
+      local.get $name_ptr
+      local.get $name_len
+      i32.const offset($db_number_i64)
+      i32.const 16
+      call $otel_output_attr_string
+      return
+    end
+
+
+    local.get $name_ptr
+    local.get $name_len
+    local.get $ptr
+    local.get $len
+    call $otel_output_attr_hexdata
   )
 
   ;; Exit function with param i32
@@ -643,6 +762,8 @@
   (data $ot_at_todo "TODO")
 
   (data $ot_comma ",")
+  (data $ot_space " ")
+
   (data $ot_speech "\22")
 
   (data $trace_id 16)
