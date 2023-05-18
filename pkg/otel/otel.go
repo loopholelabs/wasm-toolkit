@@ -250,12 +250,71 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 					// Process params for exit
 					for idx, vt := range t.Param {
+						// Lookup dwarf info...
+
+						vname := ""
+						vtype := ""
+						if c.PCValid {
+							vname = wfile.GetLocalVarName(c.CodeSectionPtr, idx)
+							vtype = wfile.GetLocalVarType(c.CodeSectionPtr, idx)
+						}
+
 						target_idx := local_index_mirrored_params + idx
-						endCode = fmt.Sprintf(`%s
-							i32.const %d
-							i32.const %d
-							local.get %d
-							call $otel_exit_func_%s`, endCode, functionIndex, idx, target_idx, wasmfile.ByteToValType[vt])
+
+						if vname != "" {
+							wfile.AddData(fmt.Sprintf("$_param_%d_%d", functionIndex, idx), []byte(vname))
+							endCode = fmt.Sprintf(`%s
+								i32.const %d
+								i32.const %d
+								local.get %d
+								i32.const offset($_param_%d_%d)
+								i32.const length($_param_%d_%d)
+								call $otel_exit_func_var_%s`,
+								endCode,
+								functionIndex,
+								idx,
+								target_idx,
+								functionIndex,
+								idx,
+								functionIndex,
+								idx,
+								wasmfile.ByteToValType[vt])
+
+							if vtype == "struct string" {
+								// Do a special log for the string value but only if the next param is also part of it
+								vname2 := wfile.GetLocalVarName(c.CodeSectionPtr, idx+1)
+								vtype2 := wfile.GetLocalVarType(c.CodeSectionPtr, idx+1)
+
+								if vname2 == vname && vtype == vtype2 {
+									endCode = fmt.Sprintf(`%s
+								i32.const offset($ot_comma)
+								i32.const length($ot_comma)
+								call $otel_output_trace_data
+
+								i32.const offset($_param_%d_%d)
+								i32.const length($_param_%d_%d)
+								local.get %d
+								local.get %d
+								call $otel_output_attr_hexdata
+								`,
+										endCode,
+										functionIndex,
+										idx,
+										functionIndex,
+										idx,
+										target_idx,
+										target_idx+1,
+									)
+								}
+							}
+
+						} else {
+							endCode = fmt.Sprintf(`%s
+								i32.const %d
+								i32.const %d
+								local.get %d
+								call $otel_exit_func_%s`, endCode, functionIndex, idx, target_idx, wasmfile.ByteToValType[vt])
+						}
 					}
 
 					// Add result values to the trace
@@ -270,8 +329,6 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 					for i, n := range config.Watch_variables {
 						ginfo := wfile.GlobalAddresses[n]
 						// We should add the name, and then call...
-
-						//						fmt.Printf("Watch variable %s - type %s\n", n, ginfo.Type)
 
 						watch_name := fmt.Sprintf("watch_%s", n)
 						wfile.AddData(fmt.Sprintf("$_watch_%d", i), []byte(watch_name))
