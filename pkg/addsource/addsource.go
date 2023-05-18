@@ -28,7 +28,7 @@ import (
 
 /**
  * Add source to a wasm.
- *
+ * Note that this may currently mess up any dwarf debug sections etc.
  */
 func AddSource(wasmInput []byte, sourceCode []byte, sourceGzipped bool) ([]byte, error) {
 	// First parse the wasm binary
