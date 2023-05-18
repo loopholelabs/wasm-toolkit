@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
@@ -70,8 +71,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	files := []string{
 		"memory.wat",
 		"stdout.wat",
-		"otel.wat",
-		"otel_data_tinygo.wat"}
+		"otel.wat"}
 
 	if config.Quickjs {
 		files = append(files, "quickjs.wat")
@@ -336,11 +336,13 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						// Show some data a bit nicer...
 						watch_fn := "$otel_watch_global"
 						if config.Language == "go" {
-							if ginfo.Type == "struct string" {
-								watch_fn = "$otel_watch_global_go_string"
-							} else if ginfo.Type == "struct []byte" {
-								watch_fn = "$otel_watch_global_go_byte_slice"
+							if strings.HasPrefix(ginfo.Type, "struct ") {
+								watch_fn = "$otel_watch_global_struct"
 							}
+						} else if config.Language == "rust" {
+							//							if strings.HasPrefix(ginfo.Type, "struct ") {
+							//								watch_fn = "$otel_watch_global_struct"
+							//							}
 						}
 
 						endCode = fmt.Sprintf(`%s

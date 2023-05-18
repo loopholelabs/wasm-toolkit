@@ -923,6 +923,37 @@
     call $otel_output_trace_data
   )
 
+  (func $otel_watch_global_struct (param $name_ptr i32) (param $name_len i32) (param $ptr i32) (param $len i32)
+    i32.const offset($ot_comma)
+    i32.const length($ot_comma)
+    call $otel_output_trace_data
+
+    local.get $ptr
+    i64.load
+    i64.eqz
+    if
+      local.get $name_ptr
+      local.get $name_len
+      i32.const offset($ot_nil)
+      i32.const length($ot_nil)
+      call $otel_output_attr_string
+      return
+    end
+
+    local.get $name_ptr
+    local.get $name_len
+
+    ;; Get the data pointer
+    local.get $ptr
+    i32.load
+
+    ;; Get the length
+    local.get $ptr
+    i32.load offset=4
+
+    call $otel_output_attr_hexdata
+  )
+
 ;; Prelude
   (data $ot_start "{\22resource_spans\22:[{")
   (data $ot_resource "\22resource\22:{\22attributes\22:[{\22key\22:\22service.name\22,\22value\22:{\22stringValue\22:\22")
@@ -966,6 +997,8 @@
   (data $ot_at_param "param_000")
 
   (data $ot_at_todo "TODO")
+
+  (data $ot_nil "nil")
 
   (data $ot_comma ",")
   (data $ot_space " ")
