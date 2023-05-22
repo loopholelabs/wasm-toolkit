@@ -538,7 +538,7 @@ func GetWatchCode(wf *wasmfile.WasmFile) string {
 	watches := strings.Split(watch_globals, ",")
 	for widx, w := range watches {
 		// Lookup the address...
-		addr, ok := wf.GlobalAddresses[w]
+		ginfo, ok := wf.GlobalAddresses[w]
 		if !ok {
 			fmt.Printf("WARNING: I can't find the global %s\n", w)
 			for n := range wf.GlobalAddresses {
@@ -554,7 +554,7 @@ func GetWatchCode(wf *wasmfile.WasmFile) string {
 				i32.const length($watch_name_%d)
 				i32.const %d
 				call $wt_watch_i32
-			`, code, widx, widx, addr)
+			`, code, widx, widx, uint32(ginfo.Address))
 		}
 	}
 	return code

@@ -98,6 +98,15 @@ func (wf *WasmFile) GetLocalVarName(pc uint64, index int) string {
 	return ""
 }
 
+func (wf *WasmFile) GetLocalVarType(pc uint64, index int) string {
+	for _, lnd := range wf.localNames {
+		if lnd.Index == index && (pc >= lnd.StartPC && pc <= lnd.EndPC) {
+			return lnd.VarType
+		}
+	}
+	return ""
+}
+
 func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
 	// See if we have any line info...
 	lineInfo := ""
@@ -177,6 +186,14 @@ type LocalNameData struct {
 	EndPC   uint64
 	Index   int
 	VarName string
+	VarType string
+}
+
+type GlobalNameData struct {
+	Name    string
+	Address uint64
+	Size    uint64
+	Type    string
 }
 
 func (wf *WasmFile) ParseDwarfVariables() error {
@@ -186,7 +203,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 	}
 	wf.localNames = make([]*LocalNameData, 0)
 
-	wf.GlobalAddresses = make(map[string]int32)
+	wf.GlobalAddresses = make(map[string]*GlobalNameData)
 
 	if wf.dwarfData == nil {
 		return nil
@@ -206,8 +223,9 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			// Parse the location address
 			vname := ""
 			var vaddr []byte
+			vsize := int64(0)
+			vtype := ""
 			for _, field := range entry.Field {
-				//				log.Printf("Field %v\n", field)
 				if field.Attr == dwarf.AttrName {
 					vname = field.Val.(string)
 				} else if field.Attr == dwarf.AttrLocation {
@@ -216,13 +234,31 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 					case []byte:
 						vaddr = field.Val.([]byte)
 					}
+				} else if field.Attr == dwarf.AttrType {
+					offset := field.Val.(dwarf.Offset)
+					ty, err := wf.dwarfData.Type(offset)
+					if err == nil {
+						vsize = ty.Size()
+						vtype = ty.String()
+					}
 				}
 			}
+
 			if vaddr != nil && vname != "" {
 				// Parse the expression
 				if len(vaddr) == 5 && vaddr[0] == DW_OP_addr {
 					addr := binary.LittleEndian.Uint32(vaddr[1:])
-					wf.GlobalAddresses[vname] = int32(addr)
+
+					globalInfo := &GlobalNameData{
+						Name:    vname,
+						Address: uint64(addr),
+						Size:    uint64(vsize),
+						Type:    vtype,
+					}
+					wf.GlobalAddresses[vname] = globalInfo
+				} else {
+					// TODO
+					// fmt.Printf("Variable but not simple expr... %s %x\n", vname, vaddr)
 				}
 			}
 		}
@@ -262,15 +298,15 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 						if field.Attr == dwarf.AttrName {
 							vname = field.Val.(string)
 						} else if field.Attr == dwarf.AttrType {
-							/*
-								fmt.Printf("Getting vtype...\n")
+							switch field.Val.(type) {
+							case dwarf.Offset:
 								t := field.Val.(dwarf.Offset)
 								ty, err := wf.dwarfData.Type(t)
 								if err == nil {
 									vtype = ty.String()
 								}
 								fmt.Printf("Type is %s\n", vtype)
-							*/
+							}
 						} else if field.Attr == dwarf.AttrLocation {
 							switch field.Val.(type) {
 							case int64:
@@ -290,13 +326,14 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 									if l.isLocal {
 										// Store in the locals lookup...
 										wf.localNames = append(wf.localNames, &LocalNameData{
-											StartPC: uint64(ld.startAddress),
-											EndPC:   uint64(ld.endAddress),
+											StartPC: uint64(sploc), //ld.startAddress),
+											EndPC:   uint64(sploc), //ld.endAddress),
 											Index:   int(l.index),
 											VarName: vname,
+											VarType: vtype,
 										})
 
-										//										fmt.Printf("LocationLocal %s %s %d-%d  local %d\n", spname, vname, ld.startAddress, ld.endAddress, l.index)
+										//										fmt.Printf("LocationLocal %s %s (%d-%d) (%d-%d) local %d\n", spname, vname, ld.startAddress, ld.endAddress, sploc, sploc2, l.index)
 									}
 								}
 							}

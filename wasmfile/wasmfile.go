@@ -49,7 +49,7 @@ type WasmFile struct {
 	functionSignature map[int]string
 	localNames        []*LocalNameData
 
-	GlobalAddresses map[string]int32
+	GlobalAddresses map[string]*GlobalNameData
 
 	// custom names section data
 	FunctionNames map[int]string
