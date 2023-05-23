@@ -248,6 +248,23 @@ func (wf *WasmFile) LookupImport(n string) int {
 	return -1
 }
 
+func (wf *WasmFile) AddGlobal(name string, t ValType, expr string) {
+	ex := make([]*Expression, 0)
+	e := &Expression{}
+	e.DecodeWat(expr, wf, nil)
+	ex = append(ex, e)
+
+	idx := len(wf.Global)
+
+	wf.globalNames[idx] = name
+
+	wf.Global = append(wf.Global, &GlobalEntry{
+		Type:       t,
+		Expression: ex,
+		Mut:        1,
+	})
+}
+
 func (wf *WasmFile) SetGlobal(name string, t ValType, expr string) {
 	ex := make([]*Expression, 0)
 	e := &Expression{}

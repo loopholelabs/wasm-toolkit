@@ -135,19 +135,23 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	globalNames = globalNames + "]"
 
 	// Lookup any global watch variables we need
-	for _, n := range config.Watch_variables {
-		ginfo, ok := wfile.GlobalAddresses[n]
-		if !ok {
-			return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
-		} else {
-			fmt.Printf("Using watch variable %s at address %d size %d with type %s\n", n, ginfo.Address, ginfo.Size, ginfo.Type)
+	/*
+		for _, n := range config.Watch_variables {
+			ginfo, ok := wfile.GlobalAddresses[n]
+			if !ok {
+				return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
+			} else {
+				fmt.Printf("Using watch variable %s at address %d size %d with type %s\n", n, ginfo.Address, ginfo.Size, ginfo.Type)
+			}
 		}
-	}
+	*/
 
 	// Add the wasi error info
 	addWasiErrorInfo(wfile)
 	// Add function info
 	addFunctionInfo(wfile)
+
+	wfile.AddGlobal("$trace_enable", wasmfile.ValI32, "i32.const 1")
 
 	// Now do function adjustments
 	for idx, c := range wfile.Code {
@@ -239,9 +243,56 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						local_index_mirrored_params+4, // argc
 						local_index_mirrored_params+5) // args
 
+					// Add any watch variables...
+					for i, n := range config.Watch_variables {
+						fmt.Printf("Adding watch for %s\n", n)
+						wfile.AddData(fmt.Sprintf("$_watch_expr_%d", i), append([]byte(n), 0))
+						wfile.AddData(fmt.Sprintf("$_watch_expr_name_%d", i), append([]byte(fmt.Sprintf("watch_%d", i)), 0))
+
+						endCode = fmt.Sprintf(`%s
+							local.get %d
+
+							i32.const offset($_watch_expr_name_%d)
+							i32.const length($_watch_expr_name_%d)
+							i32.const 1
+							i32.sub
+
+							local.get %d
+							i32.const offset($_watch_expr_%d)
+							i32.const length($_watch_expr_%d)
+							i32.const 1
+							i32.sub
+							i32.const offset($_watch_expr_name_%d)
+							i32.const 0
+							
+							i32.const 0
+							global.set $trace_enable
+							call $JS_Eval
+							i32.const 1
+							global.set $trace_enable
+
+							call $otel_quickjs_prop
+							`, endCode,
+							local_index_mirrored_params, // context
+							i,
+							i,
+							local_index_mirrored_params,
+							i,
+							i,
+							i)
+					}
+
 					endCode = fmt.Sprintf(`%s
 						i32.const %d
 						call $otel_exit_func_done`, endCode, functionIndex)
+
+					endCode = fmt.Sprintf(`
+						global.get $trace_enable
+						i32.eqz
+						br_if 0
+						%s
+						`, endCode)
+
 				} else {
 
 					endCode = fmt.Sprintf(`%s
@@ -327,7 +378,10 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 					// Add any watch variables...
 					for i, n := range config.Watch_variables {
-						ginfo := wfile.GlobalAddresses[n]
+						ginfo, ok := wfile.GlobalAddresses[n]
+						if !ok {
+							return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
+						}
 						// We should add the name, and then call...
 
 						watch_name := fmt.Sprintf("watch_%s", n)

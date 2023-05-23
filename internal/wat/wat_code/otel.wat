@@ -62,6 +62,9 @@
   ;; Enter a function for otel (Just pushes the time data onto a stack, creates a random spanID)
   ;;
   (func $otel_enter_func (param $fid i32)
+    global.get $trace_enable
+    i32.eqz
+    br_if 0
 
     ;; Store enter timestamp in metrics stack
     global.get $debug_timestamps_stack_pointer
