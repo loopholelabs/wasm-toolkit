@@ -309,6 +309,9 @@ type Expression struct {
 
 	// This is set if the instruction has as I32Value that needs resolving (offset)
 	DataOffsetNeedsLinking bool
+
+	// This is set if the instruction needs adjusting using a base memory pointer
+	DataOffsetNeedsAdjusting bool
 	// This is set if the instruction has an I32Value that needs resolving (length)
 	DataLengthNeedsLinking bool
 	I32DataId              string

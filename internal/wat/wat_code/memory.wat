@@ -2,6 +2,12 @@
   (global $debug_mem_size (mut i32) (i32.const 0))
   (global $debug_start_mem (mut i32) (i32.const 0)) 
 
+  (func $memory_get_abs_ptr (param $rel_ptr i32) (result i32)
+    local.get $rel_ptr
+    global.get $debug_start_mem
+    i32.add
+  )
+
   (func $debug_memory_size (result i32)
     memory.size
     global.get $debug_mem_size

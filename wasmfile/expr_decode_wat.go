@@ -309,6 +309,13 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		if strings.HasPrefix(v, "offset(") {
 			dname := v[7 : len(v)-1]
 			e.DataOffsetNeedsLinking = true
+			e.DataOffsetNeedsAdjusting = true
+			e.I32DataId = dname
+			return nil
+		} else if strings.HasPrefix(v, "reloffset(") {
+			dname := v[7 : len(v)-1]
+			e.DataOffsetNeedsLinking = true
+			e.DataOffsetNeedsAdjusting = false
 			e.I32DataId = dname
 			return nil
 		} else if strings.HasPrefix(v, "length(") {

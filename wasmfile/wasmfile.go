@@ -653,7 +653,7 @@ func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
 	adjustedExpression := make([]*Expression, 0)
 	for _, e := range ce.Expression {
 		adjustedExpression = append(adjustedExpression, e)
-		if e.DataOffsetNeedsLinking {
+		if e.DataOffsetNeedsAdjusting {
 			for _, ne := range newex {
 				adjustedExpression = append(adjustedExpression, ne)
 			}
