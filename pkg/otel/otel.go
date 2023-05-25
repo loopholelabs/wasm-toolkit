@@ -243,43 +243,54 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						local_index_mirrored_params+4, // argc
 						local_index_mirrored_params+5) // args
 
+					local_scratch := len(t.Param) + len(c.Locals)
+					c.Locals = append(c.Locals, wasmfile.ValI64)
+
 					// Add any watch variables...
 					for i, n := range config.Watch_variables {
-						fmt.Printf("Adding watch for %s\n", n)
 						wfile.AddData(fmt.Sprintf("$_watch_expr_%d", i), append([]byte(n), 0))
-						wfile.AddData(fmt.Sprintf("$_watch_expr_name_%d", i), append([]byte(fmt.Sprintf("watch_%d", i)), 0))
+						wname := []byte(fmt.Sprintf("watch_%d", i))
+						fmt.Printf("Adding watch for %d - %s - %s\n", i, n, wname)
+
+						wfile.AddData(fmt.Sprintf("$_watch_expr_name_%d", i), append(wname, 0))
+
+						// NB We do the JS_Eval first, incase it does memory.grow and tracing data changes.
+						// TODO: Is the $_watch_expr_%d safe? What if memory.grow is called before it's read? Should we use JS_NewCString?
 
 						endCode = fmt.Sprintf(`%s
-							local.get %d
+								local.get %d
+								i32.const offset($_watch_expr_%d)
+								i32.const length($_watch_expr_%d)
+								i32.const 1
+								i32.sub
+								i32.const offset($_watch_expr_name_%d)
+								i32.const 0
 
-							i32.const offset($_watch_expr_name_%d)
-							i32.const length($_watch_expr_name_%d)
-							i32.const 1
-							i32.sub
+								i32.const 0
+								global.set $trace_enable
+								call $JS_Eval
+								i32.const 1
+								global.set $trace_enable
+								local.set %d
 
-							local.get %d
-							i32.const offset($_watch_expr_%d)
-							i32.const length($_watch_expr_%d)
-							i32.const 1
-							i32.sub
-							i32.const offset($_watch_expr_name_%d)
-							i32.const 0
-							
-							i32.const 0
-							global.set $trace_enable
-							call $JS_Eval
-							i32.const 1
-							global.set $trace_enable
+								local.get %d
 
-							call $otel_quickjs_prop
+								i32.const offset($_watch_expr_name_%d)
+								i32.const length($_watch_expr_name_%d)
+								i32.const 1
+								i32.sub
+								local.get %d
+								call $otel_quickjs_prop
 							`, endCode,
 							local_index_mirrored_params, // context
 							i,
 							i,
+							i,
+							local_scratch,
 							local_index_mirrored_params,
 							i,
 							i,
-							i)
+							local_scratch)
 					}
 
 					endCode = fmt.Sprintf(`%s

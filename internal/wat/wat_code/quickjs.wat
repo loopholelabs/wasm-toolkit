@@ -21,9 +21,13 @@
     (local $tag i32)
     (local $val i32)
 
+    (local $exception i64)
+
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
     call $otel_output_trace_data
+
+    ;; JS_JSONStringify
 
     ;; Convert it to a string
 ;;      i32.const 0
@@ -50,7 +54,7 @@
     i32.wrap_i64
     local.set $val
 
-    ;; If it's a simple INT argument...
+    ;; 0 TAG_INT
     local.get $tag
     i32.const 0
     i32.eq
@@ -68,7 +72,97 @@
       return
     end
 
-    ;; If it's a simple string argument...
+    ;; 1 TAG_BOOL
+    local.get $tag
+    i32.const 1
+    i32.eq
+    if
+    end
+
+    ;; 2 TAG_NULL
+    local.get $tag
+    i32.const 2
+    i32.eq
+    if
+    end
+
+    ;; 3 TAG_UNDEFINED
+    local.get $tag
+    i32.const 3
+    i32.eq
+    if
+      local.get $key_ptr
+      local.get $key_len
+      i32.const offset($js_type_undefined)
+      i32.const length($js_type_undefined)
+      call $otel_output_attr_string
+      return
+    end
+
+    ;; 4 TAG_UNINITIALIZED
+    local.get $tag
+    i32.const 4
+    i32.eq
+    if
+    end
+
+    ;; 5 TAG_CATCH_OFFSET
+    local.get $tag
+    i32.const 5
+    i32.eq
+    if
+    end
+
+    ;; 6 TAG_EXCEPTION
+    local.get $tag
+    i32.const 6
+    i32.eq
+    if
+      global.get $trace_enable
+      i32.eqz
+      if
+        unreachable
+      end
+
+;;      i32.const 0
+;;      global.set $trace_enable
+
+      local.get $context
+      call $JS_GetException
+      drop
+;;      i32.const 1
+;;      global.set $trace_enable
+
+      local.get $v
+      ;; TODO Get useful info out of the object, or toString it...
+
+      call $wt_format_i64_hex
+
+      local.get $key_ptr
+      local.get $key_len
+      i32.const offset($js_type_exception)
+      i32.const length($js_type_exception)
+      i32.const offset($db_number_i64)
+      i32.const 16
+      call $otel_output_attr_var_string
+      return
+    end
+
+    ;; 7 TAG_FLOAT64
+    local.get $tag
+    i32.const 7
+    i32.eq
+    if
+    end
+
+    ;; -1 TAG_OBJECT
+    local.get $tag
+    i32.const 0xffffffff
+    i32.eq
+    if
+    end
+
+    ;; -7 TAG_STRING
     local.get $tag
     i32.const 0xfffffff9
     i32.eq
@@ -86,6 +180,34 @@
       i32.load offset=4
       call $otel_output_attr_var_string
       return
+    end
+
+    ;; -8 TAG_SYMBOL
+    local.get $tag
+    i32.const 0xfffffff8
+    i32.eq
+    if
+    end
+
+    ;; -9 TAG_BIG_FLOAT
+    local.get $tag
+    i32.const 0xfffffff7
+    i32.eq
+    if
+    end
+
+    ;; -10 TAG_BIG_INT
+    local.get $tag
+    i32.const 0xfffffff6
+    i32.eq
+    if
+    end
+
+    ;; -11 TAG_BIG_DECIMAL
+    local.get $tag
+    i32.const 0xfffffff5
+    i32.eq
+    if
     end
 
     ;; Fallback generic output
@@ -220,11 +342,25 @@
     i32.const length($ot_speech)
     call $otel_output_trace_data    
 
+      global.get $trace_enable
+      i32.eqz
+      if
+        unreachable
+      end
+
+      i32.const 0
+      global.set $trace_enable
+
+
     local.get $context
     local.get $v_func
     i32.const offset($atom_name)
     call $JS_GetPropertyStr
     local.set $fn_name
+
+      i32.const 1
+      global.set $trace_enable
+
 
     ;; Internal QuickJS. MAY CHANGE      
     local.get $fn_name
@@ -328,6 +464,8 @@
 
   (data $js_type_int "(int)")
   (data $js_type_string "(string)")
+  (data $js_type_exception "(exception)")
+  (data $js_type_undefined "(undefined)")
 
   (data $atom_name "name\00")
 )
