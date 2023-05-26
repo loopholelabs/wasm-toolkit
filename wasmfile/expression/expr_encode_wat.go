@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
 import (
 	"bufio"
@@ -24,7 +24,14 @@ import (
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
-func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
+type WasmContext interface {
+	GetLineNumberInfo(pc uint64) string
+	GetLocalVarName(pc uint64, localIdx int) string
+	GetGlobalIdentifier(globalIdx int, defaultEmpty bool) string
+	GetFunctionIdentifier(funcIdx int, defaultEmpty bool) string
+}
+
+func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext) error {
 	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
 	lineNumberData := wf.GetLineNumberInfo(e.PC)

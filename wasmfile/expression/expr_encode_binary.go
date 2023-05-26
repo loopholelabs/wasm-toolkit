@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
 import (
 	"encoding/binary"

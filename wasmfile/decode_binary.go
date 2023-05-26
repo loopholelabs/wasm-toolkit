@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
@@ -156,7 +157,7 @@ func (wf *WasmFile) ParseSectionData(data []byte) error {
 			return fmt.Errorf("Error decoding SectionData memindex %x", getDataContext(data))
 		}
 		ptr += l
-		offset, l, err := NewExpression(data[ptr:], 0)
+		offset, l, err := expression.NewExpression(data[ptr:], 0)
 		if err != nil {
 			return err
 		}
@@ -231,7 +232,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 			}
 		}
 
-		expression, _, err := NewExpression(code[locptr:], codeptr+uint64(locptr))
+		expression, _, err := expression.NewExpression(code[locptr:], codeptr+uint64(locptr))
 		if err != nil {
 			return err
 		}
@@ -260,7 +261,7 @@ func (wf *WasmFile) ParseSectionElem(data []byte) error {
 	for i := 0; i < int(elemVecLength); i++ {
 		tableIndex, l := binary.Uvarint(data[ptr:])
 		ptr += l
-		offset, l, err := NewExpression(data[ptr:], 0)
+		offset, l, err := expression.NewExpression(data[ptr:], 0)
 		if err != nil {
 			return err
 		}
@@ -426,7 +427,7 @@ func (wf *WasmFile) ParseSectionGlobal(data []byte) error {
 		valMut := data[ptr]
 		ptr++
 		// Read the init expression
-		expression, n, err := NewExpression(data[ptr:], 0)
+		expression, n, err := expression.NewExpression(data[ptr:], 0)
 		if err != nil {
 			return err
 		}

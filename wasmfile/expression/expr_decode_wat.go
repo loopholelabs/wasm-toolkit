@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
 import (
 	"errors"
@@ -22,14 +22,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
-func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int) error {
-	s = SkipComment(s)
-	s = strings.Trim(s, Whitespace)
+func (e *Expression) DecodeWat(s string, localNames map[string]int) error {
+	s = encoding.SkipComment(s)
+	s = strings.Trim(s, encoding.Whitespace)
 
-	opcode, s := ReadToken(s)
+	opcode, s := encoding.ReadToken(s)
 
 	// First deal with simple opcodes (No args)
 	if opcode == "unreachable" ||
@@ -181,11 +182,11 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		var br_target string
 		var li int
 		for {
-			s = strings.Trim(s, Whitespace)
+			s = strings.Trim(s, encoding.Whitespace)
 			if len(s) == 0 || strings.HasPrefix(s, ";;") {
 				break
 			}
-			br_target, s = ReadToken(s)
+			br_target, s = encoding.ReadToken(s)
 			li, err = strconv.Atoi(br_target)
 			if err != nil {
 				return err
@@ -202,7 +203,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		e.Opcode = InstrToOpcode[opcode]
 		var err error
 		var br_target string
-		br_target, s = ReadToken(s)
+		br_target, s = encoding.ReadToken(s)
 		e.LabelIndex, err = strconv.Atoi(br_target)
 		if err != nil {
 			return err
@@ -234,14 +235,14 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		e.Opcode = InstrToOpcode[opcode]
 		for {
 			var t string
-			s = strings.Trim(s, Whitespace)
+			s = strings.Trim(s, encoding.Whitespace)
 			if len(s) == 0 {
 				break
 			}
 			if strings.HasPrefix(s, ";;") {
 				break
 			}
-			t, s = ReadToken(s)
+			t, s = encoding.ReadToken(s)
 			// Optional align=<V>
 			// Optional offset=<V>
 			if strings.HasPrefix(t, "align=") {
@@ -286,7 +287,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		e.Opcode = InstrToOpcode[opcode]
 		e.Result = types.ValNone
 		// Optional result type...
-		s = strings.Trim(s, Whitespace)
+		s = strings.Trim(s, encoding.Whitespace)
 		if len(s) == 0 {
 			return nil
 		}
@@ -294,9 +295,9 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 			// eg (result i32)
 			var ok bool
 			var rtype string
-			rtype, s = ReadElement(s)
+			rtype, s = encoding.ReadElement(s)
 			if strings.HasPrefix(rtype, "(result") {
-				rtype = strings.Trim(rtype[7:len(rtype)-1], Whitespace)
+				rtype = strings.Trim(rtype[7:len(rtype)-1], encoding.Whitespace)
 				e.Result, ok = types.ValTypeToByte[rtype]
 				if !ok {
 					return errors.New("Error parsing block result")
@@ -306,8 +307,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		return nil
 	} else if opcode == "i32.const" {
 		e.Opcode = InstrToOpcode[opcode]
-		s = strings.Trim(s, Whitespace)
-		v, _ := ReadToken(s)
+		s = strings.Trim(s, encoding.Whitespace)
+		v, _ := encoding.ReadToken(s)
 		if strings.HasPrefix(v, "offset(") {
 			dname := v[7 : len(v)-1]
 			e.DataOffsetNeedsLinking = true
@@ -345,8 +346,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		return nil
 	} else if opcode == "i64.const" {
 		e.Opcode = InstrToOpcode[opcode]
-		s = strings.Trim(s, Whitespace)
-		v, _ := ReadToken(s)
+		s = strings.Trim(s, encoding.Whitespace)
+		v, _ := encoding.ReadToken(s)
 		// Support other bases...
 		if strings.HasPrefix(v, "0x") {
 			vv, err := strconv.ParseUint(v[2:], 16, 64)
@@ -365,8 +366,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		e.I64Value = int64(vv)
 		return nil
 	} else if opcode == "f32.const" {
-		s = strings.Trim(s, Whitespace)
-		v, _ := ReadToken(s)
+		s = strings.Trim(s, encoding.Whitespace)
+		v, _ := encoding.ReadToken(s)
 		vv, err := strconv.ParseFloat(v, 32)
 		if err != nil {
 			return err
@@ -375,8 +376,8 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		e.F32Value = float32(vv)
 		return nil
 	} else if opcode == "f64.const" {
-		s = strings.Trim(s, Whitespace)
-		v, _ := ReadToken(s)
+		s = strings.Trim(s, encoding.Whitespace)
+		v, _ := encoding.ReadToken(s)
 		vv, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return err
@@ -391,7 +392,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		var target string
 		var lid int
 		var err error
-		target, s = ReadToken(s)
+		target, s = encoding.ReadToken(s)
 		if localNames != nil && strings.HasPrefix(target, "$") {
 			// Find the id for it...
 			lid, ok := localNames[target]
@@ -413,7 +414,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		var target string
 		var gid int
 		var err error
-		target, s = ReadToken(s)
+		target, s = encoding.ReadToken(s)
 		if target[0] == '$' {
 			e.GlobalNeedsLinking = true
 			e.GlobalId = target
@@ -431,7 +432,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		var target string
 		var fid int
 		var err error
-		target, s = ReadToken(s)
+		target, s = encoding.ReadToken(s)
 		if target[0] == '$' {
 			e.FunctionNeedsLinking = true
 			e.FunctionId = target
@@ -446,11 +447,11 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		}
 	} else if opcode == "call_indirect" {
 		e.Opcode = InstrToOpcode[opcode]
-		s = strings.Trim(s, Whitespace)
+		s = strings.Trim(s, encoding.Whitespace)
 		if s[0] == '(' {
-			typeInfo, _ := ReadElement(s)
+			typeInfo, _ := encoding.ReadElement(s)
 			if strings.HasPrefix(typeInfo, "(type") {
-				typeInfo = strings.Trim(typeInfo[5:len(typeInfo)-1], Whitespace)
+				typeInfo = strings.Trim(typeInfo[5:len(typeInfo)-1], encoding.Whitespace)
 				var err error
 				e.TypeIndex, err = strconv.Atoi(typeInfo)
 				if err != nil {

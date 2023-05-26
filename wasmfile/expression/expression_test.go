@@ -1,4 +1,4 @@
-package wasmfile
+package expression
 
 import (
 	"bytes"
@@ -43,7 +43,7 @@ func verifyEncodeDecode(t *testing.T, expr *Expression) *Expression {
 	assert.Equal(t, n, buf.Len())
 	assert.Equal(t, len(expr2), 1)
 
-	equal, err := expr.Equals(expr2[0])
+	equal := expr.Equals(expr2[0])
 
 	assert.True(t, equal)
 

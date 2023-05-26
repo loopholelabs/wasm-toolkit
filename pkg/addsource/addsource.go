@@ -131,7 +131,7 @@ func AddSource(wasmInput []byte, sourceCode []byte, sourceGzipped bool) ([]byte,
 
 	// Fixup exports
 	for _, ex := range wfile.Export {
-		if ex.Type == wasmfile.ExportFunc {
+		if ex.Type == types.ExportFunc {
 			newidx, ok := remap[ex.Index]
 			if ok {
 				ex.Index = newidx

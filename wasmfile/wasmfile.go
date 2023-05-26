@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
@@ -98,7 +99,7 @@ type TableEntry struct {
 type GlobalEntry struct {
 	Type       types.ValType
 	Mut        byte
-	Expression []*Expression
+	Expression []*expression.Expression
 }
 
 type MemoryEntry struct {
@@ -111,18 +112,18 @@ type CodeEntry struct {
 	PCValid        bool
 	CodeSectionPtr uint64
 	CodeSectionLen uint64
-	Expression     []*Expression
+	Expression     []*expression.Expression
 }
 
 type DataEntry struct {
 	MemIndex int
-	Offset   []*Expression
+	Offset   []*expression.Expression
 	Data     []byte
 }
 
 type ElemEntry struct {
 	TableIndex int
-	Offset     []*Expression
+	Offset     []*expression.Expression
 	Indexes    []uint64
 }
 
@@ -186,9 +187,9 @@ func (wf *WasmFile) LookupImport(n string) int {
 }
 
 func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
-	ex := make([]*Expression, 0)
-	e := &Expression{}
-	e.DecodeWat(expr, wf, nil)
+	ex := make([]*expression.Expression, 0)
+	e := &expression.Expression{}
+	e.DecodeWat(expr, nil)
 	ex = append(ex, e)
 
 	idx := len(wf.Global)
@@ -203,9 +204,9 @@ func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
 }
 
 func (wf *WasmFile) SetGlobal(name string, t types.ValType, expr string) {
-	ex := make([]*Expression, 0)
-	e := &Expression{}
-	e.DecodeWat(expr, wf, nil)
+	ex := make([]*expression.Expression, 0)
+	e := &expression.Expression{}
+	e.DecodeWat(expr, nil)
 	ex = append(ex, e)
 
 	idx := wf.LookupGlobalID(name)
@@ -232,9 +233,9 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 	for idx, d := range wfSource.Data {
 		src_name := wfSource.GetDataIdentifier(idx)
 		// Relocate the data
-		d.Offset = []*Expression{
+		d.Offset = []*expression.Expression{
 			{
-				Opcode:   InstrToOpcode["i32.const"],
+				Opcode:   expression.InstrToOpcode["i32.const"],
 				I32Value: ptr,
 			},
 		}
@@ -270,9 +271,9 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 	idx := len(wf.Data)
 	wf.Data = append(wf.Data, &DataEntry{
 		MemIndex: 0,
-		Offset: []*Expression{
+		Offset: []*expression.Expression{
 			{
-				Opcode:   InstrToOpcode["i32.const"],
+				Opcode:   expression.InstrToOpcode["i32.const"],
 				I32Value: ptr,
 			},
 		},
@@ -408,7 +409,7 @@ func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
 
 func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 	for _, e := range ce.Expression {
-		if e.Opcode == InstrToOpcode["call"] {
+		if e.Opcode == expression.InstrToOpcode["call"] {
 			newid, ok := m[e.FuncIndex]
 			if ok {
 				if e.FuncIndex != newid {
@@ -439,8 +440,8 @@ func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
 	}
 }
 
-func (wf *WasmFile) ExpressionFromWat(d string) ([]*Expression, error) {
-	newex := make([]*Expression, 0)
+func (wf *WasmFile) ExpressionFromWat(d string) ([]*expression.Expression, error) {
+	newex := make([]*expression.Expression, 0)
 	lines := strings.Split(d, "\n")
 	for _, toline := range lines {
 		cptr := strings.Index(toline, ";;")
@@ -449,8 +450,8 @@ func (wf *WasmFile) ExpressionFromWat(d string) ([]*Expression, error) {
 		}
 		toline = strings.Trim(toline, Whitespace)
 		if len(toline) > 0 {
-			newe := &Expression{}
-			err := newe.DecodeWat(toline, wf, nil)
+			newe := &expression.Expression{}
+			err := newe.DecodeWat(toline, nil)
 			if err != nil {
 				return newex, err
 			}
@@ -468,7 +469,7 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 	}
 
 	// Now we need to find where to replace this code...
-	adjustedExpression := make([]*Expression, 0)
+	adjustedExpression := make([]*expression.Expression, 0)
 	for _, e := range ce.Expression {
 		var buf bytes.Buffer
 		e.EncodeWat(&buf, "", wf)
@@ -498,7 +499,7 @@ func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
 	}
 
 	// Now we need to find where to replace this code...
-	adjustedExpression := make([]*Expression, 0)
+	adjustedExpression := make([]*expression.Expression, 0)
 	for _, e := range newex {
 		adjustedExpression = append(adjustedExpression, e)
 	}
@@ -570,7 +571,7 @@ func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 			}
 
 			expr := wf.Data[did].Offset
-			if len(expr) != 1 || expr[0].Opcode != InstrToOpcode["i32.const"] {
+			if len(expr) != 1 || expr[0].Opcode != expression.InstrToOpcode["i32.const"] {
 				return errors.New("Can only deal with i32.const for now")
 			}
 
@@ -587,7 +588,7 @@ func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
 	}
 
 	// Now we need to find where to insert the code
-	adjustedExpression := make([]*Expression, 0)
+	adjustedExpression := make([]*expression.Expression, 0)
 	for _, e := range ce.Expression {
 		adjustedExpression = append(adjustedExpression, e)
 		if e.DataOffsetNeedsAdjusting {

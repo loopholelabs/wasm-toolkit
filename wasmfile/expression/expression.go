@@ -14,11 +14,9 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
 import (
-	"bytes"
-
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
@@ -470,29 +468,66 @@ func (e *Expression) HasMemoryArgs() bool {
 		e.Opcode == InstrToOpcode["i64.store32"]
 }
 
-// Check if two expressions are equal. Note that it encodes to binary and checks.
-func (e *Expression) Equals(f *Expression) (bool, error) {
-	var buf1 bytes.Buffer
-	var buf2 bytes.Buffer
-	err := e.EncodeBinary(&buf1)
-	if err != nil {
-		return false, err
+// Check if two expressions are equal.
+func (e *Expression) Equals(f *Expression) bool {
+	if e.Opcode != f.Opcode ||
+		e.OpcodeExt != f.OpcodeExt {
+		return false
 	}
-	err = f.EncodeBinary(&buf2)
-	if err != nil {
-		return false, err
-	}
-	bytes1 := buf1.Bytes()
-	bytes2 := buf2.Bytes()
 
-	if len(bytes1) != len(bytes2) {
-		return false, nil
+	if e.I32Value != f.I32Value ||
+		e.I64Value != f.I64Value ||
+		e.F32Value != f.F32Value ||
+		e.F64Value != f.F64Value {
+		return false
 	}
-	for i, b1 := range bytes1 {
-		b2 := bytes2[i]
-		if b1 != b2 {
-			return false, nil
+
+	if e.FuncIndex != f.FuncIndex ||
+		e.LocalIndex != f.LocalIndex ||
+		e.GlobalIndex != f.GlobalIndex ||
+		e.LabelIndex != f.LabelIndex ||
+		e.TypeIndex != f.TypeIndex ||
+		e.TableIndex != f.TableIndex {
+		return false
+	}
+
+	if e.MemAlign != f.MemAlign ||
+		e.MemOffset != f.MemOffset {
+		return false
+	}
+
+	if e.Result != f.Result {
+		return false
+	}
+
+	if e.Labels != nil && f.Labels != nil {
+		if len(e.Labels) != len(f.Labels) {
+			return false
+		}
+		for i, v := range e.Labels {
+			if f.Labels[i] != v {
+				return false
+			}
+		}
+	} else {
+		if e.Labels != nil || f.Labels != nil {
+			return false
 		}
 	}
-	return true, nil
+
+	if e.DataLengthNeedsLinking != f.DataLengthNeedsLinking ||
+		e.DataOffsetNeedsLinking != f.DataOffsetNeedsLinking ||
+		e.DataOffsetNeedsAdjusting != f.DataOffsetNeedsAdjusting ||
+		e.GlobalNeedsLinking != f.GlobalNeedsLinking ||
+		e.FunctionNeedsLinking != f.FunctionNeedsLinking {
+		return false
+	}
+
+	if e.I32DataId != f.I32DataId ||
+		e.GlobalId != f.GlobalId ||
+		e.FunctionId != f.FunctionId {
+		return false
+	}
+
+	return true
 }

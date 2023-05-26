@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
@@ -401,9 +402,9 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 	// Read the expression
 	expr = expr[1 : len(expr)-1]
 	// TODO: Support proper expressions. For now we only support a single instruction
-	e.Expression = make([]*Expression, 0)
-	ex := &Expression{}
-	err := ex.DecodeWat(expr, wf, nil)
+	e.Expression = make([]*expression.Expression, 0)
+	ex := &expression.Expression{}
+	err := ex.DecodeWat(expr, nil)
 	if err != nil {
 		return err
 	}
@@ -521,8 +522,8 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 		ecode = strings.Trim(ecode, Whitespace)
 
 		if len(ecode) > 0 {
-			newe := &Expression{}
-			err := newe.DecodeWat(ecode, wf, localNames)
+			newe := &expression.Expression{}
+			err := newe.DecodeWat(ecode, localNames)
 			if err != nil {
 				return err
 			}
@@ -667,9 +668,9 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 	// Read the expression
 	expr = expr[1 : len(expr)-1]
 	// TODO: Support proper expressions. For now we only support a single instruction
-	e.Offset = make([]*Expression, 0)
-	ex := &Expression{}
-	err := ex.DecodeWat(expr, wf, nil)
+	e.Offset = make([]*expression.Expression, 0)
+	ex := &expression.Expression{}
+	err := ex.DecodeWat(expr, nil)
 	if err != nil {
 		return err
 	}
@@ -727,9 +728,9 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 		// Read the expression
 		expr = expr[1 : len(expr)-1]
 		// TODO: Support proper expressions. For now we only support a single instruction
-		e.Offset = make([]*Expression, 0)
-		ex := &Expression{}
-		err := ex.DecodeWat(expr, wf, nil)
+		e.Offset = make([]*expression.Expression, 0)
+		ex := &expression.Expression{}
+		err := ex.DecodeWat(expr, nil)
 		if err != nil {
 			return err
 		}
@@ -745,9 +746,9 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 		// Align it...
 		data_ptr = (data_ptr + 3) & -4
 
-		e.Offset = []*Expression{
+		e.Offset = []*expression.Expression{
 			{
-				Opcode:   InstrToOpcode["i32.const"],
+				Opcode:   expression.InstrToOpcode["i32.const"],
 				I32Value: data_ptr,
 			},
 		}

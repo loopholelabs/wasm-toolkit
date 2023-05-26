@@ -26,6 +26,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 
 	"github.com/spf13/cobra"
@@ -109,16 +110,16 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			t := wfile.Type[i.Index]
 
 			// Load the params...
-			expr := make([]*wasmfile.Expression, 0)
+			expr := make([]*expression.Expression, 0)
 			for idx := range t.Param {
-				expr = append(expr, &wasmfile.Expression{
-					Opcode:     wasmfile.InstrToOpcode["local.get"],
+				expr = append(expr, &expression.Expression{
+					Opcode:     expression.InstrToOpcode["local.get"],
 					LocalIndex: idx,
 				})
 			}
 
-			expr = append(expr, &wasmfile.Expression{
-				Opcode:    wasmfile.InstrToOpcode["call"],
+			expr = append(expr, &expression.Expression{
+				Opcode:    expression.InstrToOpcode["call"],
 				FuncIndex: idx,
 			})
 
