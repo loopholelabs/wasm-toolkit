@@ -44,3 +44,39 @@ func init() {
 	ByteToValType[ValF64] = "f64"
 	ByteToValType[ValNone] = "none"
 }
+
+type SectionId byte
+
+const (
+	SectionCustom    SectionId = 0
+	SectionType      SectionId = 1
+	SectionImport    SectionId = 2
+	SectionFunction  SectionId = 3
+	SectionTable     SectionId = 4
+	SectionMemory    SectionId = 5
+	SectionGlobal    SectionId = 6
+	SectionExport    SectionId = 7
+	SectionStart     SectionId = 8
+	SectionElem      SectionId = 9
+	SectionCode      SectionId = 10
+	SectionData      SectionId = 11
+	SectionDataCount SectionId = 12
+)
+
+const (
+	LimitTypeMin    byte = 0x00
+	LimitTypeMinMax byte = 0x01
+)
+
+type ExportType byte
+
+const (
+	ExportFunc   ExportType = 0
+	ExportTable  ExportType = 1
+	ExportMem    ExportType = 2
+	ExportGlobal ExportType = 3
+)
+
+const FuncTypePrefix byte = 0x60
+
+const TableTypeFuncref byte = 0x70

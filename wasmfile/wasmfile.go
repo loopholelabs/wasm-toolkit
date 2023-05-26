@@ -62,42 +62,6 @@ type WasmFile struct {
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
 
-const (
-	LimitTypeMin    byte = 0x00
-	LimitTypeMinMax byte = 0x01
-)
-
-type ExportType byte
-
-const (
-	ExportFunc   ExportType = 0
-	ExportTable  ExportType = 1
-	ExportMem    ExportType = 2
-	ExportGlobal ExportType = 3
-)
-
-const FuncTypePrefix byte = 0x60
-
-const TableTypeFuncref byte = 0x70
-
-type SectionId byte
-
-const (
-	SectionCustom    SectionId = 0
-	SectionType      SectionId = 1
-	SectionImport    SectionId = 2
-	SectionFunction  SectionId = 3
-	SectionTable     SectionId = 4
-	SectionMemory    SectionId = 5
-	SectionGlobal    SectionId = 6
-	SectionExport    SectionId = 7
-	SectionStart     SectionId = 8
-	SectionElem      SectionId = 9
-	SectionCode      SectionId = 10
-	SectionData      SectionId = 11
-	SectionDataCount SectionId = 12
-)
-
 type FunctionEntry struct {
 	TypeIndex int
 }
@@ -114,14 +78,14 @@ type CustomEntry struct {
 
 type ExportEntry struct {
 	Name  string
-	Type  ExportType
+	Type  types.ExportType
 	Index int
 }
 
 type ImportEntry struct {
 	Module string
 	Name   string
-	Type   ExportType
+	Type   types.ExportType
 	Index  int
 }
 
@@ -378,7 +342,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 
 			// Modify any exports
 			for _, ex := range wf.Export {
-				if ex.Type == ExportFunc && ex.Index >= newidx {
+				if ex.Type == types.ExportFunc && ex.Index >= newidx {
 					ex.Index++
 				}
 			}

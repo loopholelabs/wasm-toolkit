@@ -287,7 +287,7 @@ func (e *TableEntry) DecodeWat(d string) error {
 	if tabtype != "funcref" {
 		return errors.New("Only table funcref supported atm")
 	}
-	e.TableType = TableTypeFuncref
+	e.TableType = types.TableTypeFuncref
 	return nil
 }
 
@@ -625,14 +625,14 @@ func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
 	etype, erest := ReadToken(el[1:])
 	erest = erest[:len(erest)-1]
 	if etype == "memory" {
-		e.Type = ExportMem
+		e.Type = types.ExportMem
 		idx, err := strconv.Atoi(erest)
 		if err != nil {
 			return err
 		}
 		e.Index = idx
 	} else if etype == "func" {
-		e.Type = ExportFunc
+		e.Type = types.ExportFunc
 		if strings.HasPrefix(erest, "$") {
 			fname, _ := ReadToken(erest)
 			fid := wf.LookupFunctionID(fname)
