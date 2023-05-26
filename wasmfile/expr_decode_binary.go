@@ -20,6 +20,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
@@ -83,7 +86,7 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 			valType := data[ptr]
 			ptr++
 
-			expr.Result = ValType(valType)
+			expr.Result = types.ValType(valType)
 			nestCounter++
 		} else if Opcode(opcode) == InstrToOpcode["end"] {
 			nestCounter--
@@ -91,11 +94,11 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 				break
 			}
 		} else if Opcode(opcode) == InstrToOpcode["i32.const"] {
-			val, l := DecodeSleb128(data[ptr:])
+			val, l := encoding.DecodeSleb128(data[ptr:])
 			ptr += int(l)
 			expr.I32Value = int32(val)
 		} else if Opcode(opcode) == InstrToOpcode["i64.const"] {
-			val, l := DecodeSleb128(data[ptr:])
+			val, l := encoding.DecodeSleb128(data[ptr:])
 			ptr += int(l)
 			expr.I64Value = int64(val)
 		} else if Opcode(opcode) == InstrToOpcode["f32.const"] {

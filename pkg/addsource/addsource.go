@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
 )
@@ -60,7 +61,7 @@ func AddSource(wasmInput []byte, sourceCode []byte, sourceGzipped bool) ([]byte,
 	wfile.AddFuncsFrom(memFunctions, func(m map[int]int) {})
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Now we just need to adjust the imported functions get_source_len and get_source_ptr and then remove them.
 
@@ -151,7 +152,7 @@ func AddSource(wasmInput []byte, sourceCode []byte, sourceGzipped bool) ([]byte,
 
 	payload_size := (total_payload_data + 65535) >> 16
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	// Pass on the fact of if source_file is gzip or not.
@@ -159,7 +160,7 @@ func AddSource(wasmInput []byte, sourceCode []byte, sourceGzipped bool) ([]byte,
 	if sourceGzipped {
 		source_gzipped = 1
 	}
-	wfile.SetGlobal("$source_gzipped", wasmfile.ValI32, fmt.Sprintf("i32.const %d", source_gzipped))
+	wfile.SetGlobal("$source_gzipped", types.ValI32, fmt.Sprintf("i32.const %d", source_gzipped))
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {

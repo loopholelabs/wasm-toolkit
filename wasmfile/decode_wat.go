@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 func (wf *WasmFile) LookupFunctionID(n string) int {
@@ -234,7 +236,7 @@ func (e *TypeEntry) DecodeWat(d string) error {
 						break
 					}
 					ptype, el = ReadToken(el)
-					b, ok := ValTypeToByte[ptype]
+					b, ok := types.ValTypeToByte[ptype]
 					if !ok {
 						return fmt.Errorf("Unknown param type (%s)", ptype)
 					}
@@ -243,7 +245,7 @@ func (e *TypeEntry) DecodeWat(d string) error {
 			} else if strings.HasPrefix(el, "(result ") {
 				// atm we only support one return type.
 				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
-				b, ok := ValTypeToByte[rtype]
+				b, ok := types.ValTypeToByte[rtype]
 				if !ok {
 					return fmt.Errorf("Unknown result type (%s)", rtype)
 				}
@@ -389,7 +391,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 		e.Mut = 0
 	}
 
-	e.Type, ok = ValTypeToByte[ty]
+	e.Type, ok = types.ValTypeToByte[ty]
 	if !ok {
 		return fmt.Errorf("Invalid type in global %s", ty)
 	}
@@ -411,7 +413,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 }
 
 func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
-	e.Locals = make([]ValType, 0)
+	e.Locals = make([]types.ValType, 0)
 
 	s := strings.Trim(d[5:len(d)-1], Whitespace)
 
@@ -471,19 +473,19 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 				// eg (local $hello i32)
 				// eg (local i64 i64)
 
-				types := strings.Trim(el[6:len(el)-1], Whitespace)
+				ltypes := strings.Trim(el[6:len(el)-1], Whitespace)
 				for {
-					types = strings.Trim(types, Whitespace)
-					if len(types) == 0 {
+					ltypes = strings.Trim(ltypes, Whitespace)
+					if len(ltypes) == 0 {
 						break
 					}
 					var tok string
-					tok, types = ReadToken(types)
+					tok, ltypes = ReadToken(ltypes)
 					if tok[0] == '$' {
 						// preRegister a name
 						localNames[tok] = localIndex
 					} else {
-						l, ok := ValTypeToByte[tok]
+						l, ok := types.ValTypeToByte[tok]
 						if !ok {
 							return fmt.Errorf("Invalid local type %s", tok)
 						}
@@ -574,7 +576,7 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 						break
 					}
 					ptype, el = ReadToken(el)
-					b, ok := ValTypeToByte[ptype]
+					b, ok := types.ValTypeToByte[ptype]
 					if !ok {
 						return fmt.Errorf("Unknown param type (%s)", ptype)
 					}
@@ -583,7 +585,7 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 			} else if strings.HasPrefix(el, "(result ") {
 				// atm we only support one return type.
 				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
-				b, ok := ValTypeToByte[rtype]
+				b, ok := types.ValTypeToByte[rtype]
 				if !ok {
 					return fmt.Errorf("Unknown result type (%s)", rtype)
 				}

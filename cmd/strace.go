@@ -26,6 +26,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 
 	"github.com/spf13/cobra"
 )
@@ -122,7 +123,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			})
 
 			c := &wasmfile.CodeEntry{
-				Locals:     make([]wasmfile.ValType, 0),
+				Locals:     make([]types.ValType, 0),
 				Expression: expr,
 			}
 
@@ -212,7 +213,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	fmt.Printf("All wat code added...\n")
 
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	if config_parse_dwarf {
 
@@ -236,11 +237,11 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	// Pass some config into wasm
 	if include_timings {
-		wfile.SetGlobal("$debug_do_timings", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
+		wfile.SetGlobal("$debug_do_timings", types.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	if cfg_color {
-		wfile.SetGlobal("$wt_color", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
+		wfile.SetGlobal("$wt_color", types.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	// Get a function name map, and add it as data...
@@ -281,7 +282,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	wfile.AddData("$wt_all_function_names", []byte(data_function_names))
 	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_locs))
 	wfile.AddData("$metrics_data", []byte(data_metrics_data))
-	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", len(wfile.Import)+len(wfile.Code)))
+	wfile.SetGlobal("$wt_all_function_length", types.ValI32, fmt.Sprintf("i32.const %d", len(wfile.Import)+len(wfile.Code)))
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
 
@@ -319,7 +320,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				f := wfile.Function[idx]
 				t := wfile.Type[f.TypeIndex]
 				if len(t.Result) > 0 {
-					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
+					blockInstr = fmt.Sprintf("block (result %s)", types.ByteToValType[t.Result[0]])
 				}
 
 				startCode := fmt.Sprintf(`%s
@@ -354,7 +355,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					i32.const %d
 					local.get %d
 					call $debug_enter_%s
-					`, startCode, functionIndex, paramIndex, paramIndex, wasmfile.ByteToValType[pt])
+					`, startCode, functionIndex, paramIndex, paramIndex, types.ByteToValType[pt])
 				}
 
 				startCode = fmt.Sprintf(`%s
@@ -404,7 +405,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					panic(err)
 				}
 
-				rt := wasmfile.ValNone
+				rt := types.ValNone
 				if len(t.Result) == 1 {
 					rt = t.Result[0]
 				}
@@ -422,7 +423,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				i32.const %d
 				call $debug_exit_func`, endCode, functionIndex)
 
-				if is_wasi && rt == wasmfile.ValI32 {
+				if is_wasi && rt == types.ValI32 {
 					// We also want to output the error message
 					endCode = fmt.Sprintf(`%s
 					call $debug_exit_func_wasi
@@ -430,7 +431,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 				} else {
 					endCode = fmt.Sprintf(`%s
-					call $debug_exit_func_%s`, endCode, wasmfile.ByteToValType[rt])
+					call $debug_exit_func_%s`, endCode, types.ByteToValType[rt])
 				}
 
 				// Add any watches
@@ -489,7 +490,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	payload_size := (total_payload_data + 65535) >> 16
 	fmt.Printf("Payload data of %d (%d pages)\n", total_payload_data, payload_size)
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	fmt.Printf("Writing wasm out to %s...\n", Output)

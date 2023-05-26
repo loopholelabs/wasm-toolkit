@@ -26,6 +26,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 type Otel_config struct {
@@ -111,7 +112,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 		})
 	}
 
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Parse the dwarf stuff *here*
 	err = wfile.ParseDwarfLineNumbers()
@@ -151,7 +152,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	// Add function info
 	addFunctionInfo(wfile)
 
-	wfile.AddGlobal("$trace_enable", wasmfile.ValI32, "i32.const 1")
+	wfile.AddGlobal("$trace_enable", types.ValI32, "i32.const 1")
 
 	// Now do function adjustments
 	for idx, c := range wfile.Code {
@@ -185,7 +186,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 				local_index_local := len(t.Param)
 				local_index_mirrored_params := local_index_local + len(c.Locals)
 
-				new_locals := make([]wasmfile.ValType, 0)
+				new_locals := make([]types.ValType, 0)
 				new_locals = append(new_locals, c.Locals...)
 				for _, vt := range t.Param {
 					new_locals = append(new_locals, vt)
@@ -195,7 +196,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 				blockInstr := "block"
 				if len(t.Result) > 0 {
-					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
+					blockInstr = fmt.Sprintf("block (result %s)", types.ByteToValType[t.Result[0]])
 				}
 
 				startCode := fmt.Sprintf(`%s
@@ -244,7 +245,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						local_index_mirrored_params+5) // args
 
 					local_scratch := len(t.Param) + len(c.Locals)
-					c.Locals = append(c.Locals, wasmfile.ValI64)
+					c.Locals = append(c.Locals, types.ValI64)
 
 					// Add any watch variables...
 					for i, n := range config.Watch_variables {
@@ -340,7 +341,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 								idx,
 								functionIndex,
 								idx,
-								wasmfile.ByteToValType[vt])
+								types.ByteToValType[vt])
 
 							if vtype == "struct string" {
 								// Do a special log for the string value but only if the next param is also part of it
@@ -375,7 +376,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 								i32.const %d
 								i32.const %d
 								local.get %d
-								call $otel_exit_func_%s`, endCode, functionIndex, idx, target_idx, wasmfile.ByteToValType[vt])
+								call $otel_exit_func_%s`, endCode, functionIndex, idx, target_idx, types.ByteToValType[vt])
 						}
 					}
 
@@ -384,7 +385,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						rt := t.Result[0]
 						endCode = fmt.Sprintf(`%s
 							i32.const %d
-							call $otel_exit_func_result_%s`, endCode, functionIndex, wasmfile.ByteToValType[rt])
+							call $otel_exit_func_result_%s`, endCode, functionIndex, types.ByteToValType[rt])
 					}
 
 					// Add any watch variables...
@@ -473,7 +474,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 	payload_size := (total_payload_data + 65535) >> 16
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	var buf bytes.Buffer
@@ -517,7 +518,7 @@ func wrapImports(wfile *wasmfile.WasmFile) map[int]string {
 		})
 
 		c := &wasmfile.CodeEntry{
-			Locals:     make([]wasmfile.ValType, 0),
+			Locals:     make([]types.ValType, 0),
 			Expression: expr,
 		}
 
@@ -613,5 +614,5 @@ func addFunctionInfo(wfile *wasmfile.WasmFile) {
 	wfile.AddData("$wt_all_function_sigs_locs", []byte(data_function_sigs_locs))
 	wfile.AddData("$wt_all_function_srcs", []byte(data_function_srcs))
 	wfile.AddData("$wt_all_function_srcs_locs", []byte(data_function_srcs_locs))
-	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", num_functions))
+	wfile.SetGlobal("$wt_all_function_length", types.ValI32, fmt.Sprintf("i32.const %d", num_functions))
 }

@@ -24,6 +24,8 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 type WasmFile struct {
@@ -59,35 +61,6 @@ type WasmFile struct {
 
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
-
-type ValType byte
-
-const (
-	ValI32  ValType = 0x7f
-	ValI64  ValType = 0x7e
-	ValF32  ValType = 0x7d
-	ValF64  ValType = 0x7c
-	ValNone ValType = 0x40
-)
-
-var ValTypeToByte map[string]ValType
-var ByteToValType map[ValType]string
-
-func init() {
-	ValTypeToByte = make(map[string]ValType)
-	ValTypeToByte["i32"] = ValI32
-	ValTypeToByte["i64"] = ValI64
-	ValTypeToByte["f32"] = ValF32
-	ValTypeToByte["f64"] = ValF64
-	ValTypeToByte["none"] = ValNone
-
-	ByteToValType = make(map[ValType]string)
-	ByteToValType[ValI32] = "i32"
-	ByteToValType[ValI64] = "i64"
-	ByteToValType[ValF32] = "f32"
-	ByteToValType[ValF64] = "f64"
-	ByteToValType[ValNone] = "none"
-}
 
 const (
 	LimitTypeMin    byte = 0x00
@@ -130,8 +103,8 @@ type FunctionEntry struct {
 }
 
 type TypeEntry struct {
-	Param  []ValType
-	Result []ValType
+	Param  []types.ValType
+	Result []types.ValType
 }
 
 type CustomEntry struct {
@@ -159,7 +132,7 @@ type TableEntry struct {
 }
 
 type GlobalEntry struct {
-	Type       ValType
+	Type       types.ValType
 	Mut        byte
 	Expression []*Expression
 }
@@ -170,7 +143,7 @@ type MemoryEntry struct {
 }
 
 type CodeEntry struct {
-	Locals         []ValType
+	Locals         []types.ValType
 	PCValid        bool
 	CodeSectionPtr uint64
 	CodeSectionLen uint64
@@ -248,7 +221,7 @@ func (wf *WasmFile) LookupImport(n string) int {
 	return -1
 }
 
-func (wf *WasmFile) AddGlobal(name string, t ValType, expr string) {
+func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
 	ex := make([]*Expression, 0)
 	e := &Expression{}
 	e.DecodeWat(expr, wf, nil)
@@ -265,7 +238,7 @@ func (wf *WasmFile) AddGlobal(name string, t ValType, expr string) {
 	})
 }
 
-func (wf *WasmFile) SetGlobal(name string, t ValType, expr string) {
+func (wf *WasmFile) SetGlobal(name string, t types.ValType, expr string) {
 	ex := make([]*Expression, 0)
 	e := &Expression{}
 	e.DecodeWat(expr, wf, nil)

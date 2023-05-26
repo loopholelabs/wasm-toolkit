@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int) error {
@@ -282,7 +284,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 		opcode == "else" ||
 		opcode == "end" {
 		e.Opcode = InstrToOpcode[opcode]
-		e.Result = ValNone
+		e.Result = types.ValNone
 		// Optional result type...
 		s = strings.Trim(s, Whitespace)
 		if len(s) == 0 {
@@ -295,7 +297,7 @@ func (e *Expression) DecodeWat(s string, wf *WasmFile, localNames map[string]int
 			rtype, s = ReadElement(s)
 			if strings.HasPrefix(rtype, "(result") {
 				rtype = strings.Trim(rtype[7:len(rtype)-1], Whitespace)
-				e.Result, ok = ValTypeToByte[rtype]
+				e.Result, ok = types.ValTypeToByte[rtype]
 				if !ok {
 					return errors.New("Error parsing block result")
 				}

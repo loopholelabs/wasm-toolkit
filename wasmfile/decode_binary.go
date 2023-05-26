@@ -21,6 +21,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 /**
@@ -207,7 +209,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 		code := data[ptr : ptr+int(clen)]
 		ptr += int(clen)
 
-		locals := make([]ValType, 0)
+		locals := make([]types.ValType, 0)
 
 		vclen, l := binary.Uvarint(code)
 		if l <= 0 {
@@ -225,7 +227,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 			locptr++
 
 			for lod := 0; lod < int(paramLen); lod++ {
-				locals = append(locals, ValType(ty))
+				locals = append(locals, types.ValType(ty))
 			}
 		}
 
@@ -432,7 +434,7 @@ func (wf *WasmFile) ParseSectionGlobal(data []byte) error {
 		ptr += n
 
 		g := &GlobalEntry{
-			Type:       ValType(valType),
+			Type:       types.ValType(valType),
 			Mut:        valMut,
 			Expression: expression,
 		}
@@ -510,8 +512,8 @@ func (wf *WasmFile) ParseSectionType(data []byte) error {
 
 	for i := 0; i < int(typeVecLength); i++ {
 		t := &TypeEntry{
-			Param:  make([]ValType, 0),
-			Result: make([]ValType, 0),
+			Param:  make([]types.ValType, 0),
+			Result: make([]types.ValType, 0),
 		}
 
 		// Read a functype
@@ -521,13 +523,13 @@ func (wf *WasmFile) ParseSectionType(data []byte) error {
 			paramVecLength, l := binary.Uvarint(data[ptr:])
 			ptr += l
 			for p := 0; p < int(paramVecLength); p++ {
-				t.Param = append(t.Param, ValType(data[ptr]))
+				t.Param = append(t.Param, types.ValType(data[ptr]))
 				ptr++
 			}
 			resultVecLength, l := binary.Uvarint(data[ptr:])
 			ptr += l
 			for p := 0; p < int(resultVecLength); p++ {
-				t.Result = append(t.Result, ValType(data[ptr]))
+				t.Result = append(t.Result, types.ValType(data[ptr]))
 				ptr++
 			}
 			wf.Type = append(wf.Type, t)

@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 func (wf *WasmFile) EncodeWat(w io.Writer) error {
@@ -40,7 +42,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(t.Param) > 0 {
 			params = " (param"
 			for _, p := range t.Param {
-				params = params + " " + ByteToValType[p]
+				params = params + " " + types.ByteToValType[p]
 			}
 			params = params + ")"
 		}
@@ -48,7 +50,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(t.Result) > 0 {
 			results = " (result"
 			for _, p := range t.Result {
-				results = results + " " + ByteToValType[p]
+				results = results + " " + types.ByteToValType[p]
 			}
 			results = results + ")"
 		}
@@ -84,7 +86,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	// #### Write out Global
 	for index, g := range wf.Global {
-		t := ByteToValType[g.Type]
+		t := types.ByteToValType[g.Type]
 		if g.Mut == 0x01 {
 			t = fmt.Sprintf("(mut %s)", t)
 		}
@@ -153,14 +155,14 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 					comment = " ;; " + vname
 				}
 
-				params = fmt.Sprintf("%s\n        (param %s)%s", params, ByteToValType[p], comment)
+				params = fmt.Sprintf("%s\n        (param %s)%s", params, types.ByteToValType[p], comment)
 			}
 		}
 
 		if len(typedata.Result) > 0 {
 			results = "        (result"
 			for _, p := range typedata.Result {
-				results = results + " " + ByteToValType[p]
+				results = results + " " + types.ByteToValType[p]
 			}
 			results = results + ")\n"
 		}
@@ -177,7 +179,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		// Write out locals...
 		for _, l := range code.Locals {
-			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", ByteToValType[l]))
+			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", types.ByteToValType[l]))
 			if err != nil {
 				return err
 			}

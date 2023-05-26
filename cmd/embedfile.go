@@ -23,6 +23,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 
 	"github.com/spf13/cobra"
 )
@@ -82,7 +83,7 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	wfile.AddFuncsFrom(memFunctions, func(m map[int]int) {})
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Now we can start doing interesting things...
 
@@ -122,7 +123,7 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	payload_size := (total_payload_data + 65535) >> 16
 	fmt.Printf("Payload data of %d (%d pages)\n", total_payload_data, payload_size)
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	wfile.AddFuncsFrom(embedFunctions, func(m map[int]int) {}) // NB: This may mean inserting an import which changes all func numbers.

@@ -20,6 +20,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
 
 func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
@@ -76,8 +78,8 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		e.Opcode == InstrToOpcode["loop"] {
 
 		result := ""
-		if e.Result != ValNone {
-			result = fmt.Sprintf(" (result %s)", ByteToValType[e.Result])
+		if e.Result != types.ValNone {
+			result = fmt.Sprintf(" (result %s)", types.ByteToValType[e.Result])
 		}
 
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))

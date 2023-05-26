@@ -16,7 +16,11 @@
 
 package wasmfile
 
-import "bytes"
+import (
+	"bytes"
+
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+)
 
 type Opcode byte
 
@@ -28,37 +32,6 @@ type Opcode byte
 // "ref.is_null"						- 0xd1
 // "ref.func x"							- 0xd2
 // All vector instructions 	- 0xfd -
-
-func DecodeSleb128(b []byte) (s int64, n int) {
-	result := int64(0)
-	shift := 0
-	ptr := 0
-	for {
-		by := b[ptr]
-		ptr++
-		result = result | (int64(by&0x7f) << shift)
-		shift += 7
-		if (by & 0x80) == 0 {
-			if shift < 64 && (by&0x40) != 0 {
-				return result | (^0 << shift), ptr
-			}
-			return result, ptr
-		}
-	}
-}
-
-func AppendSleb128(buf []byte, val int64) []byte {
-	for {
-		b := val & 0x7f
-		val = val >> 7
-		if (val == 0 && b&0x40 == 0) ||
-			(val == -1 && b&0x40 != 0) {
-			buf = append(buf, byte(b))
-			return buf
-		}
-		buf = append(buf, byte(b|0x80))
-	}
-}
 
 const ExtendedOpcodeFC = Opcode(0xfc)
 
@@ -303,7 +276,7 @@ type Expression struct {
 	TypeIndex   int
 	TableIndex  int
 	Labels      []int
-	Result      ValType
+	Result      types.ValType
 	MemAlign    int
 	MemOffset   int
 
