@@ -473,31 +473,22 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 }
 
 func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
-	newex, err := expression.ExpressionFromWat(to)
+	newex, err := expression.AddExpressionStart(ce.Expression, to)
 	if err != nil {
 		return err
 	}
 
-	// Now we need to find where to replace this code...
-	adjustedExpression := make([]*expression.Expression, 0)
-	for _, e := range newex {
-		adjustedExpression = append(adjustedExpression, e)
-	}
-
-	for _, e := range ce.Expression {
-		adjustedExpression = append(adjustedExpression, e)
-	}
-	ce.Expression = adjustedExpression
+	ce.Expression = newex
 	return nil
 }
 
 func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
-	newex, err := expression.ExpressionFromWat(to)
+	newex, err := expression.AddExpressionEnd(ce.Expression, to)
 	if err != nil {
 		return err
 	}
 
-	ce.Expression = append(ce.Expression, newex...)
+	ce.Expression = newex
 	return nil
 }
 
@@ -562,22 +553,12 @@ func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 }
 
 func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
-	newex, err := expression.ExpressionFromWat(to)
+	newex, err := expression.InsertAfterRelocating(ce.Expression, to)
 	if err != nil {
 		return err
 	}
 
-	// Now we need to find where to insert the code
-	adjustedExpression := make([]*expression.Expression, 0)
-	for _, e := range ce.Expression {
-		adjustedExpression = append(adjustedExpression, e)
-		if e.DataOffsetNeedsAdjusting {
-			for _, ne := range newex {
-				adjustedExpression = append(adjustedExpression, ne)
-			}
-		}
-	}
-	ce.Expression = adjustedExpression
+	ce.Expression = newex
 	return nil
 }
 

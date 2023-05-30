@@ -47,3 +47,56 @@ func ExpressionFromWat(d string) ([]*Expression, error) {
 	}
 	return newex, nil
 }
+
+/**
+ * Add an expression to the start of some code
+ *
+ */
+func AddExpressionStart(exp []*Expression, to string) ([]*Expression, error) {
+	newex, err := ExpressionFromWat(to)
+	if err != nil {
+		return nil, err
+	}
+
+	adjustedExpression := make([]*Expression, 0)
+	adjustedExpression = append(adjustedExpression, newex...)
+	adjustedExpression = append(adjustedExpression, exp...)
+	return adjustedExpression, nil
+}
+
+/**
+ * Add an expression to the end of some code
+ *
+ */
+func AddExpressionEnd(exp []*Expression, to string) ([]*Expression, error) {
+	newex, err := ExpressionFromWat(to)
+	if err != nil {
+		return nil, err
+	}
+
+	adjustedExpression := make([]*Expression, 0)
+	adjustedExpression = append(adjustedExpression, exp...)
+	adjustedExpression = append(adjustedExpression, newex...)
+	return adjustedExpression, nil
+}
+
+/**
+ * Insert an expression after any instructions that need relocation fixup (offset())
+ *
+ */
+func InsertAfterRelocating(exp []*Expression, to string) ([]*Expression, error) {
+	newex, err := ExpressionFromWat(to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now we need to find where to insert the code
+	adjustedExpression := make([]*Expression, 0)
+	for _, e := range exp {
+		adjustedExpression = append(adjustedExpression, e)
+		if e.DataOffsetNeedsAdjusting {
+			adjustedExpression = append(adjustedExpression, newex...)
+		}
+	}
+	return adjustedExpression, nil
+}
