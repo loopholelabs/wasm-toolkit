@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
@@ -75,9 +76,9 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	text := string(data)
 
 	// Read the module
-	moduleText, _ := ReadElement(text)
+	moduleText, _ := encoding.ReadElement(text)
 
-	moduleType, _ := ReadToken(moduleText[1:])
+	moduleType, _ := encoding.ReadToken(moduleText[1:])
 
 	if moduleType != "module" {
 		return errors.New("Invalud module. Expected 'module'")
@@ -89,7 +90,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	bodytext := text // Save it for a second pass
 
 	for {
-		text = strings.TrimLeft(text, Whitespace) // Skip to next bit
+		text = strings.TrimLeft(text, encoding.Whitespace) // Skip to next bit
 		// End of the module?
 		if text[0] == ')' {
 			break
@@ -104,14 +105,14 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 					panic("TODO: Comment without newline")
 				}
 				text = text[p+1:]
-				text = strings.TrimLeft(text, Whitespace) // Skip to next bit
+				text = strings.TrimLeft(text, encoding.Whitespace) // Skip to next bit
 			} else {
 				break
 			}
 		}
 
-		e, _ := ReadElement(text)
-		eType, _ := ReadToken(e[1:])
+		e, _ := encoding.ReadElement(text)
+		eType, _ := encoding.ReadToken(e[1:])
 
 		if eType == "data" {
 			de := &DataEntry{}
@@ -162,7 +163,7 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 	text = bodytext
 
 	for {
-		text = strings.TrimLeft(text, Whitespace) // Skip to next bit
+		text = strings.TrimLeft(text, encoding.Whitespace) // Skip to next bit
 		// End of the module?
 		if text[0] == ')' {
 			break
@@ -177,14 +178,14 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 					panic("TODO: Comment without newline")
 				}
 				text = text[p+1:]
-				text = strings.TrimLeft(text, Whitespace) // Skip to next bit
+				text = strings.TrimLeft(text, encoding.Whitespace) // Skip to next bit
 			} else {
 				break
 			}
 		}
 
-		e, _ := ReadElement(text)
-		eType, _ := ReadToken(e[1:])
+		e, _ := encoding.ReadElement(text)
+		eType, _ := encoding.ReadToken(e[1:])
 
 		if eType == "export" {
 			ee := &ExportEntry{}
@@ -209,9 +210,9 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 func (e *TypeEntry) DecodeWat(d string) error {
 	//   (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
 
-	s := strings.Trim(d[5:len(d)-1], Whitespace)
-	s = SkipComment(s)
-	fspec, s := ReadElement(s)
+	s := strings.Trim(d[5:len(d)-1], encoding.Whitespace)
+	s = encoding.SkipComment(s)
+	fspec, s := encoding.ReadElement(s)
 	if fspec == "(func)" {
 		// Special case, nothing else to do.
 		return nil
@@ -220,23 +221,23 @@ func (e *TypeEntry) DecodeWat(d string) error {
 		fspec = fspec[6 : len(fspec)-1]
 		for {
 			var el string
-			fspec = SkipComment(fspec)
-			fspec = strings.Trim(fspec, Whitespace)
+			fspec = encoding.SkipComment(fspec)
+			fspec = strings.Trim(fspec, encoding.Whitespace)
 			if len(fspec) == 0 {
 				break
 			}
-			el, fspec = ReadElement(fspec)
+			el, fspec = encoding.ReadElement(fspec)
 			if strings.HasPrefix(el, "(param ") {
 				// Now read each type
 				el = el[7 : len(el)-1]
 				for {
 					var ptype string
-					el = SkipComment(el)
-					el = strings.Trim(el, Whitespace)
+					el = encoding.SkipComment(el)
+					el = strings.Trim(el, encoding.Whitespace)
 					if len(el) == 0 {
 						break
 					}
-					ptype, el = ReadToken(el)
+					ptype, el = encoding.ReadToken(el)
 					b, ok := types.ValTypeToByte[ptype]
 					if !ok {
 						return fmt.Errorf("Unknown param type (%s)", ptype)
@@ -245,7 +246,7 @@ func (e *TypeEntry) DecodeWat(d string) error {
 				}
 			} else if strings.HasPrefix(el, "(result ") {
 				// atm we only support one return type.
-				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
+				rtype := strings.Trim(el[8:len(el)-1], encoding.Whitespace)
 				b, ok := types.ValTypeToByte[rtype]
 				if !ok {
 					return fmt.Errorf("Unknown result type (%s)", rtype)
@@ -264,27 +265,27 @@ func (e *TypeEntry) DecodeWat(d string) error {
 func (e *TableEntry) DecodeWat(d string) error {
 	//  (table (;0;) 3 3 funcref)
 
-	s := strings.Trim(d[6:len(d)-1], Whitespace)
-	s = SkipComment(s)
+	s := strings.Trim(d[6:len(d)-1], encoding.Whitespace)
+	s = encoding.SkipComment(s)
 	// Should be a number next (min)
 	var mmin string
 	var mmax string
 	var err error
-	mmin, s = ReadToken(s)
+	mmin, s = encoding.ReadToken(s)
 	e.LimitMin, err = strconv.Atoi(mmin)
 	if err != nil {
 		return err
 	}
 
-	s = SkipComment(s)
-	s = strings.Trim(s, Whitespace)
-	mmax, s = ReadToken(s)
+	s = encoding.SkipComment(s)
+	s = strings.Trim(s, encoding.Whitespace)
+	mmax, s = encoding.ReadToken(s)
 	e.LimitMax, err = strconv.Atoi(mmax)
 	if err != nil {
 		return err
 	}
 
-	tabtype, s := ReadToken(s)
+	tabtype, s := encoding.ReadToken(s)
 	if tabtype != "funcref" {
 		return errors.New("Only table funcref supported atm")
 	}
@@ -295,22 +296,22 @@ func (e *TableEntry) DecodeWat(d string) error {
 func (e *MemoryEntry) DecodeWat(d string) error {
 	// (memory (;0;) 2)
 
-	s := strings.Trim(d[7:len(d)-1], Whitespace)
-	s = SkipComment(s)
+	s := strings.Trim(d[7:len(d)-1], encoding.Whitespace)
+	s = encoding.SkipComment(s)
 	// Should be a number next (min)
 	var mmin string
 	var mmax string
 	var err error
-	mmin, s = ReadToken(s)
+	mmin, s = encoding.ReadToken(s)
 	e.LimitMin, err = strconv.Atoi(mmin)
 	if err != nil {
 		return err
 	}
 
-	s = SkipComment(s)
-	s = strings.Trim(s, Whitespace)
+	s = encoding.SkipComment(s)
+	s = strings.Trim(s, encoding.Whitespace)
 	if len(s) > 0 {
-		mmax, s = ReadToken(s)
+		mmax, s = encoding.ReadToken(s)
 		e.LimitMax, err = strconv.Atoi(mmax)
 		if err != nil {
 			return err
@@ -324,30 +325,30 @@ func (e *ImportEntry) DecodeWat(d string, wf *WasmFile) error {
 	//  (import "wasi_snapshot_preview1" "fd_write" (func $runtime.fd_write (type 0)))
 	var err error
 
-	s := strings.TrimLeft(d[7:len(d)-1], Whitespace)
+	s := strings.TrimLeft(d[7:len(d)-1], encoding.Whitespace)
 
-	e.Module, s = ReadString(s)
+	e.Module, s = encoding.ReadString(s)
 	e.Module = e.Module[1 : len(e.Module)-1]
-	e.Name, s = ReadString(s)
+	e.Name, s = encoding.ReadString(s)
 	e.Name = e.Name[1 : len(e.Name)-1]
 
 	var idata, typedata, tdata string
-	idata, s = ReadElement(s)
-	iType, _ := ReadToken(idata[1:])
+	idata, s = encoding.ReadElement(s)
+	iType, _ := encoding.ReadToken(idata[1:])
 	if iType == "func" {
-		idata = strings.Trim(idata[5:len(idata)-1], Whitespace)
+		idata = strings.Trim(idata[5:len(idata)-1], encoding.Whitespace)
 		// Read the (optional) function name ID
 		if idata[0] != '(' {
 			var fname string
-			fname, idata = ReadToken(idata)
-			idata = strings.Trim(idata, Whitespace)
+			fname, idata = encoding.ReadToken(idata)
+			idata = strings.Trim(idata, encoding.Whitespace)
 			wf.RegisterNextFunctionName(fname)
 		}
 		// Now read the type...
-		typedata, _ = ReadElement(idata)
-		tdata, s = ReadToken(typedata[1:])
+		typedata, _ = encoding.ReadElement(idata)
+		tdata, s = encoding.ReadToken(typedata[1:])
 		if tdata == "type" {
-			typedata = strings.Trim(typedata[5:len(typedata)-1], Whitespace)
+			typedata = strings.Trim(typedata[5:len(typedata)-1], encoding.Whitespace)
 			// Read the value
 			e.Index, err = strconv.Atoi(typedata)
 			if err != nil {
@@ -367,11 +368,11 @@ func (e *ImportEntry) DecodeWat(d string, wf *WasmFile) error {
 func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 	//  (global $__stack_pointer (mut i32) (i32.const 65536))
 
-	s := strings.Trim(d[7:len(d)-1], Whitespace)
+	s := strings.Trim(d[7:len(d)-1], encoding.Whitespace)
 	if s[0] == '$' {
 		// We have an identifier, lets use it
 		var id string
-		id, s = ReadToken(s)
+		id, s = encoding.ReadToken(s)
 		wf.RegisterNextGlobalName(id)
 	}
 
@@ -380,7 +381,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 	var ok bool
 	if s[0] == '(' {
 		var mutty string
-		mutty, s = ReadElement(s)
+		mutty, s = encoding.ReadElement(s)
 		if strings.HasPrefix(mutty, "(mut ") && mutty[len(mutty)-1] == ')' {
 			e.Mut = 1
 			ty = mutty[5 : len(mutty)-1]
@@ -388,7 +389,7 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 			return fmt.Errorf("Cannot parse global %s", d)
 		}
 	} else {
-		ty, s = ReadToken(s)
+		ty, s = encoding.ReadToken(s)
 		e.Mut = 0
 	}
 
@@ -397,8 +398,8 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 		return fmt.Errorf("Invalid type in global %s", ty)
 	}
 
-	s = strings.Trim(s, Whitespace)
-	expr, _ := ReadElement(s)
+	s = strings.Trim(s, encoding.Whitespace)
+	expr, _ := encoding.ReadElement(s)
 	// Read the expression
 	expr = expr[1 : len(expr)-1]
 	// TODO: Support proper expressions. For now we only support a single instruction
@@ -416,11 +417,11 @@ func (e *GlobalEntry) DecodeWat(d string, wf *WasmFile) error {
 func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 	e.Locals = make([]types.ValType, 0)
 
-	s := strings.Trim(d[5:len(d)-1], Whitespace)
+	s := strings.Trim(d[5:len(d)-1], encoding.Whitespace)
 
 	// Optional Identifier
 	if s[0] == '$' {
-		_, s = ReadToken(s)
+		_, s = encoding.ReadToken(s)
 	}
 
 	localNames := make(map[string]int)
@@ -431,7 +432,7 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 	for {
 		// Skip comments...
 
-		s = strings.Trim(s, Whitespace)
+		s = strings.Trim(s, encoding.Whitespace)
 		if len(s) == 0 {
 			break
 		}
@@ -445,25 +446,25 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 			s = s[line_end:]
 		} else if s[0] == '(' {
 			var el string
-			el, s = ReadElement(s)
-			eType, _ := ReadToken(el[1:])
+			el, s = encoding.ReadElement(s)
+			eType, _ := encoding.ReadToken(el[1:])
 			if eType == "type" {
 			} else if eType == "param" {
 				// Might have a name here...
-				el = strings.Trim(el[6:len(el)-1], Whitespace)
+				el = strings.Trim(el[6:len(el)-1], encoding.Whitespace)
 				if el[0] == '$' {
 					var name string
-					name, el = ReadToken(el)
+					name, el = encoding.ReadToken(el)
 					localNames[name] = localIndex
 				}
 
 				// Read the tokens one by one for each param
 				for {
-					el = strings.Trim(el, Whitespace)
+					el = strings.Trim(el, encoding.Whitespace)
 					if len(el) == 0 {
 						break
 					}
-					_, el = ReadToken(el)
+					_, el = encoding.ReadToken(el)
 					localIndex++
 				}
 
@@ -474,14 +475,14 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 				// eg (local $hello i32)
 				// eg (local i64 i64)
 
-				ltypes := strings.Trim(el[6:len(el)-1], Whitespace)
+				ltypes := strings.Trim(el[6:len(el)-1], encoding.Whitespace)
 				for {
-					ltypes = strings.Trim(ltypes, Whitespace)
+					ltypes = strings.Trim(ltypes, encoding.Whitespace)
 					if len(ltypes) == 0 {
 						break
 					}
 					var tok string
-					tok, ltypes = ReadToken(ltypes)
+					tok, ltypes = encoding.ReadToken(ltypes)
 					if tok[0] == '$' {
 						// preRegister a name
 						localNames[tok] = localIndex
@@ -502,7 +503,7 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 
 	// Then just read instructions...
 	for {
-		s = strings.Trim(s, Whitespace)
+		s = strings.Trim(s, encoding.Whitespace)
 		if len(s) == 0 {
 			break
 		}
@@ -519,7 +520,7 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 			ecode = ecode[:cend]
 		}
 
-		ecode = strings.Trim(ecode, Whitespace)
+		ecode = strings.Trim(ecode, encoding.Whitespace)
 
 		if len(ecode) > 0 {
 			newe := &expression.Expression{}
@@ -535,13 +536,13 @@ func (e *CodeEntry) DecodeWat(d string, wf *WasmFile) error {
 }
 
 func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
-	s := strings.TrimLeft(d[5:len(d)-1], Whitespace)
+	s := strings.TrimLeft(d[5:len(d)-1], encoding.Whitespace)
 	// eg (func $write (type 7) (param i32 i32 i32) (result i32)
 
 	// Optional Identifier
 	if s[0] == '$' {
 		var fname string
-		fname, s = ReadToken(s)
+		fname, s = encoding.ReadToken(s)
 		// Store the name for lookups...
 		wf.RegisterNextFunctionName(fname)
 	}
@@ -549,7 +550,7 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 	newTypeEntry := &TypeEntry{}
 
 	for {
-		s = strings.Trim(s, Whitespace)
+		s = strings.Trim(s, encoding.Whitespace)
 		if len(s) == 0 {
 			break
 		}
@@ -557,9 +558,9 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 		if s[0] == '(' {
 			var el string
 			var err error
-			el, s = ReadElement(s)
+			el, s = encoding.ReadElement(s)
 			if strings.HasPrefix(el, "(type ") {
-				el = strings.Trim(el[5:len(el)-1], Whitespace)
+				el = strings.Trim(el[5:len(el)-1], encoding.Whitespace)
 				e.TypeIndex, err = strconv.Atoi(el)
 				return err
 			} else if strings.HasPrefix(el, "(param ") {
@@ -567,16 +568,16 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 				el = el[7 : len(el)-1]
 				// Could be a name here...
 				if el[0] == '$' {
-					_, el = ReadToken(el)
+					_, el = encoding.ReadToken(el)
 				}
 				for {
 					var ptype string
-					el = SkipComment(el)
-					el = strings.Trim(el, Whitespace)
+					el = encoding.SkipComment(el)
+					el = strings.Trim(el, encoding.Whitespace)
 					if len(el) == 0 {
 						break
 					}
-					ptype, el = ReadToken(el)
+					ptype, el = encoding.ReadToken(el)
 					b, ok := types.ValTypeToByte[ptype]
 					if !ok {
 						return fmt.Errorf("Unknown param type (%s)", ptype)
@@ -585,7 +586,7 @@ func (e *FunctionEntry) DecodeWat(d string, wf *WasmFile) error {
 				}
 			} else if strings.HasPrefix(el, "(result ") {
 				// atm we only support one return type.
-				rtype := strings.Trim(el[8:len(el)-1], Whitespace)
+				rtype := strings.Trim(el[8:len(el)-1], encoding.Whitespace)
 				b, ok := types.ValTypeToByte[rtype]
 				if !ok {
 					return fmt.Errorf("Unknown result type (%s)", rtype)
@@ -617,13 +618,13 @@ func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
 	//  (export "memory" (memory 0))
 	//  (export "hello" (func $hello))
 
-	s := strings.TrimLeft(d[7:len(d)-1], Whitespace)
+	s := strings.TrimLeft(d[7:len(d)-1], encoding.Whitespace)
 
-	e.Name, s = ReadString(s)
+	e.Name, s = encoding.ReadString(s)
 	e.Name = e.Name[1 : len(e.Name)-1]
-	s = strings.Trim(s, Whitespace)
-	el, _ := ReadElement(s)
-	etype, erest := ReadToken(el[1:])
+	s = strings.Trim(s, encoding.Whitespace)
+	el, _ := encoding.ReadElement(s)
+	etype, erest := encoding.ReadToken(el[1:])
 	erest = erest[:len(erest)-1]
 	if etype == "memory" {
 		e.Type = types.ExportMem
@@ -635,7 +636,7 @@ func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
 	} else if etype == "func" {
 		e.Type = types.ExportFunc
 		if strings.HasPrefix(erest, "$") {
-			fname, _ := ReadToken(erest)
+			fname, _ := encoding.ReadToken(erest)
 			fid := wf.LookupFunctionID(fname)
 			if fid == -1 {
 				return fmt.Errorf("Function %s not found in export", fname)
@@ -661,10 +662,10 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 	// (elem (;0;) (i32.const 1) func $runtime.memequal $runtime.hash32)
 	e.TableIndex = 0 // For now only one table
 
-	s := strings.Trim(d[5:len(d)-1], Whitespace)
-	s = SkipComment(s)
+	s := strings.Trim(d[5:len(d)-1], encoding.Whitespace)
+	s = encoding.SkipComment(s)
 
-	expr, s := ReadElement(s)
+	expr, s := encoding.ReadElement(s)
 	// Read the expression
 	expr = expr[1 : len(expr)-1]
 	// TODO: Support proper expressions. For now we only support a single instruction
@@ -676,18 +677,18 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 	}
 	e.Offset = append(e.Offset, ex)
 
-	s = strings.Trim(s, Whitespace)
+	s = strings.Trim(s, encoding.Whitespace)
 	var elemType string
-	elemType, s = ReadToken(s)
+	elemType, s = encoding.ReadToken(s)
 	if elemType == "func" {
 		for {
-			s = strings.Trim(s, Whitespace)
+			s = strings.Trim(s, encoding.Whitespace)
 			if len(s) == 0 {
 				break
 			}
 			var fid string
 			var findex int
-			fid, s = ReadToken(s)
+			fid, s = encoding.ReadToken(s)
 			if strings.HasPrefix(fid, "$") {
 				findex = wf.LookupFunctionID(fid)
 				if findex == -1 {
@@ -713,18 +714,18 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 	//	* (data $.data 10)
 	//	* (data $.data "hello world")
 
-	s := strings.Trim(d[5:len(d)-1], Whitespace)
+	s := strings.Trim(d[5:len(d)-1], encoding.Whitespace)
 	var id string
 
 	if s[0] == '$' {
-		id, s = ReadToken(s)
+		id, s = encoding.ReadToken(s)
 		wf.RegisterNextDataName(id)
 	}
-	s = strings.Trim(s, Whitespace)
+	s = strings.Trim(s, encoding.Whitespace)
 	if s[0] == '(' {
 		// Must have a specific Offset already set
 		var expr string
-		expr, s = ReadElement(s)
+		expr, s = encoding.ReadElement(s)
 		// Read the expression
 		expr = expr[1 : len(expr)-1]
 		// TODO: Support proper expressions. For now we only support a single instruction
@@ -754,7 +755,7 @@ func (e *DataEntry) DecodeWat(d string, wf *WasmFile) error {
 		}
 	}
 
-	s = strings.Trim(s, Whitespace)
+	s = strings.Trim(s, encoding.Whitespace)
 
 	if s[0] == '"' {
 		// Parse the data

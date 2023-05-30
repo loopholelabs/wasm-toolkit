@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
 	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
 )
@@ -440,30 +441,9 @@ func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
 	}
 }
 
-func (wf *WasmFile) ExpressionFromWat(d string) ([]*expression.Expression, error) {
-	newex := make([]*expression.Expression, 0)
-	lines := strings.Split(d, "\n")
-	for _, toline := range lines {
-		cptr := strings.Index(toline, ";;")
-		if cptr != -1 {
-			toline = toline[:cptr]
-		}
-		toline = strings.Trim(toline, Whitespace)
-		if len(toline) > 0 {
-			newe := &expression.Expression{}
-			err := newe.DecodeWat(toline, nil)
-			if err != nil {
-				return newex, err
-			}
-			newex = append(newex, newe)
-		}
-	}
-	return newex, nil
-}
-
 func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.ExpressionFromWat(to)
 	if err != nil {
 		return err
 	}
@@ -479,7 +459,7 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 			cd = cd[:cend]
 		}
 
-		if strings.Trim(cd, Whitespace) == from {
+		if strings.Trim(cd, encoding.Whitespace) == from {
 			// Replace it!
 			for _, ne := range newex {
 				adjustedExpression = append(adjustedExpression, ne)
@@ -493,7 +473,7 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 }
 
 func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.ExpressionFromWat(to)
 	if err != nil {
 		return err
 	}
@@ -512,7 +492,7 @@ func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
 }
 
 func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.ExpressionFromWat(to)
 	if err != nil {
 		return err
 	}
@@ -582,7 +562,7 @@ func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 }
 
 func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.ExpressionFromWat(to)
 	if err != nil {
 		return err
 	}
