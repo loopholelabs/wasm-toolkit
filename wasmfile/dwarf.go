@@ -140,6 +140,16 @@ func (wf *WasmFile) GetFunctionSignature(fid int) string {
 	return ""
 }
 
+func (wf *WasmFile) GetLineNumberBefore(c *CodeEntry, startPc uint64) string {
+	for pc := startPc; pc >= c.CodeSectionPtr; pc-- {
+		l := wf.GetLineNumberInfo(pc)
+		if l != "" {
+			return l
+		}
+	}
+	return ""
+}
+
 func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
 	// Collect all the ranges together...
 	ranges := make(map[string][]int)
@@ -151,7 +161,7 @@ func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
 			m, ok2 := ranges[li.Filename]
 			if ok2 {
 				// Add it on...
-				m = append(m, li.Linenumber)
+				ranges[li.Filename] = append(m, li.Linenumber)
 			} else {
 				ranges[li.Filename] = []int{li.Linenumber}
 			}
@@ -305,7 +315,6 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 								if err == nil {
 									vtype = ty.String()
 								}
-								fmt.Printf("Type is %s\n", vtype)
 							}
 						} else if field.Attr == dwarf.AttrLocation {
 							switch field.Val.(type) {
@@ -314,6 +323,8 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 							}
 						}
 					}
+
+					fmt.Printf("DwarfEntry tag=%v vname=%s entry=%v\n", entry.Tag, vname, entry)
 
 					if entry.Tag == dwarf.TagFormalParameter {
 						if vloc != -1 {
@@ -333,7 +344,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 											VarType: vtype,
 										})
 
-										//										fmt.Printf("LocationLocal %s %s (%d-%d) (%d-%d) local %d\n", spname, vname, ld.startAddress, ld.endAddress, sploc, sploc2, l.index)
+										fmt.Printf("LocationLocal %s %s (%d-%d) %d local %d\n", spname, vname, ld.startAddress, ld.endAddress, sploc, l.index)
 									}
 								}
 							}
@@ -351,7 +362,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 							for _, ld := range locdata {
 								// We have code ptr range here...
 
-								//								fmt.Printf("Var Data %s is %d %d %x\n", vname, ld.startAddress, ld.endAddress, ld.expression)
+								fmt.Printf("Var Data %s is %d %d %x\n", vname, ld.startAddress, ld.endAddress, ld.expression)
 
 								locs := extractWasmDwarfExpression(ld.expression)
 								for _, l := range locs {
@@ -364,7 +375,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 											VarName: vname,
 										})
 
-										//										fmt.Printf("LocationLocal %s %s %d-%d  local %d\n", spname, vname, ld.startAddress, ld.endAddress, l.index)
+										fmt.Printf("LocationLocalVariable %s %s %d-%d  local %d\n", spname, vname, ld.startAddress, ld.endAddress, l.index)
 									}
 								}
 							}

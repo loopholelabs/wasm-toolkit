@@ -52,6 +52,10 @@ var cfg_color = false
 var watch_globals = ""
 var config_parse_dwarf = false
 
+// If true, then we'll hook access to globals / locals, and output debug info...
+var config_log_globals = false
+var config_log_locals = false
+
 func init() {
 	rootCmd.AddCommand(cmdStrace)
 	cmdStrace.Flags().StringVarP(&func_regex, "func", "f", ".*", "Func name regexp")
@@ -67,6 +71,8 @@ func init() {
 
 	cmdStrace.Flags().StringVarP(&watch_globals, "watch", "w", "", "List of globals to watch (, separated)")
 
+	cmdStrace.Flags().BoolVar(&config_log_globals, "logglobals", false, "Log wasm global access")
+	cmdStrace.Flags().BoolVar(&config_log_locals, "loglocals", false, "Log wasm local access")
 }
 
 func runStrace(ccmd *cobra.Command, args []string) {
@@ -181,6 +187,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		"strace.wat",
 		"color.wat",
 		"timings.wat",
+		"watch.wat",
 		"function_enter_exit.wat"}
 
 	ptr := int32(data_ptr)
@@ -290,6 +297,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
 		fmt.Printf("Processing functions [%d/%d]\n", idx, len(wfile.Code))
+
+		fn := wfile.Function[idx]
+		functionType := wfile.Type[fn.TypeIndex]
+
 		if idx < originalFunctionLength {
 			err = c.ReplaceInstr(wfile, "memory.grow", "call $debug_memory_grow")
 			if err != nil {
@@ -451,6 +462,76 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					panic(err)
 				}
 
+				// Add local / global logging...
+				if config_log_globals || config_log_locals {
+					newCode := make([]*expression.Expression, 0)
+					for _, e := range c.Expression {
+						if config_log_globals &&
+							e.Opcode == expression.InstrToOpcode["global.set"] &&
+							!e.GlobalNeedsLinking {
+							g := wfile.Global[e.GlobalIndex]
+							gtype := types.ByteToValType[g.Type]
+							linei := wfile.GetLineNumberBefore(c, e.PC)
+							// Add some debug data for this global.set
+							gdebug := fmt.Sprintf("global.set %d %s:%x %s", e.GlobalIndex, fidentifier, e.PC, linei)
+							wfile.AddData(fmt.Sprintf("$dd_global_set_%d", e.PC), []byte(gdebug))
+
+							wcode := fmt.Sprintf(`
+							global.get %d
+							i32.const offset($dd_global_set_%d)
+							i32.const length($dd_global_set_%d)
+							call $log_global_%s
+							`, e.GlobalIndex, e.PC, e.PC, gtype)
+
+							// $log_global_<TYPE> (new_value, current_value, ptr_debug, len_debug) => new_value
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+
+						} else if config_log_locals &&
+							(e.Opcode == expression.InstrToOpcode["local.set"] || e.Opcode == expression.InstrToOpcode["local.tee"]) {
+
+							vname := wfile.GetLocalVarName(e.PC, e.LocalIndex)
+
+							var ltype string
+							var debugPrefix string
+							if e.LocalIndex >= len(functionType.Param) {
+								l := c.Locals[e.LocalIndex-len(functionType.Param)]
+								ltype = types.ByteToValType[l]
+								debugPrefix = "local.set"
+							} else {
+								// Mutating/reusing params
+								l := functionType.Param[e.LocalIndex]
+								ltype = types.ByteToValType[l]
+								debugPrefix = "local.set(param)"
+							}
+							linei := wfile.GetLineNumberBefore(c, e.PC)
+							ldebug := fmt.Sprintf("%s %d %s %s:%x %s", debugPrefix, e.LocalIndex, vname, fidentifier, e.PC, linei)
+							wfile.AddData(fmt.Sprintf("$dd_local_set_%d", e.PC), []byte(ldebug))
+
+							wcode := fmt.Sprintf(`
+								local.get %d
+								i32.const offset($dd_local_set_%d)
+								i32.const length($dd_local_set_%d)
+								call $log_local_%s
+								`, e.LocalIndex, e.PC, e.PC, ltype)
+
+							// $log_local_<TYPE> (new_value, current_value, ptr_debug, len_debug) => new_value
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+
+						}
+						newCode = append(newCode, e)
+					}
+					c.Expression = newCode
+				}
 			}
 		}
 
