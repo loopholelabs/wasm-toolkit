@@ -35,6 +35,13 @@ func main() {
 
 	fmt.Printf("some_global is %d, another_global is %d\n", some_global, another_global)
 
+	var tt = make([]byte, 10)
+
+	tt[0] = 0x12
+	tt[1] = 0x34
+
+	fmt.Printf("Data %x\n", tt)
+
 	// panic("Something happened")
 }
 
@@ -51,18 +58,23 @@ func hello() {
 
 //go:noinline
 func exampleFunction(x_value int32, y_value int32) int32 {
+	var jm_boob int32 = 1
+
 	some_global = 2
 	another_global = 0x999
 	var zoobs int32 = 45
 	if x_value == 0 {
-		return -1
+		return -1 + jm_boob
 	}
+	jm_boob++
 	if y_value == 0 {
-		return -2
+		return -2 + jm_boob
 	}
+	jm_boob++
 	if x_value > 44 {
 		zoobs = 1
+		jm_boob++
 	}
 
-	return x_value * y_value * zoobs
+	return (x_value * y_value * zoobs) + jm_boob
 }

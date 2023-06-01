@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
@@ -55,6 +56,9 @@ var config_parse_dwarf = false
 // If true, then we'll hook access to globals / locals, and output debug info...
 var config_log_globals = false
 var config_log_locals = false
+var config_log_memory = false
+
+var config_log_mem_ranges = make([]string, 0)
 
 func init() {
 	rootCmd.AddCommand(cmdStrace)
@@ -71,8 +75,11 @@ func init() {
 
 	cmdStrace.Flags().StringVarP(&watch_globals, "watch", "w", "", "List of globals to watch (, separated)")
 
-	cmdStrace.Flags().BoolVar(&config_log_globals, "logglobals", false, "Log wasm global access")
-	cmdStrace.Flags().BoolVar(&config_log_locals, "loglocals", false, "Log wasm local access")
+	cmdStrace.Flags().BoolVar(&config_log_globals, "logglobals", false, "Log wasm global writes")
+	cmdStrace.Flags().BoolVar(&config_log_locals, "loglocals", false, "Log wasm local writes")
+	cmdStrace.Flags().BoolVar(&config_log_memory, "logmemory", false, "Log memory writes")
+
+	cmdStrace.Flags().StringSliceVar(&config_log_mem_ranges, "memory", []string{"memory=0-"}, "Memory ranges to watch 'tag=<min>-<max>' max is optional.")
 }
 
 func runStrace(ccmd *cobra.Command, args []string) {
@@ -294,6 +301,47 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
 
+	// Add data for memory matching...
+	if config_log_memory {
+		data_mem_ranges := make([]byte, 0)
+		data_mem_tags := make([]byte, 0)
+
+		for _, r := range config_log_mem_ranges {
+			// eg "tag=<min>-<max> max is optional"
+			bits := strings.Split(r, "=")
+			name := bits[0]
+
+			// Parse the range...
+			vals := strings.Split(bits[1], "-")
+
+			memMin, err := strconv.ParseInt(vals[0], 0, 32)
+			if err != nil {
+				panic(err)
+			}
+			memMax := int64(0xffffffff)
+			if len(vals) == 2 && vals[1] != "" {
+				memMax, err = strconv.ParseInt(vals[1], 0, 32)
+				if err != nil {
+					panic(err)
+				}
+			}
+
+			fmt.Printf("Adding memory watch for %s from %d -> %d\n", name, memMin, memMax)
+
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(memMin))
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(memMax))
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(len(data_mem_tags)))
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(len([]byte(name))))
+			data_mem_tags = append(data_mem_tags, []byte(name)...)
+
+		}
+
+		fmt.Printf("mem ranges %x\n", data_mem_ranges)
+
+		wfile.AddData("$wt_mem_ranges", []byte(data_mem_ranges))
+		wfile.AddData("$wt_mem_tags", []byte(data_mem_tags))
+	}
+
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
 		fmt.Printf("Processing functions [%d/%d]\n", idx, len(wfile.Code))
@@ -473,7 +521,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 							gtype := types.ByteToValType[g.Type]
 							linei := wfile.GetLineNumberBefore(c, e.PC)
 							// Add some debug data for this global.set
-							gdebug := fmt.Sprintf("global.set %d %s:%x %s", e.GlobalIndex, fidentifier, e.PC, linei)
+							gdebug := fmt.Sprintf("global.set %s:%x %s | %d", fidentifier, e.PC, linei, e.GlobalIndex)
 							wfile.AddData(fmt.Sprintf("$dd_global_set_%d", e.PC), []byte(gdebug))
 
 							wcode := fmt.Sprintf(`
@@ -509,7 +557,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 								debugPrefix = "local.set(param)"
 							}
 							linei := wfile.GetLineNumberBefore(c, e.PC)
-							ldebug := fmt.Sprintf("%s %d %s %s:%x %s", debugPrefix, e.LocalIndex, vname, fidentifier, e.PC, linei)
+							ldebug := fmt.Sprintf(" %s %s:%x %s | %d %s", debugPrefix, fidentifier, e.PC, linei, e.LocalIndex, vname)
 							wfile.AddData(fmt.Sprintf("$dd_local_set_%d", e.PC), []byte(ldebug))
 
 							wcode := fmt.Sprintf(`
@@ -528,6 +576,114 @@ func runStrace(ccmd *cobra.Command, args []string) {
 							newCode = append(newCode, wcex...)
 
 						}
+						newCode = append(newCode, e)
+					}
+					c.Expression = newCode
+				}
+
+				// Add memory logging...
+				if config_log_memory {
+					newCode := make([]*expression.Expression, 0)
+					for _, e := range c.Expression {
+						wcode := ""
+						debugPrefix := ""
+						if e.Opcode == expression.InstrToOpcode["i32.store"] {
+							debugPrefix = "i32.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store16"] {
+							debugPrefix = "i32.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store8"] {
+							debugPrefix = "i32.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if e.Opcode == expression.InstrToOpcode["i64.store"] {
+							debugPrefix = "i64.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 64
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store32"] {
+							debugPrefix = "i64.store32"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store16"] {
+							debugPrefix = "i64.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store8"] {
+							debugPrefix = "i64.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if wcode != "" {
+							linei := wfile.GetLineNumberBefore(c, e.PC)
+							mdebug := fmt.Sprintf(" %s %s:%x %s", debugPrefix, fidentifier, e.PC, linei)
+							wfile.AddData(fmt.Sprintf("$dd_memory_set_%d", e.PC), []byte(mdebug))
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+						}
+
+						/*
+							e.Opcode == InstrToOpcode["f32.store"] ||
+							e.Opcode == InstrToOpcode["f64.store"] ||
+						*/
 						newCode = append(newCode, e)
 					}
 					c.Expression = newCode
