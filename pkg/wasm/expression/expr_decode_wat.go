@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func (e *Expression) DecodeWat(s string, localNames map[string]int) error {

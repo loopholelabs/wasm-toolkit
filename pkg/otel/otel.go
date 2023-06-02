@@ -25,9 +25,9 @@ import (
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 type Otel_config struct {

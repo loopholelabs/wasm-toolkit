@@ -22,7 +22,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 )
 
 func (e *Expression) EncodeBinary(w io.Writer) error {

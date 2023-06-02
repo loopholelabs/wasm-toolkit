@@ -19,7 +19,7 @@ package expression
 import (
 	"strings"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 )
 
 /**

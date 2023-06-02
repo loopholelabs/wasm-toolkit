@@ -22,9 +22,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/expression"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func (wf *WasmFile) LookupFunctionID(n string) int {

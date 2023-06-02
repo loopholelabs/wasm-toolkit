@@ -3,8 +3,8 @@ package expression
 import (
 	"bytes"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 	"github.com/stretchr/testify/assert"
 
 	"testing"

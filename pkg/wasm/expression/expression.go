@@ -17,7 +17,7 @@
 package expression
 
 import (
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 type Opcode byte

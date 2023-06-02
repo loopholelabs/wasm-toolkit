@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {

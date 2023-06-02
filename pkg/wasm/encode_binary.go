@@ -21,8 +21,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/encoding"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func writeSectionHeader(w io.Writer, s byte, length int) error {
