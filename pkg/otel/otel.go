@@ -26,6 +26,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
@@ -51,10 +52,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	}
 
 	// Parse custom name section
-	err = wfile.ParseName()
-	if err != nil {
-		return nil, err
-	}
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	// Parsing custom dwarf debug section
 	err = wfile.ParseDwarf()
@@ -169,7 +168,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 			}
 
 			functionIndex := idx + len(wfile.Import)
-			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
+			fidentifier := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 			match, err := regexp.MatchString(config.Func_regexp, fidentifier)
 			if err != nil {
@@ -538,7 +537,7 @@ func wrapImports(wfile *wasmfile.WasmFile) map[int]string {
 		}
 
 		// Set the function name
-		wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name)
+		wfile.Debug.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name)
 
 		// Add the new function/code.
 		wfile.Function = append(wfile.Function, f)
@@ -588,7 +587,7 @@ func addFunctionInfo(wfile *wasmfile.WasmFile) {
 
 	for idx := 0; idx < num_functions; idx++ {
 		functionIndex := idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
+		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 		signature := wfile.GetFunctionSignature(functionIndex)
 		debug := ""
 		if idx >= len(wfile.Import) {

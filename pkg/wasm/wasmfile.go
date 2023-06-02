@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
@@ -55,10 +56,7 @@ type WasmFile struct {
 
 	GlobalAddresses map[string]*GlobalNameData
 
-	// custom names section data
-	FunctionNames map[int]string
-	globalNames   map[int]string
-	dataNames     map[int]string
+	Debug *debug.WasmDebug
 }
 
 const WasmHeader uint32 = 0x6d736100
@@ -195,7 +193,7 @@ func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
 
 	idx := len(wf.Global)
 
-	wf.globalNames[idx] = name
+	wf.Debug.GlobalNames[idx] = name
 
 	wf.Global = append(wf.Global, &GlobalEntry{
 		Type:       t,
@@ -210,7 +208,7 @@ func (wf *WasmFile) SetGlobal(name string, t types.ValType, expr string) {
 	e.DecodeWat(expr, nil)
 	ex = append(ex, e)
 
-	idx := wf.LookupGlobalID(name)
+	idx := wf.Debug.LookupGlobalID(name)
 	if idx == -1 {
 		panic("Global not found")
 	}
@@ -232,7 +230,7 @@ func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
 func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 	ptr := addr
 	for idx, d := range wfSource.Data {
-		src_name := wfSource.GetDataIdentifier(idx)
+		src_name := wfSource.Debug.GetDataIdentifier(idx)
 		// Relocate the data
 		d.Offset = []*expression.Expression{
 			{
@@ -247,14 +245,14 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 		ptr += int32(len(d.Data))
 		ptr = (ptr + 7) & -8
 
-		for _, n := range wf.dataNames {
+		for _, n := range wf.Debug.DataNames {
 			if n == src_name {
 				panic(fmt.Sprintf("Data conflict for '%s'", src_name))
 			}
 		}
 
 		// Copy over the data name
-		wf.dataNames[newidx] = src_name
+		wf.Debug.DataNames[newidx] = src_name
 	}
 	return ptr
 }
@@ -280,7 +278,7 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 		},
 		Data: data,
 	})
-	wf.dataNames[idx] = name
+	wf.Debug.DataNames[idx] = name
 }
 
 func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap map[int]int)) {
@@ -289,9 +287,9 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 		newidx := len(wf.Global)
 		globalModification[idx] = newidx
 		wf.Global = append(wf.Global, g)
-		name := wfSource.GetGlobalIdentifier(idx, true)
+		name := wfSource.Debug.GetGlobalIdentifier(idx, true)
 		if name != "" {
-			wf.globalNames[newidx] = name
+			wf.Debug.GlobalNames[newidx] = name
 		}
 	}
 
@@ -311,8 +309,8 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 		}
 		if newidx != -1 {
 			// Add the name modification
-			fnFrom := wfSource.GetFunctionIdentifier(idx, false)
-			fnTo := wf.GetFunctionIdentifier(newidx, false)
+			fnFrom := wfSource.Debug.GetFunctionIdentifier(idx, false)
+			fnTo := wf.Debug.GetFunctionIdentifier(newidx, false)
 			importFuncModifications[fnFrom] = fnTo
 			callModification[idx] = newidx
 		} else {
@@ -337,9 +335,9 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 			}
 
 			wf.Renumber_functions(rmap)
-			name := wfSource.GetFunctionIdentifier(idx, true)
+			name := wfSource.Debug.GetFunctionIdentifier(idx, true)
 			if name != "" {
-				wf.FunctionNames[newidx] = name
+				wf.Debug.FunctionNames[newidx] = name
 			}
 
 			// Modify any exports
@@ -370,7 +368,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 
 	for idx, f := range wfSource.Function {
 		t := wfSource.Type[f.TypeIndex]
-		name := wfSource.GetFunctionIdentifier(len(wfSource.Import)+idx, true)
+		name := wfSource.Debug.GetFunctionIdentifier(len(wfSource.Import)+idx, true)
 
 		newidx := len(wf.Import) + len(wf.Function)
 
@@ -380,7 +378,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 
 		// Add the function name if there is one
 		if name != "" {
-			wf.FunctionNames[newidx] = name
+			wf.Debug.FunctionNames[newidx] = name
 		}
 
 		callModification[len(wfSource.Import)+idx] = newidx
@@ -452,7 +450,7 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 	adjustedExpression := make([]*expression.Expression, 0)
 	for _, e := range ce.Expression {
 		var buf bytes.Buffer
-		e.EncodeWat(&buf, "", wf)
+		e.EncodeWat(&buf, "", wf, wf.Debug)
 		cd := buf.String()
 		cend := strings.Index(cd, ";;")
 		if cend != -1 {
@@ -496,7 +494,7 @@ func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {
 	for _, e := range ce.Expression {
 		if e.GlobalNeedsLinking {
 			// Lookup the global and get the ID
-			gid := wf.LookupGlobalID(e.GlobalId)
+			gid := wf.Debug.LookupGlobalID(e.GlobalId)
 			if gid == -1 {
 				return fmt.Errorf("Global target not found (%s)", e.GlobalId)
 			}
@@ -523,7 +521,7 @@ func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
 func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 	for _, e := range ce.Expression {
 		if e.DataLengthNeedsLinking {
-			did := wf.LookupDataId(e.I32DataId)
+			did := wf.Debug.LookupDataId(e.I32DataId)
 			if did == -1 {
 				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
@@ -536,7 +534,7 @@ func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 	for _, e := range ce.Expression {
 		if e.DataOffsetNeedsLinking {
-			did := wf.LookupDataId(e.I32DataId)
+			did := wf.Debug.LookupDataId(e.I32DataId)
 			if did == -1 {
 				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
@@ -586,7 +584,7 @@ func (wf *WasmFile) Renumber_functions(remap map[int]int) {
 	newFunctionDebug := make(map[int]string)
 	newFunctionSignature := make(map[int]string)
 	for o, n := range remap {
-		v, ok := wf.FunctionNames[o]
+		v, ok := wf.Debug.FunctionNames[o]
 		if ok {
 			newFunctionNames[n] = v
 		}
@@ -599,7 +597,7 @@ func (wf *WasmFile) Renumber_functions(remap map[int]int) {
 			newFunctionSignature[n] = v
 		}
 	}
-	wf.FunctionNames = newFunctionNames
+	wf.Debug.FunctionNames = newFunctionNames
 	wf.functionDebug = newFunctionDebug
 	wf.functionSignature = newFunctionSignature
 }

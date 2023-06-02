@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 
 	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
@@ -40,10 +41,8 @@ func AddSource(wasmInput []byte, sourceCode []byte, sourceGzipped bool) ([]byte,
 	}
 
 	// Parse custom name section
-	err = wfile.ParseName()
-	if err != nil {
-		return nil, err
-	}
+	wdebug := debug.WasmDebug{}
+	wdebug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	originalFunctionLength := len(wfile.Code)
 

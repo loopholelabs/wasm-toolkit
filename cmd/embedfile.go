@@ -23,6 +23,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 
 	"github.com/spf13/cobra"
@@ -60,10 +61,8 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	// Add a payload to the wasm file
 	memFunctions := &wasmfile.WasmFile{}

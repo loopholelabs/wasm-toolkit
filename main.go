@@ -5,6 +5,7 @@ import (
 	"os"
 
 	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 )
 
 func main() {
@@ -19,11 +20,10 @@ func main() {
 		panic(err)
 	}
 
+	wdebug := debug.WasmDebug{}
+
 	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
+	wdebug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
 	err = wfile.ParseDwarf()

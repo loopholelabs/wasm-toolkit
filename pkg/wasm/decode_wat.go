@@ -22,13 +22,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func (wf *WasmFile) LookupFunctionID(n string) int {
-	for idx, name := range wf.FunctionNames {
+	for idx, name := range wf.Debug.FunctionNames {
 		if n == name {
 			return idx
 		}
@@ -37,18 +38,18 @@ func (wf *WasmFile) LookupFunctionID(n string) int {
 }
 
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
-	idx := len(wf.FunctionNames)
-	wf.FunctionNames[idx] = n
+	idx := len(wf.Debug.FunctionNames)
+	wf.Debug.FunctionNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextGlobalName(n string) {
-	idx := len(wf.globalNames)
-	wf.globalNames[idx] = n
+	idx := len(wf.Debug.GlobalNames)
+	wf.Debug.GlobalNames[idx] = n
 }
 
 func (wf *WasmFile) RegisterNextDataName(n string) {
-	idx := len(wf.dataNames)
-	wf.dataNames[idx] = n
+	idx := len(wf.Debug.DataNames)
+	wf.Debug.DataNames[idx] = n
 }
 
 func (wf *WasmFile) DecodeWat(data []byte) (err error) {
@@ -68,10 +69,10 @@ func (wf *WasmFile) DecodeWat(data []byte) (err error) {
 		}()
 	*/
 	// Parse the wat file and fill in all the data...
-
-	wf.FunctionNames = make(map[int]string)
-	wf.globalNames = make(map[int]string)
-	wf.dataNames = make(map[int]string)
+	wf.Debug = &debug.WasmDebug{}
+	wf.Debug.FunctionNames = make(map[int]string)
+	wf.Debug.GlobalNames = make(map[int]string)
+	wf.Debug.DataNames = make(map[int]string)
 
 	text := string(data)
 

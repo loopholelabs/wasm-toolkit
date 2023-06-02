@@ -27,6 +27,7 @@ import (
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
 	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 
@@ -94,10 +95,8 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
 	err = wfile.ParseDwarf()
@@ -155,7 +154,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				}
 			}
 
-			wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name) //wfile.GetFunctionIdentifier(idx, false))
+			wfile.Debug.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name) //wfile.GetFunctionIdentifier(idx, false))
 
 			wfile.Function = append(wfile.Function, f)
 			wfile.Code = append(wfile.Code, c)
@@ -265,7 +264,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	data_metrics_data := make([]byte, 0)
 	for idx := range wfile.Import {
 		functionIndex := idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
+		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
@@ -278,7 +277,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	for idx := range wfile.Code {
 		functionIndex := len(wfile.Import) + idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
+		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
@@ -360,7 +359,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			}
 
 			functionIndex := idx + len(wfile.Import)
-			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
+			fidentifier := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 			match, err := regexp.MatchString(func_regex, fidentifier)
 			if err != nil {

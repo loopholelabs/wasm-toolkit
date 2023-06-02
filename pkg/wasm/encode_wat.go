@@ -68,7 +68,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	for index, t := range wf.Import {
 		exp := ""
 		if t.Type == types.ExportFunc {
-			exp = fmt.Sprintf("(func %s (type %d))", wf.GetFunctionIdentifier(index, true), t.Index)
+			exp = fmt.Sprintf("(func %s (type %d))", wf.Debug.GetFunctionIdentifier(index, true), t.Index)
 		} else if t.Type == types.ExportGlobal {
 			exp = fmt.Sprintf("(global %d)", t.Index)
 		} else if t.Type == types.ExportMem {
@@ -93,13 +93,13 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, ee := range g.Expression {
-			err := ee.EncodeWat(&buf, "", wf)
+			err := ee.EncodeWat(&buf, "", wf, wf.Debug)
 			if err != nil {
 				return err
 			}
 		}
 
-		gname := wf.GetGlobalIdentifier(index, true)
+		gname := wf.Debug.GetGlobalIdentifier(index, true)
 
 		edata := fmt.Sprintf("    (global %s %s (%s))\n", gname, t, buf.Bytes())
 		_, err = wr.WriteString(edata)
@@ -167,7 +167,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 			results = results + ")\n"
 		}
 
-		f := wf.GetFunctionIdentifier(index+len(wf.Import), true)
+		f := wf.Debug.GetFunctionIdentifier(index+len(wf.Import), true)
 
 		// Encode it and send it out...
 		d := wf.GetFunctionDebug(index + len(wf.Import))
@@ -187,7 +187,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, e := range code.Expression {
-			err = e.EncodeWat(&buf, "        ", wf)
+			err = e.EncodeWat(&buf, "        ", wf, wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -217,7 +217,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	for _, t := range wf.Export {
 		exp := ""
 		if t.Type == types.ExportFunc {
-			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index, false))
+			exp = fmt.Sprintf("(func %s)", wf.Debug.GetFunctionIdentifier(t.Index, false))
 		} else if t.Type == types.ExportGlobal {
 			exp = fmt.Sprintf("(global %d)", t.Index)
 		} else if t.Type == types.ExportMem {
@@ -235,11 +235,11 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	// #### Write out Data
 	for index, d := range wf.Data {
-		id := wf.GetDataIdentifier(index)
+		id := wf.Debug.GetDataIdentifier(index)
 
 		var buf bytes.Buffer
 		for _, ee := range d.Offset {
-			err := ee.EncodeWat(&buf, "", wf)
+			err := ee.EncodeWat(&buf, "", wf, wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -259,7 +259,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, ee := range e.Offset {
-			err := ee.EncodeWat(&buf, "", wf)
+			err := ee.EncodeWat(&buf, "", wf, wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -267,7 +267,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		funcs := ""
 		for _, f := range e.Indexes {
-			fid := wf.GetFunctionIdentifier(int(f), false)
+			fid := wf.Debug.GetFunctionIdentifier(int(f), false)
 			funcs = funcs + " " + fid
 		}
 

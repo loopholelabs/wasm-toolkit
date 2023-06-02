@@ -27,11 +27,14 @@ import (
 type WasmContext interface {
 	GetLineNumberInfo(pc uint64) string
 	GetLocalVarName(pc uint64, localIdx int) string
+}
+
+type WasmDebugContext interface {
 	GetGlobalIdentifier(globalIdx int, defaultEmpty bool) string
 	GetFunctionIdentifier(funcIdx int, defaultEmpty bool) string
 }
 
-func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext) error {
+func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext, wd WasmDebugContext) error {
 	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
 	lineNumberData := wf.GetLineNumberInfo(e.PC)
@@ -132,12 +135,12 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext) error
 		return err
 	} else if e.Opcode == InstrToOpcode["global.get"] ||
 		e.Opcode == InstrToOpcode["global.set"] {
-		g := wf.GetGlobalIdentifier(e.GlobalIndex, false)
+		g := wd.GetGlobalIdentifier(e.GlobalIndex, false)
 		globalTarget := fmt.Sprintf(" %s", g)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
 		return err
 	} else if e.Opcode == InstrToOpcode["call"] {
-		f := wf.GetFunctionIdentifier(e.FuncIndex, false)
+		f := wd.GetFunctionIdentifier(e.FuncIndex, false)
 		callTarget := fmt.Sprintf(" %s", f)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], callTarget, comment))
 		return err
