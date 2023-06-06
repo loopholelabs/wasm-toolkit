@@ -26,7 +26,7 @@ func main() {
 	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
-	err = wfile.ParseDwarf()
+	err = wfile.Debug.ParseDwarf(wfile)
 	if err != nil {
 		panic(err)
 	}

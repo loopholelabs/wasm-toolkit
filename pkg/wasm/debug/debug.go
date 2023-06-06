@@ -52,3 +52,30 @@ type GlobalNameData struct {
 	Size    uint64
 	Type    string
 }
+
+type CustomSectionProvider interface {
+	GetCustomSectionData(name string) []byte
+}
+
+func (wd *WasmDebug) ParseDwarf(wf CustomSectionProvider) error {
+	debug_abbrev := wf.GetCustomSectionData(".debug_abbrev")
+	debug_aranges := wf.GetCustomSectionData(".debug_aranges")
+	debug_info := wf.GetCustomSectionData(".debug_info")
+	debug_line := wf.GetCustomSectionData(".debug_line")
+	debug_pubnames := wf.GetCustomSectionData(".debug_pubnames")
+	debug_ranges := wf.GetCustomSectionData(".debug_ranges")
+	debug_str := wf.GetCustomSectionData(".debug_str")
+
+	debug_loc := wf.GetCustomSectionData(".debug_loc")
+	wd.DwarfLoc = NewDwarfLocations(debug_loc)
+
+	debug_frame := make([]byte, 0) // call frame info
+
+	dd, err := dwarf.New(debug_abbrev, debug_aranges, debug_frame, debug_info, debug_line, debug_pubnames, debug_ranges, debug_str)
+	if err != nil {
+		return nil // ok, but lets move on and ignore the error.
+	}
+
+	wd.DwarfData = dd
+	return nil
+}

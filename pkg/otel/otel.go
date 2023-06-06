@@ -56,7 +56,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	// Parsing custom dwarf debug section
-	err = wfile.ParseDwarf()
+	err = wfile.Debug.ParseDwarf(wfile)
 	if err != nil {
 		return nil, err
 	}
