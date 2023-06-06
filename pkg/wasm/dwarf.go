@@ -18,7 +18,6 @@ package wasmfile
 
 import (
 	"debug/dwarf"
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -139,9 +138,11 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 
 			if vaddr != nil && vname != "" {
 				// Parse the expression
-				// TODO: Move this into dwarf_location.go
-				if len(vaddr) == 5 && vaddr[0] == debug.DW_OP_addr {
-					addr := binary.LittleEndian.Uint32(vaddr[1:])
+				ld := &debug.LocationData{
+					Expression: vaddr,
+				}
+				addr, err := ld.GetAddress()
+				if err == nil {
 
 					globalInfo := &debug.GlobalNameData{
 						Name:    vname,

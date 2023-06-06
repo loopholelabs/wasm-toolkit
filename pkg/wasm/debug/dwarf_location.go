@@ -16,7 +16,10 @@
 
 package debug
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"errors"
+)
 
 type DwarfLocations struct {
 	data []byte
@@ -205,4 +208,11 @@ func (ld *LocationData) ExtractWasmLocations() []*WasmLocation {
 		}
 	}
 	return locs
+}
+
+func (ld *LocationData) GetAddress() (uint32, error) {
+	if len(ld.Expression) == 5 && ld.Expression[0] == DW_OP_addr {
+		return binary.LittleEndian.Uint32(ld.Expression[1:]), nil
+	}
+	return 0, errors.New("Address not found.")
 }
