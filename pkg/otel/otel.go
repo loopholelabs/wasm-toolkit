@@ -127,7 +127,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 	// Get a list of available watch variables.
 	globalNames := "["
-	for n := range wfile.GlobalAddresses {
+	for n := range wfile.Debug.GlobalAddresses {
 		if globalNames != "[" {
 			globalNames = globalNames + ", "
 		}
@@ -390,7 +390,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 					// Add any watch variables...
 					for i, n := range config.Watch_variables {
-						ginfo, ok := wfile.GlobalAddresses[n]
+						ginfo, ok := wfile.Debug.GlobalAddresses[n]
 						if !ok {
 							return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
 						}

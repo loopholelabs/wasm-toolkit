@@ -18,7 +18,6 @@ package wasmfile
 
 import (
 	"bytes"
-	"debug/dwarf"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -44,17 +43,6 @@ type WasmFile struct {
 	Code     []*CodeEntry
 	Data     []*DataEntry
 	Elem     []*ElemEntry
-
-	// dwarf debugging data
-	dwarfLoc    []byte
-	dwarfData   *dwarf.Data
-	lineNumbers map[uint64]LineInfo
-	// debug info derived from dwarf
-	functionDebug     map[int]string
-	functionSignature map[int]string
-	localNames        []*LocalNameData
-
-	GlobalAddresses map[string]*GlobalNameData
 
 	Debug *debug.WasmDebug
 }
@@ -124,12 +112,6 @@ type ElemEntry struct {
 	TableIndex int
 	Offset     []*expression.Expression
 	Indexes    []uint64
-}
-
-type LineInfo struct {
-	Filename   string
-	Linenumber int
-	Column     int
 }
 
 // Create a new WasmFile from a file
@@ -588,16 +570,16 @@ func (wf *WasmFile) Renumber_functions(remap map[int]int) {
 		if ok {
 			newFunctionNames[n] = v
 		}
-		v, ok = wf.functionDebug[o]
+		v, ok = wf.Debug.FunctionDebug[o]
 		if ok {
 			newFunctionDebug[n] = v
 		}
-		v, ok = wf.functionSignature[o]
+		v, ok = wf.Debug.FunctionSignature[o]
 		if ok {
 			newFunctionSignature[n] = v
 		}
 	}
 	wf.Debug.FunctionNames = newFunctionNames
-	wf.functionDebug = newFunctionDebug
-	wf.functionSignature = newFunctionSignature
+	wf.Debug.FunctionDebug = newFunctionDebug
+	wf.Debug.FunctionSignature = newFunctionSignature
 }

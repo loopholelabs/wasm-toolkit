@@ -17,6 +17,7 @@
 package debug
 
 import (
+	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
 	"strings"
@@ -27,6 +28,38 @@ type WasmDebug struct {
 	FunctionNames map[int]string
 	GlobalNames   map[int]string
 	DataNames     map[int]string
+
+	// dwarf debugging data
+	DwarfLoc    []byte
+	DwarfData   *dwarf.Data
+	LineNumbers map[uint64]LineInfo
+	// debug info derived from dwarf
+	FunctionDebug     map[int]string
+	FunctionSignature map[int]string
+	LocalNames        []*LocalNameData
+
+	GlobalAddresses map[string]*GlobalNameData
+}
+
+type LineInfo struct {
+	Filename   string
+	Linenumber int
+	Column     int
+}
+
+type LocalNameData struct {
+	StartPC uint64
+	EndPC   uint64
+	Index   int
+	VarName string
+	VarType string
+}
+
+type GlobalNameData struct {
+	Name    string
+	Address uint64
+	Size    uint64
+	Type    string
 }
 
 const subsectionModuleNames = 0

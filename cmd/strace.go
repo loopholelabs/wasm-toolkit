@@ -776,10 +776,10 @@ func GetWatchCode(wf *wasmfile.WasmFile) string {
 	watches := strings.Split(watch_globals, ",")
 	for widx, w := range watches {
 		// Lookup the address...
-		ginfo, ok := wf.GlobalAddresses[w]
+		ginfo, ok := wf.Debug.GlobalAddresses[w]
 		if !ok {
 			fmt.Printf("WARNING: I can't find the global %s\n", w)
-			for n := range wf.GlobalAddresses {
+			for n := range wf.Debug.GlobalAddresses {
 				fmt.Printf(" - Global %s\n", n)
 			}
 			panic("Global name not found")

@@ -21,6 +21,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 )
 
 func (wf *WasmFile) ParseDwarf() error {
@@ -33,7 +35,7 @@ func (wf *WasmFile) ParseDwarf() error {
 	debug_str := wf.GetCustomSectionData(".debug_str")
 
 	debug_loc := wf.GetCustomSectionData(".debug_loc")
-	wf.dwarfLoc = debug_loc
+	wf.Debug.DwarfLoc = debug_loc
 
 	debug_frame := make([]byte, 0) // call frame info
 
@@ -42,17 +44,17 @@ func (wf *WasmFile) ParseDwarf() error {
 		return nil // ok, but lets move on and ignore the error.
 	}
 
-	wf.dwarfData = dd
+	wf.Debug.DwarfData = dd
 	return nil
 }
 
 func (wf *WasmFile) ParseDwarfLineNumbers() error {
-	wf.lineNumbers = make(map[uint64]LineInfo)
+	wf.Debug.LineNumbers = make(map[uint64]debug.LineInfo)
 
-	if wf.dwarfData == nil {
+	if wf.Debug.DwarfData == nil {
 		return nil
 	}
-	entryReader := wf.dwarfData.Reader()
+	entryReader := wf.Debug.DwarfData.Reader()
 
 	for {
 		// Read all entries in sequence
@@ -63,7 +65,7 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 		}
 
 		if entry.Tag == dwarf.TagCompileUnit {
-			liner, err := wf.dwarfData.LineReader(entry)
+			liner, err := wf.Debug.DwarfData.LineReader(entry)
 
 			if err != nil {
 				return err
@@ -76,7 +78,7 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 						break
 					}
 
-					wf.lineNumbers[ent.Address] = LineInfo{
+					wf.Debug.LineNumbers[ent.Address] = debug.LineInfo{
 						Filename:   ent.File.Name,
 						Linenumber: ent.Line,
 						Column:     ent.Column,
@@ -90,7 +92,7 @@ func (wf *WasmFile) ParseDwarfLineNumbers() error {
 }
 
 func (wf *WasmFile) GetLocalVarName(pc uint64, index int) string {
-	for _, lnd := range wf.localNames {
+	for _, lnd := range wf.Debug.LocalNames {
 		if lnd.Index == index && (pc >= lnd.StartPC && pc <= lnd.EndPC) {
 			return lnd.VarName
 		}
@@ -99,7 +101,7 @@ func (wf *WasmFile) GetLocalVarName(pc uint64, index int) string {
 }
 
 func (wf *WasmFile) GetLocalVarType(pc uint64, index int) string {
-	for _, lnd := range wf.localNames {
+	for _, lnd := range wf.Debug.LocalNames {
 		if lnd.Index == index && (pc >= lnd.StartPC && pc <= lnd.EndPC) {
 			return lnd.VarType
 		}
@@ -110,7 +112,7 @@ func (wf *WasmFile) GetLocalVarType(pc uint64, index int) string {
 func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
 	// See if we have any line info...
 	lineInfo := ""
-	li, ok := wf.lineNumbers[pc]
+	li, ok := wf.Debug.LineNumbers[pc]
 	if ok {
 		lineInfo = fmt.Sprintf("%s:%d.%d", li.Filename, li.Linenumber, li.Column)
 	}
@@ -118,7 +120,7 @@ func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
 }
 
 func (wf *WasmFile) GetFunctionDebug(fid int) string {
-	de, ok := wf.functionDebug[fid]
+	de, ok := wf.Debug.FunctionDebug[fid]
 	if ok {
 		return de
 	}
@@ -126,14 +128,14 @@ func (wf *WasmFile) GetFunctionDebug(fid int) string {
 }
 
 func (wf *WasmFile) SetFunctionSignature(fid int, de string) {
-	if wf.functionSignature == nil {
-		wf.functionSignature = make(map[int]string)
+	if wf.Debug.FunctionSignature == nil {
+		wf.Debug.FunctionSignature = make(map[int]string)
 	}
-	wf.functionSignature[fid] = de
+	wf.Debug.FunctionSignature[fid] = de
 }
 
 func (wf *WasmFile) GetFunctionSignature(fid int) string {
-	de, ok := wf.functionSignature[fid]
+	de, ok := wf.Debug.FunctionSignature[fid]
 	if ok {
 		return de
 	}
@@ -156,7 +158,7 @@ func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
 
 	for pc := c.CodeSectionPtr; pc < c.CodeSectionPtr+c.CodeSectionLen; pc++ {
 		// Look it up...
-		li, ok := wf.lineNumbers[pc]
+		li, ok := wf.Debug.LineNumbers[pc]
 		if ok {
 			m, ok2 := ranges[li.Filename]
 			if ok2 {
@@ -191,35 +193,20 @@ func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
 	return info
 }
 
-type LocalNameData struct {
-	StartPC uint64
-	EndPC   uint64
-	Index   int
-	VarName string
-	VarType string
-}
-
-type GlobalNameData struct {
-	Name    string
-	Address uint64
-	Size    uint64
-	Type    string
-}
-
 func (wf *WasmFile) ParseDwarfVariables() error {
-	wf.functionDebug = make(map[int]string)
-	if wf.functionSignature == nil {
-		wf.functionSignature = make(map[int]string)
+	wf.Debug.FunctionDebug = make(map[int]string)
+	if wf.Debug.FunctionSignature == nil {
+		wf.Debug.FunctionSignature = make(map[int]string)
 	}
-	wf.localNames = make([]*LocalNameData, 0)
+	wf.Debug.LocalNames = make([]*debug.LocalNameData, 0)
 
-	wf.GlobalAddresses = make(map[string]*GlobalNameData)
+	wf.Debug.GlobalAddresses = make(map[string]*debug.GlobalNameData)
 
-	if wf.dwarfData == nil {
+	if wf.Debug.DwarfData == nil {
 		return nil
 	}
 
-	entryReader := wf.dwarfData.Reader()
+	entryReader := wf.Debug.DwarfData.Reader()
 
 	for {
 		// Read all entries in sequence
@@ -246,7 +233,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 					}
 				} else if field.Attr == dwarf.AttrType {
 					offset := field.Val.(dwarf.Offset)
-					ty, err := wf.dwarfData.Type(offset)
+					ty, err := wf.Debug.DwarfData.Type(offset)
 					if err == nil {
 						vsize = ty.Size()
 						vtype = ty.String()
@@ -259,13 +246,13 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 				if len(vaddr) == 5 && vaddr[0] == DW_OP_addr {
 					addr := binary.LittleEndian.Uint32(vaddr[1:])
 
-					globalInfo := &GlobalNameData{
+					globalInfo := &debug.GlobalNameData{
 						Name:    vname,
 						Address: uint64(addr),
 						Size:    uint64(vsize),
 						Type:    vtype,
 					}
-					wf.GlobalAddresses[vname] = globalInfo
+					wf.Debug.GlobalAddresses[vname] = globalInfo
 				} else {
 					// TODO
 					// fmt.Printf("Variable but not simple expr... %s %x\n", vname, vaddr)
@@ -311,7 +298,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 							switch field.Val.(type) {
 							case dwarf.Offset:
 								t := field.Val.(dwarf.Offset)
-								ty, err := wf.dwarfData.Type(t)
+								ty, err := wf.Debug.DwarfData.Type(t)
 								if err == nil {
 									vtype = ty.String()
 								}
@@ -336,7 +323,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 								for _, l := range locs {
 									if l.isLocal {
 										// Store in the locals lookup...
-										wf.localNames = append(wf.localNames, &LocalNameData{
+										wf.Debug.LocalNames = append(wf.Debug.LocalNames, &debug.LocalNameData{
 											StartPC: uint64(sploc), //ld.startAddress),
 											EndPC:   uint64(sploc), //ld.endAddress),
 											Index:   int(l.index),
@@ -368,7 +355,7 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 								for _, l := range locs {
 									if l.isLocal {
 										// Store in the locals lookup...
-										wf.localNames = append(wf.localNames, &LocalNameData{
+										wf.Debug.LocalNames = append(wf.Debug.LocalNames, &debug.LocalNameData{
 											StartPC: uint64(ld.startAddress),
 											EndPC:   uint64(ld.endAddress),
 											Index:   int(l.index),
@@ -391,8 +378,8 @@ func (wf *WasmFile) ParseDwarfVariables() error {
 			fid := wf.FindFunction(sploc)
 
 			if fid != -1 {
-				wf.functionSignature[fid] = fmt.Sprintf("%s(%s)", spname, params)
-				wf.functionDebug[fid] = function_debug
+				wf.Debug.FunctionSignature[fid] = fmt.Sprintf("%s(%s)", spname, params)
+				wf.Debug.FunctionDebug[fid] = function_debug
 			}
 		}
 	}
@@ -470,9 +457,9 @@ func (wf *WasmFile) ReadLocation(p uint64) []*LocationData {
 
 	ptr := p
 	for {
-		low := binary.LittleEndian.Uint32(wf.dwarfLoc[ptr:])
+		low := binary.LittleEndian.Uint32(wf.Debug.DwarfLoc[ptr:])
 		ptr += 4
-		high := binary.LittleEndian.Uint32(wf.dwarfLoc[ptr:])
+		high := binary.LittleEndian.Uint32(wf.Debug.DwarfLoc[ptr:])
 		ptr += 4
 		if low == 0 && high == 0 {
 			break
@@ -481,9 +468,9 @@ func (wf *WasmFile) ReadLocation(p uint64) []*LocationData {
 			baseAddress = high
 		} else {
 			// Read expr len
-			explen := binary.LittleEndian.Uint16(wf.dwarfLoc[ptr:])
+			explen := binary.LittleEndian.Uint16(wf.Debug.DwarfLoc[ptr:])
 			ptr += 2
-			expr := wf.dwarfLoc[ptr : ptr+uint64(explen)]
+			expr := wf.Debug.DwarfLoc[ptr : ptr+uint64(explen)]
 			ptr += uint64(explen)
 			ld = append(ld, &LocationData{
 				startAddress: baseAddress + low,
