@@ -24,17 +24,14 @@ import (
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
-type WasmContext interface {
-	GetLocalVarName(pc uint64, localIdx int) string
-}
-
 type WasmDebugContext interface {
 	GetLineNumberInfo(pc uint64) string
 	GetGlobalIdentifier(globalIdx int, defaultEmpty bool) string
 	GetFunctionIdentifier(funcIdx int, defaultEmpty bool) string
+	GetLocalVarName(pc uint64, localIdx int) string
 }
 
-func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext, wd WasmDebugContext) error {
+func (e *Expression) EncodeWat(w io.Writer, prefix string, wd WasmDebugContext) error {
 	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
 	lineNumberData := wd.GetLineNumberInfo(e.PC)
@@ -126,7 +123,7 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext, wd Wa
 	} else if e.Opcode == InstrToOpcode["local.get"] ||
 		e.Opcode == InstrToOpcode["local.set"] ||
 		e.Opcode == InstrToOpcode["local.tee"] {
-		tname := wf.GetLocalVarName(e.PC, e.LocalIndex)
+		tname := wd.GetLocalVarName(e.PC, e.LocalIndex)
 		if tname != "" {
 			comment = comment + " ;; Variable " + tname
 		}

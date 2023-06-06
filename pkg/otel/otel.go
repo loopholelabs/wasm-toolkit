@@ -120,7 +120,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 		return nil, err
 	}
 
-	err = wfile.ParseDwarfVariables()
+	err = wfile.Debug.ParseDwarfVariables(wfile)
 	if err != nil {
 		return nil, err
 	}
@@ -318,8 +318,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						vname := ""
 						vtype := ""
 						if c.PCValid {
-							vname = wfile.GetLocalVarName(c.CodeSectionPtr, idx)
-							vtype = wfile.GetLocalVarType(c.CodeSectionPtr, idx)
+							vname = wfile.Debug.GetLocalVarName(c.CodeSectionPtr, idx)
+							vtype = wfile.Debug.GetLocalVarType(c.CodeSectionPtr, idx)
 						}
 
 						target_idx := local_index_mirrored_params + idx
@@ -345,8 +345,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 							if vtype == "struct string" {
 								// Do a special log for the string value but only if the next param is also part of it
-								vname2 := wfile.GetLocalVarName(c.CodeSectionPtr, idx+1)
-								vtype2 := wfile.GetLocalVarType(c.CodeSectionPtr, idx+1)
+								vname2 := wfile.Debug.GetLocalVarName(c.CodeSectionPtr, idx+1)
+								vtype2 := wfile.Debug.GetLocalVarType(c.CodeSectionPtr, idx+1)
 
 								if vname2 == vname && vtype == vtype2 {
 									endCode = fmt.Sprintf(`%s
@@ -532,7 +532,7 @@ func wrapImports(wfile *wasmfile.WasmFile) map[int]string {
 			wasi_functions[newidx] = i.Name
 			de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
 			if ok {
-				wfile.SetFunctionSignature(newidx, de)
+				wfile.Debug.SetFunctionSignature(newidx, de)
 			}
 		}
 
@@ -588,7 +588,7 @@ func addFunctionInfo(wfile *wasmfile.WasmFile) {
 	for idx := 0; idx < num_functions; idx++ {
 		functionIndex := idx
 		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
-		signature := wfile.GetFunctionSignature(functionIndex)
+		signature := wfile.Debug.GetFunctionSignature(functionIndex)
 		debug := ""
 		if idx >= len(wfile.Import) {
 			c := wfile.Code[idx-len(wfile.Import)]

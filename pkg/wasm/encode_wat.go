@@ -93,7 +93,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, ee := range g.Expression {
-			err := ee.EncodeWat(&buf, "", wf, wf.Debug)
+			err := ee.EncodeWat(&buf, "", wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -150,7 +150,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(typedata.Param) > 0 {
 			for index, p := range typedata.Param {
 				comment := ""
-				vname := wf.GetLocalVarName(code.CodeSectionPtr, index)
+				vname := wf.Debug.GetLocalVarName(code.CodeSectionPtr, index)
 				if vname != "" {
 					comment = " ;; " + vname
 				}
@@ -170,7 +170,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		f := wf.Debug.GetFunctionIdentifier(index+len(wf.Import), true)
 
 		// Encode it and send it out...
-		d := wf.GetFunctionDebug(index + len(wf.Import))
+		d := wf.Debug.GetFunctionDebug(index + len(wf.Import))
 		tdata := fmt.Sprintf("\n    (func %s (type %d) ;; function_index=%d\n%s%s\n%s", f, tindex, index, d, params, results)
 		_, err = wr.WriteString(tdata)
 		if err != nil {
@@ -187,7 +187,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, e := range code.Expression {
-			err = e.EncodeWat(&buf, "        ", wf, wf.Debug)
+			err = e.EncodeWat(&buf, "        ", wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -239,7 +239,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, ee := range d.Offset {
-			err := ee.EncodeWat(&buf, "", wf, wf.Debug)
+			err := ee.EncodeWat(&buf, "", wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -259,7 +259,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, ee := range e.Offset {
-			err := ee.EncodeWat(&buf, "", wf, wf.Debug)
+			err := ee.EncodeWat(&buf, "", wf.Debug)
 			if err != nil {
 				return err
 			}

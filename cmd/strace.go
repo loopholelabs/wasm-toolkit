@@ -150,7 +150,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				wasi_functions[newidx] = i.Name
 				de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
 				if ok {
-					wfile.SetFunctionSignature(newidx, de)
+					wfile.Debug.SetFunctionSignature(newidx, de)
 				}
 			}
 
@@ -239,7 +239,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		}
 
 		fmt.Printf("Parsing dwarf local variables...\n")
-		err = wfile.ParseDwarfVariables()
+		err = wfile.Debug.ParseDwarfVariables(wfile)
 		if err != nil {
 			panic(err)
 		}
@@ -398,7 +398,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					// NB This assumes CodeSectionPtr to be correct...
 					if include_all || include_param_names {
 						if c.PCValid {
-							vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
+							vname := wfile.Debug.GetLocalVarName(c.CodeSectionPtr, paramIndex)
 							if vname != "" {
 								wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
 								startCode = fmt.Sprintf(`%s
@@ -423,7 +423,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					`, startCode, functionIndex)
 
 				// Now add a bit of debug....
-				funcSig := wfile.GetFunctionSignature(functionIndex)
+				funcSig := wfile.Debug.GetFunctionSignature(functionIndex)
 				if funcSig != "" && (include_all || include_func_signatures) {
 					wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(funcSig))
 					startCode = fmt.Sprintf(`%s
@@ -541,7 +541,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 						} else if config_log_locals &&
 							(e.Opcode == expression.InstrToOpcode["local.set"] || e.Opcode == expression.InstrToOpcode["local.tee"]) {
 
-							vname := wfile.GetLocalVarName(e.PC, e.LocalIndex)
+							vname := wfile.Debug.GetLocalVarName(e.PC, e.LocalIndex)
 
 							var ltype string
 							var debugPrefix string

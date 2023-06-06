@@ -38,7 +38,7 @@ func main() {
 	}
 
 	fmt.Printf("Parsing dwarf local variables...\n")
-	err = wfile.ParseDwarfVariables()
+	err = wfile.Debug.ParseDwarfVariables(wfile)
 	if err != nil {
 		panic(err)
 	}
