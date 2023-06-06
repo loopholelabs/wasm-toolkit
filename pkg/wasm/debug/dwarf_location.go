@@ -65,16 +65,98 @@ func (dl *DwarfLocations) ReadLocation(p uint64) []*LocationData {
 	return ld
 }
 
+const DW_OP_addr = 0x03
+const DW_OP_deref = 0x06
+const DW_OP_const1u = 0x08
+const DW_OP_const1s = 0x09
+const DW_OP_const2u = 0x0a
+const DW_OP_const2s = 0x0b
+const DW_OP_const4u = 0x0c
+const DW_OP_const4s = 0x0d
+const DW_OP_const8u = 0x0e
+const DW_OP_const8s = 0x0f
+
+const DW_OP_constu = 0x10
+const DW_OP_consts = 0x11
+const DW_OP_dup = 0x12
+const DW_OP_drop = 0x13
+const DW_OP_over = 0x14
+const DW_OP_pick = 0x15
+const DW_OP_swap = 0x16
+const DW_OP_rot = 0x17
+const DW_OP_xderef = 0x18
+const DW_OP_abs = 0x19
+const DW_OP_and = 0x1a
+const DW_OP_div = 0x1b
+const DW_OP_minus = 0x1c
+const DW_OP_mod = 0x1d
+const DW_OP_mul = 0x1e
+const DW_OP_neg = 0x1f
+
+const DW_OP_not = 0x20
+const DW_OP_or = 0x21
+const DW_OP_plus = 0x22
+const DW_OP_plus_uconst = 0x23
+const DW_OP_shl = 0x24
+const DW_OP_shr = 0x25
+const DW_OP_shra = 0x26
+const DW_OP_xor = 0x27
+const DW_OP_bra = 0x28
+const DW_OP_eq = 0x29
+const DW_OP_ge = 0x2a
+const DW_OP_gt = 0x2b
+const DW_OP_le = 0x2c
+const DW_OP_lt = 0x2d
+const DW_OP_ne = 0x2e
+const DW_OP_skip = 0x2f
+
+const DW_OP_regx = 0x90
+const DW_OP_fbreg = 0x91
+const DW_OP_bregx = 0x92
+const DW_OP_piece = 0x93
+const DW_OP_deref_size = 0x94
+const DW_OP_xderef_size = 0x95
+const DW_OP_nop = 0x96
+const DW_OP_push_object_address = 0x97
+const DW_OP_call2 = 0x98
+const DW_OP_call4 = 0x99
+const DW_OP_call_ref = 0x9a
+const DW_OP_form_tls_address = 0x9b
+const DW_OP_call_frame_cfa = 0x9c
+const DW_OP_bit_piece = 0x9d
+const DW_OP_implicit_value = 0x9e
+const DW_OP_stack_value = 0x9f
+
+const DW_OP_implicit_pointer = 0xa0
+const DW_OP_addrx = 0xa1
+const DW_OP_constx = 0xa2
+const DW_OP_entry_value = 0xa3
+const DW_OP_const_type = 0xa4
+const DW_OP_regval_type = 0xa5
+const DW_OP_deref_type = 0xa6
+const DW_OP_xderef_type = 0xa7
+const DW_OP_convert = 0xa8
+const DW_OP_reinterpret = 0xa9
+
+const DW_OP_lo_user = 0xe0
+const DW_OP_GNU_push_tls_address = 0xe0
+
 const DW_OP_WASM_location = 0xed
+
+const DW_OP_GNU_implicit_pointer = 0xf2
+const DW_OP_GNU_entry_value = 0xf3
+const DW_OP_GNU_const_type = 0xf4
+const DW_OP_GNU_regval_type = 0xf5
+const DW_OP_GNU_deref_type = 0xf6
+const DW_OP_GNU_convert = 0xf7
+const DW_OP_GNU_parameter_ref = 0xfa
+const DW_OP_hi_user = 0xff
+
+// DW_OP_WASM_location types
 const DW_Location_Local = 0
 const DW_Location_Global = 1
 const DW_Location_Stack = 2 // 0 = bottom of the stack
 const DW_Location_Global_i32 = 3
-
-const DW_OP_addr = 0x03
-
-const DW_OP_stack_value = 0x9f
-const DW_OP_piece = 0x93
 
 type WasmLocation struct {
 	IsLocal  bool
