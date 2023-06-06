@@ -233,7 +233,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 		// Parse the dwarf stuff *here* incase the above messed up function IDs
 		fmt.Printf("Parsing dwarf line numbers...\n")
-		err = wfile.ParseDwarfLineNumbers()
+		err = wfile.Debug.ParseDwarfLineNumbers()
 		if err != nil {
 			panic(err)
 		}
@@ -432,7 +432,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					call $debug_func_context`, startCode, functionIndex, functionIndex)
 				}
 
-				lineRange := wfile.GetLineNumberRange(c)
+				lineRange := wfile.Debug.GetLineNumberRange(c.CodeSectionPtr, c.CodeSectionPtr+c.CodeSectionLen)
 				if lineRange != "" && (include_all || include_line_numbers) {
 					wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(lineRange))
 					startCode = fmt.Sprintf(`%s
@@ -518,7 +518,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 							!e.GlobalNeedsLinking {
 							g := wfile.Global[e.GlobalIndex]
 							gtype := types.ByteToValType[g.Type]
-							linei := wfile.GetLineNumberBefore(c, e.PC)
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
 							// Add some debug data for this global.set
 							gdebug := fmt.Sprintf("global.set %s:%x %s | %d", fidentifier, e.PC, linei, e.GlobalIndex)
 							wfile.AddData(fmt.Sprintf("$dd_global_set_%d", e.PC), []byte(gdebug))
@@ -555,7 +555,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 								ltype = types.ByteToValType[l]
 								debugPrefix = "local.set(param)"
 							}
-							linei := wfile.GetLineNumberBefore(c, e.PC)
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
 							ldebug := fmt.Sprintf(" %s %s:%x %s | %d %s", debugPrefix, fidentifier, e.PC, linei, e.LocalIndex, vname)
 							wfile.AddData(fmt.Sprintf("$dd_local_set_%d", e.PC), []byte(ldebug))
 
@@ -668,7 +668,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 						}
 
 						if wcode != "" {
-							linei := wfile.GetLineNumberBefore(c, e.PC)
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
 							mdebug := fmt.Sprintf(" %s %s:%x %s", debugPrefix, fidentifier, e.PC, linei)
 							wfile.AddData(fmt.Sprintf("$dd_memory_set_%d", e.PC), []byte(mdebug))
 

@@ -48,49 +48,6 @@ func (wf *WasmFile) ParseDwarf() error {
 	return nil
 }
 
-func (wf *WasmFile) ParseDwarfLineNumbers() error {
-	wf.Debug.LineNumbers = make(map[uint64]debug.LineInfo)
-
-	if wf.Debug.DwarfData == nil {
-		return nil
-	}
-	entryReader := wf.Debug.DwarfData.Reader()
-
-	for {
-		// Read all entries in sequence
-		entry, err := entryReader.Next()
-		if entry == nil || err == io.EOF {
-			// We've reached the end of DWARF entries
-			break
-		}
-
-		if entry.Tag == dwarf.TagCompileUnit {
-			liner, err := wf.Debug.DwarfData.LineReader(entry)
-
-			if err != nil {
-				return err
-			}
-			if liner != nil {
-				ent := dwarf.LineEntry{}
-				for {
-					err = liner.Next(&ent)
-					if err == io.EOF {
-						break
-					}
-
-					wf.Debug.LineNumbers[ent.Address] = debug.LineInfo{
-						Filename:   ent.File.Name,
-						Linenumber: ent.Line,
-						Column:     ent.Column,
-					}
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 func (wf *WasmFile) GetLocalVarName(pc uint64, index int) string {
 	for _, lnd := range wf.Debug.LocalNames {
 		if lnd.Index == index && (pc >= lnd.StartPC && pc <= lnd.EndPC) {
@@ -107,16 +64,6 @@ func (wf *WasmFile) GetLocalVarType(pc uint64, index int) string {
 		}
 	}
 	return ""
-}
-
-func (wf *WasmFile) GetLineNumberInfo(pc uint64) string {
-	// See if we have any line info...
-	lineInfo := ""
-	li, ok := wf.Debug.LineNumbers[pc]
-	if ok {
-		lineInfo = fmt.Sprintf("%s:%d.%d", li.Filename, li.Linenumber, li.Column)
-	}
-	return lineInfo
 }
 
 func (wf *WasmFile) GetFunctionDebug(fid int) string {
@@ -140,57 +87,6 @@ func (wf *WasmFile) GetFunctionSignature(fid int) string {
 		return de
 	}
 	return ""
-}
-
-func (wf *WasmFile) GetLineNumberBefore(c *CodeEntry, startPc uint64) string {
-	for pc := startPc; pc >= c.CodeSectionPtr; pc-- {
-		l := wf.GetLineNumberInfo(pc)
-		if l != "" {
-			return l
-		}
-	}
-	return ""
-}
-
-func (wf *WasmFile) GetLineNumberRange(c *CodeEntry) string {
-	// Collect all the ranges together...
-	ranges := make(map[string][]int)
-
-	for pc := c.CodeSectionPtr; pc < c.CodeSectionPtr+c.CodeSectionLen; pc++ {
-		// Look it up...
-		li, ok := wf.Debug.LineNumbers[pc]
-		if ok {
-			m, ok2 := ranges[li.Filename]
-			if ok2 {
-				// Add it on...
-				ranges[li.Filename] = append(m, li.Linenumber)
-			} else {
-				ranges[li.Filename] = []int{li.Linenumber}
-			}
-		}
-	}
-
-	// Now lets bring things together...
-	info := ""
-
-	for filename, rg := range ranges {
-		min := -1
-		max := -1
-		for _, v := range rg {
-			if (min == -1) || (v < min) {
-				min = v
-			}
-			if (max == -1) || (v > max) {
-				max = v
-			}
-		}
-		if info != "" {
-			info = fmt.Sprintf("%s,", info)
-		}
-		info = fmt.Sprintf("%s%s(%d-%d)", info, filename, min, max)
-	}
-
-	return info
 }
 
 func (wf *WasmFile) ParseDwarfVariables() error {

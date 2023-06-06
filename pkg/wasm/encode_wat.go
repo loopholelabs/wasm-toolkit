@@ -200,7 +200,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		// Bit of a special case here. We know the function ends with an END opcode...
 		lastAddr := code.CodeSectionPtr + code.CodeSectionLen - 1
-		lineNumberData := wf.GetLineNumberInfo(lastAddr)
+		lineNumberData := wf.Debug.GetLineNumberInfo(lastAddr)
 		comment := ""
 		if lineNumberData != "" {
 			comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)

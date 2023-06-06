@@ -115,7 +115,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Parse the dwarf stuff *here*
-	err = wfile.ParseDwarfLineNumbers()
+	err = wfile.Debug.ParseDwarfLineNumbers()
 	if err != nil {
 		return nil, err
 	}
@@ -592,7 +592,7 @@ func addFunctionInfo(wfile *wasmfile.WasmFile) {
 		debug := ""
 		if idx >= len(wfile.Import) {
 			c := wfile.Code[idx-len(wfile.Import)]
-			debug = wfile.GetLineNumberRange(c)
+			debug = wfile.Debug.GetLineNumberRange(c.CodeSectionPtr, c.CodeSectionPtr+c.CodeSectionLen)
 		}
 
 		data_function_names_locs = binary.LittleEndian.AppendUint32(data_function_names_locs, uint32(len(data_function_names)))

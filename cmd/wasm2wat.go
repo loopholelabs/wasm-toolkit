@@ -50,8 +50,8 @@ func runWasm2Wat(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Parsing custom name section...\n")
-	wdebug := debug.WasmDebug{}
-	wdebug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
 	err = wfile.ParseDwarf()
@@ -60,7 +60,7 @@ func runWasm2Wat(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Parsing dwarf line numbers...\n")
-	err = wfile.ParseDwarfLineNumbers()
+	err = wfile.Debug.ParseDwarfLineNumbers()
 	if err != nil {
 		panic(err)
 	}

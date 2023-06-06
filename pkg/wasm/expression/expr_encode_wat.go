@@ -25,11 +25,11 @@ import (
 )
 
 type WasmContext interface {
-	GetLineNumberInfo(pc uint64) string
 	GetLocalVarName(pc uint64, localIdx int) string
 }
 
 type WasmDebugContext interface {
+	GetLineNumberInfo(pc uint64) string
 	GetGlobalIdentifier(globalIdx int, defaultEmpty bool) string
 	GetFunctionIdentifier(funcIdx int, defaultEmpty bool) string
 }
@@ -37,7 +37,7 @@ type WasmDebugContext interface {
 func (e *Expression) EncodeWat(w io.Writer, prefix string, wf WasmContext, wd WasmDebugContext) error {
 	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
-	lineNumberData := wf.GetLineNumberInfo(e.PC)
+	lineNumberData := wd.GetLineNumberInfo(e.PC)
 	if lineNumberData != "" {
 		comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)
 	}

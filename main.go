@@ -20,10 +20,10 @@ func main() {
 		panic(err)
 	}
 
-	wdebug := debug.WasmDebug{}
+	wfile.Debug = &debug.WasmDebug{}
 
 	fmt.Printf("Parsing custom name section...\n")
-	wdebug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
 	err = wfile.ParseDwarf()
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	fmt.Printf("Parsing dwarf line numbers...\n")
-	err = wfile.ParseDwarfLineNumbers()
+	err = wfile.Debug.ParseDwarfLineNumbers()
 	if err != nil {
 		panic(err)
 	}
