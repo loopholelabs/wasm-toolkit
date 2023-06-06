@@ -30,7 +30,7 @@ type WasmDebug struct {
 	DataNames     map[int]string
 
 	// dwarf debugging data
-	DwarfLoc    []byte
+	DwarfLoc    *DwarfLocations
 	DwarfData   *dwarf.Data
 	LineNumbers map[uint64]LineInfo
 	// debug info derived from dwarf
