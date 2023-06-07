@@ -124,6 +124,11 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wd WasmDebugContext) 
 		e.Opcode == InstrToOpcode["local.set"] ||
 		e.Opcode == InstrToOpcode["local.tee"] {
 		tname := wd.GetLocalVarName(e.PC, e.LocalIndex)
+		//
+		if tname == "" {
+			tname = wd.GetLocalVarName(e.PCNext, e.LocalIndex)
+		}
+
 		if tname != "" {
 			comment = comment + " ;; Variable " + tname
 		}

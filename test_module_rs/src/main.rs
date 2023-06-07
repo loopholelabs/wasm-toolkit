@@ -13,5 +13,15 @@ fn hello() {
 
 #[export_name = "example"]
 fn example_function(value_x:i32, value_y:i32) -> i32 {
-  return (value_x * value_y) + FUNNY_GLOBAL;
+  let mut local_var:i32 = 78;
+
+  if value_x==0 {
+    local_var+=1;
+  }
+
+  if value_y==0 {
+    local_var+=1;
+  }
+
+  return (value_x * value_y) + FUNNY_GLOBAL + local_var;
 }

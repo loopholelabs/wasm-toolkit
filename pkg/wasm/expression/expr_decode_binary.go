@@ -162,6 +162,8 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 			return nil, 0, fmt.Errorf("Unsupported opcode %d", data[ptr])
 		}
 
+		expr.PCNext = pc + uint64(ptr)
+
 		// Add it on to the list...
 		exps = append(exps, expr)
 	}

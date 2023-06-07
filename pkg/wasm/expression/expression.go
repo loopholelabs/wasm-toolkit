@@ -261,6 +261,7 @@ func init() {
 
 type Expression struct {
 	PC          uint64 // Program Counter (This is the byte offset into the Code section)
+	PCNext      uint64
 	Opcode      Opcode // Main opcode
 	OpcodeExt   int
 	I32Value    int32

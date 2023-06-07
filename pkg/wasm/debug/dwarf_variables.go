@@ -20,6 +20,7 @@ import (
 	"debug/dwarf"
 	"fmt"
 	"io"
+	"strings"
 )
 
 func (wd *WasmDebug) GetLocalVarName(pc uint64, index int) string {
@@ -67,17 +68,11 @@ type FunctionFinder interface {
 	FindFunction(uint64) int
 }
 
-func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
-	wd.FunctionDebug = make(map[int]string)
-	if wd.FunctionSignature == nil {
-		wd.FunctionSignature = make(map[int]string)
-	}
-	wd.LocalNames = make([]*LocalNameData, 0)
-
+func (wd *WasmDebug) ParseDwarfGlobals() {
 	wd.GlobalAddresses = make(map[string]*GlobalNameData)
 
 	if wd.DwarfData == nil {
-		return nil
+		return
 	}
 
 	entryReader := wd.DwarfData.Reader()
@@ -91,6 +86,7 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 		}
 
 		if entry.Tag == dwarf.TagVariable {
+
 			// Parse the location address
 			vname := ""
 			var vaddr []byte
@@ -138,6 +134,35 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 		}
 
 		if entry.Tag == dwarf.TagSubprogram {
+			entryReader.SkipChildren()
+		}
+	}
+}
+
+func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
+	wd.ParseDwarfGlobals()
+
+	wd.FunctionDebug = make(map[int]string)
+	if wd.FunctionSignature == nil {
+		wd.FunctionSignature = make(map[int]string)
+	}
+	wd.LocalNames = make([]*LocalNameData, 0)
+
+	if wd.DwarfData == nil {
+		return nil
+	}
+
+	entryReader := wd.DwarfData.Reader()
+
+	for {
+		// Read all entries in sequence
+		entry, err := entryReader.Next()
+		if entry == nil || err == io.EOF {
+			// We've reached the end of DWARF entries
+			break
+		}
+
+		if entry.Tag == dwarf.TagSubprogram {
 			spname := "<unknown>"
 			sploc := uint64(0)
 			for _, field := range entry.Field {
@@ -150,6 +175,14 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 						sploc = field.Val.(uint64)
 					}
 				}
+			}
+
+			log := false
+			if strings.HasPrefix(spname, "main.") ||
+				spname == "main" ||
+				spname == "example_function" {
+				fmt.Printf("TagSubprogram %s %d\n", spname, sploc)
+				log = true
 			}
 
 			params := ""
@@ -165,10 +198,18 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 						break
 					}
 
+					if log {
+						fmt.Printf(" Entry %v\n", entry)
+					}
+
 					vname := "<unknown>"
 					vtype := ""
 					vloc := int64(-1)
+					vlocbytes := make([]byte, 0)
 					for _, field := range entry.Field {
+						if log {
+							fmt.Printf(" .. %v\n", field)
+						}
 						if field.Attr == dwarf.AttrName {
 							vname = field.Val.(string)
 						} else if field.Attr == dwarf.AttrType {
@@ -184,30 +225,51 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 							switch field.Val.(type) {
 							case int64:
 								vloc = field.Val.(int64)
+							case []byte:
+								vlocbytes = field.Val.([]byte)
 							}
 						}
 					}
-
-					fmt.Printf("DwarfEntry tag=%v vname=%s entry=%v\n", entry.Tag, vname, entry)
 
 					if entry.Tag == dwarf.TagFormalParameter {
 						if vloc != -1 {
 							locdata := wd.DwarfLoc.ReadLocation(uint64(vloc))
 							for _, ld := range locdata {
 								// We have code ptr range here...
-
+								if log {
+									fmt.Printf("  = LocationData %d %d %x\n", ld.StartAddress, ld.EndAddress, ld.Expression)
+								}
 								locs := ld.ExtractWasmLocations()
 								for _, l := range locs {
 									if l.IsLocal {
-										// Store in the locals lookup...
 										wd.LocalNames = append(wd.LocalNames, &LocalNameData{
-											StartPC: uint64(sploc), //ld.startAddress),
-											EndPC:   uint64(sploc), //ld.endAddress),
+											StartPC: uint64(ld.StartAddress), //sploc),
+											EndPC:   uint64(ld.EndAddress),   //sploc),
 											Index:   int(l.Index),
 											VarName: vname,
 											VarType: vtype,
 										})
-
+										if log {
+											fmt.Printf("LocationLocal %s %s (%d-%d) %d local %d\n", spname, vname, ld.StartAddress, ld.EndAddress, sploc, l.Index)
+										}
+									}
+								}
+							}
+						} else {
+							ld := &LocationData{
+								Expression: vlocbytes,
+							}
+							locs := ld.ExtractWasmLocations()
+							for _, l := range locs {
+								if l.IsLocal {
+									wd.LocalNames = append(wd.LocalNames, &LocalNameData{
+										StartPC: uint64(ld.StartAddress), //sploc),
+										EndPC:   uint64(ld.EndAddress),   //sploc),
+										Index:   int(l.Index),
+										VarName: vname,
+										VarType: vtype,
+									})
+									if log {
 										fmt.Printf("LocationLocal %s %s (%d-%d) %d local %d\n", spname, vname, ld.StartAddress, ld.EndAddress, sploc, l.Index)
 									}
 								}
@@ -219,14 +281,17 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 						params = fmt.Sprintf("%s%s(%s)", params, vname, vtype)
 					} else if entry.Tag == dwarf.TagVariable {
 
-						//						fmt.Printf("TagVariable %v\n", entry)
+						if log {
+							fmt.Printf("  - Variable %v | %s %d [%x]\n", entry, vname, vloc, vlocbytes)
+						}
 
 						if vloc != -1 {
 							locdata := wd.DwarfLoc.ReadLocation(uint64(vloc))
 							for _, ld := range locdata {
-								// We have code ptr range here...
 
-								fmt.Printf("Var Data %s is %d %d %x\n", vname, ld.StartAddress, ld.EndAddress, ld.Expression)
+								if log {
+									fmt.Printf("  = LOC %d-%d : %x\n", ld.StartAddress, ld.EndAddress, ld.Expression)
+								}
 
 								locs := ld.ExtractWasmLocations()
 								for _, l := range locs {
@@ -239,7 +304,7 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 											VarName: vname,
 										})
 
-										fmt.Printf("LocationLocalVariable %s %s %d-%d  local %d\n", spname, vname, ld.StartAddress, ld.EndAddress, l.Index)
+										//										fmt.Printf("LocationLocalVariable %s %s %d-%d  local %d\n", spname, vname, ld.StartAddress, ld.EndAddress, l.Index)
 									}
 								}
 							}
@@ -260,5 +325,6 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 			}
 		}
 	}
+
 	return nil
 }

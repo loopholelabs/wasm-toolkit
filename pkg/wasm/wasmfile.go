@@ -316,7 +316,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 				}
 			}
 
-			wf.Renumber_functions(rmap)
+			wf.Debug.RenumberFunctions(rmap)
 			name := wfSource.Debug.GetFunctionIdentifier(idx, true)
 			if name != "" {
 				wf.Debug.FunctionNames[newidx] = name
@@ -557,29 +557,4 @@ func (te *TypeEntry) Equals(te2 *TypeEntry) bool {
 		}
 	}
 	return true
-}
-
-// Renumber functions using a remap
-func (wf *WasmFile) Renumber_functions(remap map[int]int) {
-	// This modifies FunctionNames, functionDebug, functionSignature
-	newFunctionNames := make(map[int]string)
-	newFunctionDebug := make(map[int]string)
-	newFunctionSignature := make(map[int]string)
-	for o, n := range remap {
-		v, ok := wf.Debug.FunctionNames[o]
-		if ok {
-			newFunctionNames[n] = v
-		}
-		v, ok = wf.Debug.FunctionDebug[o]
-		if ok {
-			newFunctionDebug[n] = v
-		}
-		v, ok = wf.Debug.FunctionSignature[o]
-		if ok {
-			newFunctionSignature[n] = v
-		}
-	}
-	wf.Debug.FunctionNames = newFunctionNames
-	wf.Debug.FunctionDebug = newFunctionDebug
-	wf.Debug.FunctionSignature = newFunctionSignature
 }

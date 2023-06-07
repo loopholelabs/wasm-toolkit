@@ -179,11 +179,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		data_wasi_err_ptrs = append(data_wasi_err_ptrs, []byte(m)...)
 	}
 
-	/*
-		datamap["$wasi_errors"] = we_data
-		datamap["$wasi_error_messages"] = er_data
-	*/
-
 	//Wasi_errors
 
 	// Load up the individual wat files, and add them in
@@ -226,6 +221,9 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("All wat code added...\n")
+
+	wfile.RedirectImport("scale", "watch", "$watch_add")
+	wfile.RedirectImport("scale", "unwatch", "$watch_del")
 
 	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 

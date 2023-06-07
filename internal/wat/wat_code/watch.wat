@@ -226,8 +226,15 @@
   (func $log_mem_filter (param $start i32) (param $end i32) (result i32)
     (local $c i32)
 
-    i32.const 0
-    local.set $c
+    ;; First check the dynamic watch ranges...
+    local.get $start
+    local.get $end
+    call $check_dynamic_watches
+    local.tee $c
+    if
+      local.get $c
+      return
+    end
 
     block
       loop
@@ -385,12 +392,27 @@
     local.get $memrange
     if
       local.get $memrange
-      i32.load offset=8
-      i32.const offset($wt_mem_tags)
-      i32.add
-      local.get $memrange
       i32.load offset=12
-      call $wt_print
+      if
+        local.get $memrange
+        i32.load offset=8
+        i32.const offset($wt_mem_tags)
+        i32.add
+        local.get $memrange
+        i32.load offset=12
+        call $wt_print
+      else
+        ;; It's an ID instead...
+        local.get $memrange
+        i32.load offset=8
+        i32.const offset($wt_id_tag)
+        i32.const 4
+        i32.add
+        call $wt_conv_byte_dec
+        i32.const offset($wt_id_tag)
+        i32.const length($wt_id_tag)
+        call $wt_print
+      end
     end
 
     ;;i32.const offset($log_watch_memory_1)
@@ -571,6 +593,114 @@
     local.get $address
   )
 
+  (func $check_dynamic_watches (param $start i32) (param $end i32) (result i32)
+    (local $p i32)
+    (local $cptr i32)
+
+    block
+      loop
+        local.get $p
+        global.get $wt_dynamic_mem_ranges_len
+        i32.ge_u
+        br_if 1
+
+        ;; Now check the range pointed at by index $p
+        local.get $p
+        i32.const 4
+        i32.shl
+        i32.const offset($wt_dynamic_mem_ranges)
+        i32.add
+        local.set $cptr
+
+        ;; Check the dynamic memory range here
+        local.get $start
+        local.get $cptr
+        i32.load
+        i32.ge_u
+        if
+          ;; $start is greater than the range start
+          local.get $end
+          local.get $cptr
+          i32.load offset=4
+          i32.le_u
+          if
+            ;; We are within the range
+            local.get $cptr
+            ;; Return ptr to the memory range info
+            return
+          end
+        end
+
+        local.get $p
+        i32.const 1
+        i32.add
+        local.set $p
+        br 0
+      end
+    end
+    i32.const 0
+  )
+
+  (func $watch_add (param $id i32) (param $addr i32) (param $len i32)
+    (local $p i32)
+
+  ;; Add a new entry in $wt_dynamic_mem_ranges
+    global.get $wt_dynamic_mem_ranges_len
+    i32.const 4
+    i32.shl
+    i32.const offset($wt_dynamic_mem_ranges)
+    i32.add
+    local.tee $p
+    i32.const length($wt_dynamic_mem_ranges)
+    i32.const offset($wt_dynamic_mem_ranges)
+    i32.add
+
+    i32.ge_u
+    if
+      ;; We ran out of watch space...
+      i32.const offset($error_watch_overflow)
+      i32.const length($error_watch_overflow)
+      call $wt_print
+      unreachable
+    end
+    ;; Store things here...
+    local.get $p
+    local.get $addr
+    i32.store
+    
+    local.get $p
+    local.get $addr
+    local.get $len
+    i32.add
+    i32.store offset=4
+
+    ;; Now store the tag. Len=0 means to use the ptr as an ID.
+    local.get $p
+    local.get $id
+    i32.store offset=8
+
+    local.get $p
+    i32.const 0
+    i32.store offset=12
+
+    global.get $wt_dynamic_mem_ranges_len
+    i32.const 1
+    i32.add
+    global.set $wt_dynamic_mem_ranges_len
+  )
+
+  (func $watch_del (param $id i32)
+    ;; Remove an entry from $wt_dynamic_mem_ranges
+    ;; TODO
+  )
+
+  (data $error_watch_overflow "We ran out of watch space.")
+
+  (data $wt_dynamic_mem_ranges 160)
+  (global $wt_dynamic_mem_ranges_len (mut i32) (i32.const 0))
+
+  (data $wt_id_tag "tag_+++")
+
   (data $log_watch_global_1 "GLOBAL ")
   (data $log_watch_global_2 " value ")
   (data $log_watch_global_3 "=>")
@@ -589,5 +719,6 @@
   (global $log_memory_value_i32 (mut i32) (i32.const 0))
   (global $log_memory_value_i64 (mut i64) (i64.const 0))
 
+  (data $debug_here "DEBUGOUT_")
 
 )

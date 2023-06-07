@@ -109,67 +109,8 @@ func runAddSource(ccmd *cobra.Command, args []string) {
 	wfile.AddData("$source_data", bytes)
 
 	// Now we need to remap any calls to the new functions
-
-	fid_get_source_len := wfile.LookupFunctionID("$get_source_len")
-	fid_get_source_ptr := wfile.LookupFunctionID("$get_source")
-
-	remap := map[int]int{}
-	remap_imports := map[int]int{}
-
-	// Now we need to REMOVE the old imports.
-	newImports := make([]*wasmfile.ImportEntry, 0)
-	for n, i := range wfile.Import {
-		if i.Module == "env" && i.Name == "get_source_len" {
-			remap_imports[n] = fid_get_source_len
-		} else if i.Module == "env" && i.Name == "get_source" {
-			remap_imports[n] = fid_get_source_ptr
-		} else {
-			remap[n] = len(newImports)
-			// Keep them for now...
-			newImports = append(newImports, i)
-		}
-
-	}
-
-	// Remap everything in the Code section because we're removing 2 imports.
-	for n, _ := range wfile.Code {
-		remap[len(wfile.Import)+n] = len(newImports) + n
-	}
-
-	// Remap the imports, and THEN remap due to removing the imports.
-	for idx, c := range wfile.Code {
-		if idx < originalFunctionLength {
-			c.ModifyAllCalls(remap_imports)
-			c.ModifyAllCalls(remap)
-		}
-	}
-
-	wfile.Import = newImports
-
-	// We also need to fixup any Elems sections
-	for _, el := range wfile.Elem {
-		for idx, funcidx := range el.Indexes {
-			newidx, ok := remap[int(funcidx)]
-			if ok {
-				el.Indexes[idx] = uint64(newidx)
-			}
-		}
-	}
-
-	// Fixup exports
-	for _, ex := range wfile.Export {
-		if ex.Type == types.ExportFunc {
-			newidx, ok := remap[ex.Index]
-			if ok {
-				ex.Index = newidx
-			}
-		}
-	}
-
-	// Now we need to remap any calls to the new functions
-
-	// Does this work ok?
-	wfile.Renumber_functions(remap)
+	wfile.RedirectImport("env", "get_source_len", "$get_source_len")
+	wfile.RedirectImport("env", "get_source", "$get_source")
 
 	// Find out how much data we need for the payload
 	total_payload_data := data_ptr

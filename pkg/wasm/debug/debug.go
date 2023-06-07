@@ -79,3 +79,28 @@ func (wd *WasmDebug) ParseDwarf(wf CustomSectionProvider) error {
 	wd.DwarfData = dd
 	return nil
 }
+
+// Renumber functions using a remap
+func (wd *WasmDebug) RenumberFunctions(remap map[int]int) {
+	// This modifies FunctionNames, functionDebug, functionSignature
+	newFunctionNames := make(map[int]string)
+	newFunctionDebug := make(map[int]string)
+	newFunctionSignature := make(map[int]string)
+	for o, n := range remap {
+		v, ok := wd.FunctionNames[o]
+		if ok {
+			newFunctionNames[n] = v
+		}
+		v, ok = wd.FunctionDebug[o]
+		if ok {
+			newFunctionDebug[n] = v
+		}
+		v, ok = wd.FunctionSignature[o]
+		if ok {
+			newFunctionSignature[n] = v
+		}
+	}
+	wd.FunctionNames = newFunctionNames
+	wd.FunctionDebug = newFunctionDebug
+	wd.FunctionSignature = newFunctionSignature
+}
