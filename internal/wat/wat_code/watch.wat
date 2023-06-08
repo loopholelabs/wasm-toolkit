@@ -696,7 +696,7 @@
 
   (data $error_watch_overflow "We ran out of watch space.")
 
-  (data $wt_dynamic_mem_ranges 160)
+  (data $wt_dynamic_mem_ranges 1600)
   (global $wt_dynamic_mem_ranges_len (mut i32) (i32.const 0))
 
   (data $wt_id_tag "tag_+++")

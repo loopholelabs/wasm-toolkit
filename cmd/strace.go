@@ -299,9 +299,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
 
 	// Add data for memory matching...
+	data_mem_ranges := make([]byte, 0)
+	data_mem_tags := make([]byte, 0)
+
 	if config_log_memory {
-		data_mem_ranges := make([]byte, 0)
-		data_mem_tags := make([]byte, 0)
 
 		for _, r := range config_log_mem_ranges {
 			// eg "tag=<min>-<max> max is optional"
@@ -335,9 +336,10 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 		fmt.Printf("mem ranges %x\n", data_mem_ranges)
 
-		wfile.AddData("$wt_mem_ranges", []byte(data_mem_ranges))
-		wfile.AddData("$wt_mem_tags", []byte(data_mem_tags))
 	}
+
+	wfile.AddData("$wt_mem_ranges", []byte(data_mem_ranges))
+	wfile.AddData("$wt_mem_tags", []byte(data_mem_tags))
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {

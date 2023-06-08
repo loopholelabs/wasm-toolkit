@@ -991,6 +991,7 @@
 
   (data $ot_at_type "type")
   (data $ot_at_type_fun "wasm function")
+  (data $ot_at_type_mem "memory access")
   (data $ot_at_type_quickjs_fun "quickjs function")
 
   (data $ot_at_fn_sig "function")

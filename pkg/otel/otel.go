@@ -72,7 +72,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	files := []string{
 		"memory.wat",
 		"stdout.wat",
-		"otel.wat"}
+		"otel.wat",
+		"otel_watch.wat"}
 
 	if config.Quickjs {
 		files = append(files, "quickjs.wat")
@@ -110,6 +111,12 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 			}
 			wasi_functions = newmap
 		})
+	}
+
+	watch_memory := false
+	if wfile.LookupImport("scale:watch") != -1 {
+		watch_memory = true
+		wfile.RedirectImport("scale", "watch", "$watch_add")
 	}
 
 	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
@@ -432,6 +439,116 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 				err = c.InsertFuncEnd(wfile, "end\n"+endCode)
 				if err != nil {
 					return nil, err
+				}
+
+				// Add memory logging code if they are importing `scale:watch`...
+				if watch_memory {
+					newCode := make([]*expression.Expression, 0)
+					for _, e := range c.Expression {
+						wcode := ""
+						debugPrefix := ""
+						if e.Opcode == expression.InstrToOpcode["i32.store"] {
+							debugPrefix = "i32.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store16"] {
+							debugPrefix = "i32.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store8"] {
+							debugPrefix = "i32.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if e.Opcode == expression.InstrToOpcode["i64.store"] {
+							debugPrefix = "i64.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 64
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store32"] {
+							debugPrefix = "i64.store32"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store16"] {
+							debugPrefix = "i64.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store8"] {
+							debugPrefix = "i64.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if wcode != "" {
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
+							mdebug := fmt.Sprintf(" %s %s:%x %s", debugPrefix, fidentifier, e.PC, linei)
+							wfile.AddData(fmt.Sprintf("$dd_memory_set_%d", e.PC), []byte(mdebug))
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+						}
+
+						/*
+							TODO Floats...
+							e.Opcode == InstrToOpcode["f32.store"] ||
+							e.Opcode == InstrToOpcode["f64.store"] ||
+						*/
+						newCode = append(newCode, e)
+					}
+					c.Expression = newCode
+
 				}
 
 			}
