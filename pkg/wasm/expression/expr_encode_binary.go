@@ -14,13 +14,15 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
 import (
 	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 )
 
 func (e *Expression) EncodeBinary(w io.Writer) error {
@@ -34,31 +36,31 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		err = writeUvarint(w, uint64(len(e.Labels)))
+		err = encoding.WriteUvarint(w, uint64(len(e.Labels)))
 		if err != nil {
 			return err
 		}
 		for _, l := range e.Labels {
-			err = writeUvarint(w, uint64(l))
+			err = encoding.WriteUvarint(w, uint64(l))
 			if err != nil {
 				return err
 			}
 		}
-		return writeUvarint(w, uint64(e.LabelIndex))
+		return encoding.WriteUvarint(w, uint64(e.LabelIndex))
 	} else if e.Opcode == InstrToOpcode["br"] ||
 		e.Opcode == InstrToOpcode["br_if"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		return writeUvarint(w, uint64(e.LabelIndex))
+		return encoding.WriteUvarint(w, uint64(e.LabelIndex))
 	} else if e.HasMemoryArgs() {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		err = writeUvarint(w, uint64(e.MemAlign))
-		return writeUvarint(w, uint64(e.MemOffset))
+		err = encoding.WriteUvarint(w, uint64(e.MemAlign))
+		return encoding.WriteUvarint(w, uint64(e.MemOffset))
 	} else if e.Opcode == InstrToOpcode["memory.size"] ||
 		e.Opcode == InstrToOpcode["memory.grow"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
@@ -80,13 +82,13 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return writeVarint(w, int64(e.I32Value))
+		return encoding.WriteVarint(w, int64(e.I32Value))
 	} else if e.Opcode == InstrToOpcode["i64.const"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		return writeVarint(w, e.I64Value)
+		return encoding.WriteVarint(w, e.I64Value)
 	} else if e.Opcode == InstrToOpcode["f32.const"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
@@ -113,36 +115,36 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return writeUvarint(w, uint64(e.LocalIndex))
+		return encoding.WriteUvarint(w, uint64(e.LocalIndex))
 	} else if e.Opcode == InstrToOpcode["global.get"] ||
 		e.Opcode == InstrToOpcode["global.set"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		return writeUvarint(w, uint64(e.GlobalIndex))
+		return encoding.WriteUvarint(w, uint64(e.GlobalIndex))
 	} else if e.Opcode == InstrToOpcode["call"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		return writeUvarint(w, uint64(e.FuncIndex))
+		return encoding.WriteUvarint(w, uint64(e.FuncIndex))
 	} else if e.Opcode == InstrToOpcode["call_indirect"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		err = writeUvarint(w, uint64(e.TypeIndex))
+		err = encoding.WriteUvarint(w, uint64(e.TypeIndex))
 		if err != nil {
 			return err
 		}
-		return writeUvarint(w, uint64(e.TableIndex))
+		return encoding.WriteUvarint(w, uint64(e.TableIndex))
 	} else if e.Opcode == ExtendedOpcodeFC {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {
 			return err
 		}
-		err = writeUvarint(w, uint64(e.OpcodeExt))
+		err = encoding.WriteUvarint(w, uint64(e.OpcodeExt))
 		if err != nil {
 			return err
 		}

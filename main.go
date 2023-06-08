@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 )
 
 func main() {
@@ -19,26 +20,25 @@ func main() {
 		panic(err)
 	}
 
+	wfile.Debug = &debug.WasmDebug{}
+
 	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
-	err = wfile.ParseDwarf()
+	err = wfile.Debug.ParseDwarf(wfile)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Parsing dwarf line numbers...\n")
-	err = wfile.ParseDwarfLineNumbers()
+	err = wfile.Debug.ParseDwarfLineNumbers()
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("Parsing dwarf local variables...\n")
-	err = wfile.ParseDwarfVariables()
+	err = wfile.Debug.ParseDwarfVariables(wfile)
 	if err != nil {
 		panic(err)
 	}

@@ -23,7 +23,9 @@ import (
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 
 	"github.com/spf13/cobra"
 )
@@ -56,10 +58,8 @@ func runAddSource(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	originalFunctionLength := len(wfile.Code)
 
@@ -78,7 +78,7 @@ func runAddSource(ccmd *cobra.Command, args []string) {
 	wfile.AddFuncsFrom(memFunctions, func(m map[int]int) {})
 
 	data_ptr := wfile.Memory[0].LimitMin << 16
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Now we can start doing what we want...
 
@@ -109,67 +109,8 @@ func runAddSource(ccmd *cobra.Command, args []string) {
 	wfile.AddData("$source_data", bytes)
 
 	// Now we need to remap any calls to the new functions
-
-	fid_get_source_len := wfile.LookupFunctionID("$get_source_len")
-	fid_get_source_ptr := wfile.LookupFunctionID("$get_source")
-
-	remap := map[int]int{}
-	remap_imports := map[int]int{}
-
-	// Now we need to REMOVE the old imports.
-	newImports := make([]*wasmfile.ImportEntry, 0)
-	for n, i := range wfile.Import {
-		if i.Module == "env" && i.Name == "get_source_len" {
-			remap_imports[n] = fid_get_source_len
-		} else if i.Module == "env" && i.Name == "get_source" {
-			remap_imports[n] = fid_get_source_ptr
-		} else {
-			remap[n] = len(newImports)
-			// Keep them for now...
-			newImports = append(newImports, i)
-		}
-
-	}
-
-	// Remap everything in the Code section because we're removing 2 imports.
-	for n, _ := range wfile.Code {
-		remap[len(wfile.Import)+n] = len(newImports) + n
-	}
-
-	// Remap the imports, and THEN remap due to removing the imports.
-	for idx, c := range wfile.Code {
-		if idx < originalFunctionLength {
-			c.ModifyAllCalls(remap_imports)
-			c.ModifyAllCalls(remap)
-		}
-	}
-
-	wfile.Import = newImports
-
-	// We also need to fixup any Elems sections
-	for _, el := range wfile.Elem {
-		for idx, funcidx := range el.Indexes {
-			newidx, ok := remap[int(funcidx)]
-			if ok {
-				el.Indexes[idx] = uint64(newidx)
-			}
-		}
-	}
-
-	// Fixup exports
-	for _, ex := range wfile.Export {
-		if ex.Type == wasmfile.ExportFunc {
-			newidx, ok := remap[ex.Index]
-			if ok {
-				ex.Index = newidx
-			}
-		}
-	}
-
-	// Now we need to remap any calls to the new functions
-
-	// Does this work ok?
-	wfile.Renumber_functions(remap)
+	wfile.RedirectImport("env", "get_source_len", "$get_source_len")
+	wfile.RedirectImport("env", "get_source", "$get_source")
 
 	// Find out how much data we need for the payload
 	total_payload_data := data_ptr
@@ -180,7 +121,7 @@ func runAddSource(ccmd *cobra.Command, args []string) {
 
 	payload_size := (total_payload_data + 65535) >> 16
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	// Pass on the fact of if source_file is gzip or not.
@@ -188,7 +129,7 @@ func runAddSource(ccmd *cobra.Command, args []string) {
 	if strings.HasSuffix(source_file, ".gz") {
 		source_gzipped = 1
 	}
-	wfile.SetGlobal("$source_gzipped", wasmfile.ValI32, fmt.Sprintf("i32.const %d", source_gzipped))
+	wfile.SetGlobal("$source_gzipped", types.ValI32, fmt.Sprintf("i32.const %d", source_gzipped))
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {

@@ -2,13 +2,46 @@
 
 
   ;; Show a quickjs arg
-  (func $otel_quickjs_arg (param $i i32) (param $v i64)
+  (func $otel_quickjs_arg (param $context i32) (param $i i32) (param $v i64)
+    local.get $i
+    i32.const offset($js_param)
+    i32.const 6
+    i32.add
+    call $wt_conv_byte_dec
+
+    local.get $context
+    i32.const offset($js_param)
+    i32.const length($js_param)
+    local.get $v
+    call $otel_quickjs_prop
+  )
+
+  ;; Show a quickjs value
+  (func $otel_quickjs_prop (param $context i32) (param $key_ptr i32) (param $key_len i32) (param $v i64)
     (local $tag i32)
     (local $val i32)
+
+    (local $exception i64)
 
     i32.const offset($ot_comma)
     i32.const length($ot_comma)
     call $otel_output_trace_data
+
+    ;; JS_JSONStringify
+
+    ;; Convert it to a string
+;;      i32.const 0
+;;      global.set $trace_enable
+;;    local.get $context
+;;    local.get $v
+;;    call $JS_ToQuotedString
+
+;;      i32.const 1
+;;      global.set $trace_enable
+    ;;local.set $str_val
+
+    ;; For testing...
+    ;; local.set $v
 
     ;; Split it into tag / value
     local.get $v
@@ -21,74 +54,175 @@
     i32.wrap_i64
     local.set $val
 
-    ;; If it's a simple INT argument...
+    ;; 0 TAG_INT
     local.get $tag
     i32.const 0
     i32.eq
     if
-      local.get $i
-      i32.const offset($ot_at_qjs_param_i)
-      i32.const 12
-      i32.add
-      call $wt_conv_byte_dec
-  
       local.get $val
       call $wt_format_i32_hex
 
-      i32.const offset($ot_at_qjs_param_i)
-      i32.const length($ot_at_qjs_param_i)
+      local.get $key_ptr
+      local.get $key_len
+      i32.const offset($js_type_int)
+      i32.const length($js_type_int)
       i32.const offset($db_number_i32)
       i32.const 8
+      call $otel_output_attr_var_string
+      return
+    end
+
+    ;; 1 TAG_BOOL
+    local.get $tag
+    i32.const 1
+    i32.eq
+    if
+    end
+
+    ;; 2 TAG_NULL
+    local.get $tag
+    i32.const 2
+    i32.eq
+    if
+    end
+
+    ;; 3 TAG_UNDEFINED
+    local.get $tag
+    i32.const 3
+    i32.eq
+    if
+      local.get $key_ptr
+      local.get $key_len
+      i32.const offset($js_type_undefined)
+      i32.const length($js_type_undefined)
       call $otel_output_attr_string
       return
     end
 
-    ;; If it's a simple string argument...
+    ;; 4 TAG_UNINITIALIZED
+    local.get $tag
+    i32.const 4
+    i32.eq
+    if
+    end
+
+    ;; 5 TAG_CATCH_OFFSET
+    local.get $tag
+    i32.const 5
+    i32.eq
+    if
+    end
+
+    ;; 6 TAG_EXCEPTION
+    local.get $tag
+    i32.const 6
+    i32.eq
+    if
+      global.get $trace_enable
+      i32.eqz
+      if
+        unreachable
+      end
+
+;;      i32.const 0
+;;      global.set $trace_enable
+
+      local.get $context
+      call $JS_GetException
+      drop
+;;      i32.const 1
+;;      global.set $trace_enable
+
+      local.get $v
+      ;; TODO Get useful info out of the object, or toString it...
+
+      call $wt_format_i64_hex
+
+      local.get $key_ptr
+      local.get $key_len
+      i32.const offset($js_type_exception)
+      i32.const length($js_type_exception)
+      i32.const offset($db_number_i64)
+      i32.const 16
+      call $otel_output_attr_var_string
+      return
+    end
+
+    ;; 7 TAG_FLOAT64
+    local.get $tag
+    i32.const 7
+    i32.eq
+    if
+    end
+
+    ;; -1 TAG_OBJECT
+    local.get $tag
+    i32.const 0xffffffff
+    i32.eq
+    if
+    end
+
+    ;; -7 TAG_STRING
     local.get $tag
     i32.const 0xfffffff9
     i32.eq
-    if
-      local.get $i
-      i32.const offset($ot_at_qjs_param_s)
-      i32.const 12
-      i32.add
-      call $wt_conv_byte_dec
-  
-      ;; Deal with the val
-      i32.const offset($ot_at_qjs_param_s)
-      i32.const length($ot_at_qjs_param_s)
+    if  
+      local.get $key_ptr
+      local.get $key_len
+      i32.const offset($js_type_string)
+      i32.const length($js_type_string)
 
       ;; Internal QuickJS. MAY CHANGE      
       local.get $val
       i32.const 16
       i32.add
-
       local.get $val
       i32.load offset=4
-
-      call $otel_output_attr_string
+      call $otel_output_attr_var_string
       return
     end
 
-    ;; Fallback generic output
-    local.get $i
-    i32.const offset($ot_at_qjs_param_o)
-    i32.const 12
-    i32.add
-    call $wt_conv_byte_dec
+    ;; -8 TAG_SYMBOL
+    local.get $tag
+    i32.const 0xfffffff8
+    i32.eq
+    if
+    end
 
+    ;; -9 TAG_BIG_FLOAT
+    local.get $tag
+    i32.const 0xfffffff7
+    i32.eq
+    if
+    end
+
+    ;; -10 TAG_BIG_INT
+    local.get $tag
+    i32.const 0xfffffff6
+    i32.eq
+    if
+    end
+
+    ;; -11 TAG_BIG_DECIMAL
+    local.get $tag
+    i32.const 0xfffffff5
+    i32.eq
+    if
+    end
+
+    ;; Fallback generic output
     local.get $v
     call $wt_format_i64_hex
 
-    i32.const offset($ot_at_qjs_param_o)
-    i32.const length($ot_at_qjs_param_o)
+    local.get $key_ptr
+    local.get $key_len
     i32.const offset($db_number_i64)
     i32.const 16
     call $otel_output_attr_string
 
   )
 
-  (func $otel_quickjs_call (param $context i32) (param $v_func i64) (param $v_this i64) (param $argc i32) (param $argv i32)
+  (func $otel_quickjs_call (param $ret i64) (param $context i32) (param $v_func i64) (param $v_this i64) (param $argc i32) (param $argv i32) (result i64)
     (local $par i32)
     (local $fn_string i64)
 
@@ -100,6 +234,7 @@
         i32.ge_u
         br_if 1
 
+        local.get $context
         ;; Get the js param and deal with it...
         local.get $par
 
@@ -120,6 +255,15 @@
       end
     end
 
+    ;; Now deal with the result...
+
+    local.get $context
+    i32.const offset($js_result)
+    i32.const length($js_result)
+    local.get $ret
+    call $otel_quickjs_prop
+
+    local.get $ret
   )
 
 (func $qjs_otel_exit_func (param $context i32) (param $v_func i64)
@@ -198,11 +342,25 @@
     i32.const length($ot_speech)
     call $otel_output_trace_data    
 
+      global.get $trace_enable
+      i32.eqz
+      if
+        unreachable
+      end
+
+      i32.const 0
+      global.set $trace_enable
+
+
     local.get $context
     local.get $v_func
     i32.const offset($atom_name)
     call $JS_GetPropertyStr
     local.set $fn_name
+
+      i32.const 1
+      global.set $trace_enable
+
 
     ;; Internal QuickJS. MAY CHANGE      
     local.get $fn_name
@@ -301,11 +459,13 @@
 
   )
 
-  (data $ot_at_qjs_param_i "qjs_param_i_000")
-  (data $ot_at_qjs_param_o "qjs_param_o_000")
-  (data $ot_at_qjs_param_s "qjs_param_s_000")
+  (data $js_param "param_000")
+  (data $js_result "result")
+
+  (data $js_type_int "(int)")
+  (data $js_type_string "(string)")
+  (data $js_type_exception "(exception)")
+  (data $js_type_undefined "(undefined)")
 
   (data $atom_name "name\00")
-
-
 )

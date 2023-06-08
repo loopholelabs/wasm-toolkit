@@ -1,8 +1,10 @@
-package wasmfile
+package expression
 
 import (
 	"bytes"
 
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 	"github.com/stretchr/testify/assert"
 
 	"testing"
@@ -16,12 +18,12 @@ func TestExpressionSleb(t *testing.T) {
 	// Encode the numbers
 	b := make([]byte, 0)
 	for _, n := range numbers {
-		b = AppendSleb128(b, n)
+		b = encoding.AppendSleb128(b, n)
 	}
 
 	// Now decode them and assert they're as expected
 	for _, expected := range numbers {
-		n, l := DecodeSleb128(b)
+		n, l := encoding.DecodeSleb128(b)
 		assert.Equal(t, n, expected)
 		b = b[l:]
 	}
@@ -41,7 +43,7 @@ func verifyEncodeDecode(t *testing.T, expr *Expression) *Expression {
 	assert.Equal(t, n, buf.Len())
 	assert.Equal(t, len(expr2), 1)
 
-	equal, err := expr.Equals(expr2[0])
+	equal := expr.Equals(expr2[0])
 
 	assert.True(t, equal)
 
@@ -128,7 +130,7 @@ func TestBlockIfLoop(t *testing.T) {
 	for _, c := range []string{"block", "if", "loop"} {
 		expr := &Expression{
 			Opcode: InstrToOpcode[c],
-			Result: ValI32,
+			Result: types.ValI32,
 		}
 
 		expr2 := verifyEncodeDecode(t, expr)

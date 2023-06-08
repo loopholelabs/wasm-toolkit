@@ -14,18 +14,27 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
 import (
 	"bufio"
 	"fmt"
 	"io"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
-func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
+type WasmDebugContext interface {
+	GetLineNumberInfo(pc uint64) string
+	GetGlobalIdentifier(globalIdx int, defaultEmpty bool) string
+	GetFunctionIdentifier(funcIdx int, defaultEmpty bool) string
+	GetLocalVarName(pc uint64, localIdx int) string
+}
+
+func (e *Expression) EncodeWat(w io.Writer, prefix string, wd WasmDebugContext) error {
 	comment := "" //fmt.Sprintf("    ;; PC=%d", e.PC) // TODO From line numbers, vars etc
 
-	lineNumberData := wf.GetLineNumberInfo(e.PC)
+	lineNumberData := wd.GetLineNumberInfo(e.PC)
 	if lineNumberData != "" {
 		comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)
 	}
@@ -76,8 +85,8 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		e.Opcode == InstrToOpcode["loop"] {
 
 		result := ""
-		if e.Result != ValNone {
-			result = fmt.Sprintf(" (result %s)", ByteToValType[e.Result])
+		if e.Result != types.ValNone {
+			result = fmt.Sprintf(" (result %s)", types.ByteToValType[e.Result])
 		}
 
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], result, comment))
@@ -114,7 +123,12 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 	} else if e.Opcode == InstrToOpcode["local.get"] ||
 		e.Opcode == InstrToOpcode["local.set"] ||
 		e.Opcode == InstrToOpcode["local.tee"] {
-		tname := wf.GetLocalVarName(e.PC, e.LocalIndex)
+		tname := wd.GetLocalVarName(e.PC, e.LocalIndex)
+		//
+		if tname == "" {
+			tname = wd.GetLocalVarName(e.PCNext, e.LocalIndex)
+		}
+
 		if tname != "" {
 			comment = comment + " ;; Variable " + tname
 		}
@@ -123,12 +137,12 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wf *WasmFile) error {
 		return err
 	} else if e.Opcode == InstrToOpcode["global.get"] ||
 		e.Opcode == InstrToOpcode["global.set"] {
-		g := wf.GetGlobalIdentifier(e.GlobalIndex, false)
+		g := wd.GetGlobalIdentifier(e.GlobalIndex, false)
 		globalTarget := fmt.Sprintf(" %s", g)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
 		return err
 	} else if e.Opcode == InstrToOpcode["call"] {
-		f := wf.GetFunctionIdentifier(e.FuncIndex, false)
+		f := wd.GetFunctionIdentifier(e.FuncIndex, false)
 		callTarget := fmt.Sprintf(" %s", f)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], callTarget, comment))
 		return err

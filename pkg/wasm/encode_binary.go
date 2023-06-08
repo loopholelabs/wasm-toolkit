@@ -20,6 +20,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func writeSectionHeader(w io.Writer, s byte, length int) error {
@@ -27,28 +30,6 @@ func writeSectionHeader(w io.Writer, s byte, length int) error {
 	sectionHeadBuffer[0] = s
 	l := binary.PutUvarint(sectionHeadBuffer[1:], uint64(length))
 	_, err := w.Write(sectionHeadBuffer[:l+1])
-	return err
-}
-
-func writeString(w io.Writer, s string) error {
-	data := []byte(s)
-	err := writeUvarint(w, uint64(len(data)))
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(data)
-	return err
-}
-
-func writeUvarint(w io.Writer, v uint64) error {
-	b := binary.AppendUvarint(make([]byte, 0), v)
-	_, err := w.Write(b)
-	return err
-}
-
-func writeVarint(w io.Writer, v int64) error {
-	b := AppendSleb128(make([]byte, 0), v)
-	_, err := w.Write(b)
 	return err
 }
 
@@ -64,7 +45,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Type
 	if len(wf.Type) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Type)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Type)))
 		for _, t := range wf.Type {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -73,7 +54,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single type section
-		writeSectionHeader(w, byte(SectionType), buf.Len())
+		writeSectionHeader(w, byte(types.SectionType), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -83,7 +64,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Import
 	if len(wf.Import) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Import)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Import)))
 		for _, i := range wf.Import {
 			err = i.EncodeBinary(&buf)
 			if err != nil {
@@ -92,7 +73,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single import section
-		writeSectionHeader(w, byte(SectionImport), buf.Len())
+		writeSectionHeader(w, byte(types.SectionImport), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -102,7 +83,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Function
 	if len(wf.Function) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Function)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Function)))
 		for _, f := range wf.Function {
 			err = f.EncodeBinary(&buf)
 			if err != nil {
@@ -111,7 +92,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single function section
-		writeSectionHeader(w, byte(SectionFunction), buf.Len())
+		writeSectionHeader(w, byte(types.SectionFunction), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -121,7 +102,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Table
 	if len(wf.Table) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Table)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Table)))
 		for _, t := range wf.Table {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -130,7 +111,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single table section
-		writeSectionHeader(w, byte(SectionTable), buf.Len())
+		writeSectionHeader(w, byte(types.SectionTable), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -140,7 +121,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Memory
 	if len(wf.Memory) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Memory)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Memory)))
 		for _, t := range wf.Memory {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -149,7 +130,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single memory section
-		writeSectionHeader(w, byte(SectionMemory), buf.Len())
+		writeSectionHeader(w, byte(types.SectionMemory), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -159,7 +140,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Global
 	if len(wf.Global) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Global)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Global)))
 		for _, t := range wf.Global {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -168,7 +149,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single memory section
-		writeSectionHeader(w, byte(SectionGlobal), buf.Len())
+		writeSectionHeader(w, byte(types.SectionGlobal), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -178,7 +159,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Export
 	if len(wf.Export) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Export)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Export)))
 		for _, t := range wf.Export {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -187,7 +168,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single export section
-		writeSectionHeader(w, byte(SectionExport), buf.Len())
+		writeSectionHeader(w, byte(types.SectionExport), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -199,7 +180,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Elem
 	if len(wf.Elem) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Elem)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Elem)))
 		for _, t := range wf.Elem {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -208,7 +189,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single elem section
-		writeSectionHeader(w, byte(SectionElem), buf.Len())
+		writeSectionHeader(w, byte(types.SectionElem), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -217,10 +198,10 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 
 	// Section DataCount
 	var buf bytes.Buffer
-	writeUvarint(&buf, uint64(len(wf.Data)))
+	encoding.WriteUvarint(&buf, uint64(len(wf.Data)))
 
 	// Write a single data count section
-	writeSectionHeader(w, byte(SectionDataCount), buf.Len())
+	writeSectionHeader(w, byte(types.SectionDataCount), buf.Len())
 	_, err = w.Write(buf.Bytes())
 	if err != nil {
 		return err
@@ -229,7 +210,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Code
 	if len(wf.Code) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Code)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Code)))
 		for _, c := range wf.Code {
 			err = c.EncodeBinary(&buf)
 			if err != nil {
@@ -238,7 +219,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single code section
-		writeSectionHeader(w, byte(SectionCode), buf.Len())
+		writeSectionHeader(w, byte(types.SectionCode), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -248,7 +229,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	// Section Data
 	if len(wf.Data) > 0 {
 		var buf bytes.Buffer
-		writeUvarint(&buf, uint64(len(wf.Data)))
+		encoding.WriteUvarint(&buf, uint64(len(wf.Data)))
 		for _, t := range wf.Data {
 			err = t.EncodeBinary(&buf)
 			if err != nil {
@@ -257,7 +238,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		}
 
 		// Write a single data section
-		writeSectionHeader(w, byte(SectionData), buf.Len())
+		writeSectionHeader(w, byte(types.SectionData), buf.Len())
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			return err
@@ -269,7 +250,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 		for _, c := range wf.Custom {
 			var buf bytes.Buffer
 			// Write the name, and the data...
-			writeString(&buf, c.Name)
+			encoding.WriteString(&buf, c.Name)
 			// Now write the data into &buf
 			_, err := buf.Write(c.Data)
 			if err != nil {
@@ -277,7 +258,7 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 			}
 
 			// Write a single type section
-			writeSectionHeader(w, byte(SectionCustom), buf.Len())
+			writeSectionHeader(w, byte(types.SectionCustom), buf.Len())
 			_, err = w.Write(buf.Bytes())
 			if err != nil {
 				return err
@@ -289,11 +270,11 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 }
 
 func (ie *ImportEntry) EncodeBinary(w io.Writer) error {
-	err := writeString(w, ie.Module)
+	err := encoding.WriteString(w, ie.Module)
 	if err != nil {
 		return err
 	}
-	err = writeString(w, ie.Name)
+	err = encoding.WriteString(w, ie.Name)
 	if err != nil {
 		return err
 	}
@@ -304,19 +285,19 @@ func (ie *ImportEntry) EncodeBinary(w io.Writer) error {
 		return err
 	}
 
-	return writeUvarint(w, uint64(ie.Index))
+	return encoding.WriteUvarint(w, uint64(ie.Index))
 }
 
 func (te *TypeEntry) EncodeBinary(w io.Writer) error {
 	// Write out funcTypePrefix (only thing it supports atm)
 	typePrefix := make([]byte, 1)
-	typePrefix[0] = FuncTypePrefix
+	typePrefix[0] = types.FuncTypePrefix
 	_, err := w.Write(typePrefix)
 	if err != nil {
 		return err
 	}
 
-	err = writeUvarint(w, uint64(len(te.Param)))
+	err = encoding.WriteUvarint(w, uint64(len(te.Param)))
 	if err != nil {
 		return err
 	}
@@ -330,7 +311,7 @@ func (te *TypeEntry) EncodeBinary(w io.Writer) error {
 		return err
 	}
 
-	err = writeUvarint(w, uint64(len(te.Result)))
+	err = encoding.WriteUvarint(w, uint64(len(te.Result)))
 	if err != nil {
 		return err
 	}
@@ -345,7 +326,7 @@ func (te *TypeEntry) EncodeBinary(w io.Writer) error {
 }
 
 func (f *FunctionEntry) EncodeBinary(w io.Writer) error {
-	err := writeUvarint(w, uint64(f.TypeIndex))
+	err := encoding.WriteUvarint(w, uint64(f.TypeIndex))
 	return err
 }
 
@@ -354,12 +335,12 @@ func (c *TableEntry) EncodeBinary(w io.Writer) error {
 
 	buf.WriteByte(c.TableType)
 	if c.LimitMax == 0 { // TODO: Fixme
-		buf.WriteByte(LimitTypeMin)
-		writeUvarint(&buf, uint64(c.LimitMin))
+		buf.WriteByte(types.LimitTypeMin)
+		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 	} else {
-		buf.WriteByte(LimitTypeMinMax)
-		writeUvarint(&buf, uint64(c.LimitMin))
-		writeUvarint(&buf, uint64(c.LimitMax))
+		buf.WriteByte(types.LimitTypeMinMax)
+		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
+		encoding.WriteUvarint(&buf, uint64(c.LimitMax))
 	}
 
 	_, err := w.Write(buf.Bytes())
@@ -370,12 +351,12 @@ func (c *MemoryEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
 	if c.LimitMax == 0 { // TODO: Fixme
-		buf.WriteByte(LimitTypeMin)
-		writeUvarint(&buf, uint64(c.LimitMin))
+		buf.WriteByte(types.LimitTypeMin)
+		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 	} else {
-		buf.WriteByte(LimitTypeMinMax)
-		writeUvarint(&buf, uint64(c.LimitMin))
-		writeUvarint(&buf, uint64(c.LimitMax))
+		buf.WriteByte(types.LimitTypeMinMax)
+		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
+		encoding.WriteUvarint(&buf, uint64(c.LimitMax))
 
 	}
 
@@ -401,9 +382,9 @@ func (c *GlobalEntry) EncodeBinary(w io.Writer) error {
 func (c *ExportEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
-	writeString(&buf, c.Name)
+	encoding.WriteString(&buf, c.Name)
 	buf.WriteByte(byte(c.Type))
-	writeUvarint(&buf, uint64(c.Index))
+	encoding.WriteUvarint(&buf, uint64(c.Index))
 
 	_, err := w.Write(buf.Bytes())
 	return err
@@ -412,9 +393,9 @@ func (c *ExportEntry) EncodeBinary(w io.Writer) error {
 func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
-	writeUvarint(&buf, uint64(len(c.Locals)))
+	encoding.WriteUvarint(&buf, uint64(len(c.Locals)))
 	for _, l := range c.Locals {
-		writeUvarint(&buf, 1)
+		encoding.WriteUvarint(&buf, 1)
 		buf.WriteByte(byte(l))
 	}
 
@@ -426,7 +407,7 @@ func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 	}
 	buf.WriteByte(0x0b) // END
 
-	err := writeUvarint(w, uint64(buf.Len()))
+	err := encoding.WriteUvarint(w, uint64(buf.Len()))
 	if err != nil {
 		return err
 	}
@@ -437,7 +418,7 @@ func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 func (c *ElemEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
-	err := writeUvarint(&buf, uint64(c.TableIndex))
+	err := encoding.WriteUvarint(&buf, uint64(c.TableIndex))
 	if err != nil {
 		return err
 	}
@@ -452,12 +433,12 @@ func (c *ElemEntry) EncodeBinary(w io.Writer) error {
 		return err
 	}
 
-	err = writeUvarint(w, uint64(len(c.Indexes)))
+	err = encoding.WriteUvarint(w, uint64(len(c.Indexes)))
 	if err != nil {
 		return err
 	}
 	for _, ii := range c.Indexes {
-		err = writeUvarint(w, ii)
+		err = encoding.WriteUvarint(w, ii)
 		if err != nil {
 			return err
 		}
@@ -468,7 +449,7 @@ func (c *ElemEntry) EncodeBinary(w io.Writer) error {
 func (c *DataEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
-	err := writeUvarint(&buf, uint64(c.MemIndex))
+	err := encoding.WriteUvarint(&buf, uint64(c.MemIndex))
 	if err != nil {
 		return err
 	}
@@ -483,7 +464,7 @@ func (c *DataEntry) EncodeBinary(w io.Writer) error {
 		return err
 	}
 
-	err = writeUvarint(w, uint64(len(c.Data)))
+	err = encoding.WriteUvarint(w, uint64(len(c.Data)))
 	if err != nil {
 		return err
 	}

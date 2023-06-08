@@ -25,7 +25,10 @@ import (
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 type Otel_config struct {
@@ -49,13 +52,11 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	}
 
 	// Parse custom name section
-	err = wfile.ParseName()
-	if err != nil {
-		return nil, err
-	}
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	// Parsing custom dwarf debug section
-	err = wfile.ParseDwarf()
+	err = wfile.Debug.ParseDwarf(wfile)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	files := []string{
 		"memory.wat",
 		"stdout.wat",
-		"otel.wat"}
+		"otel.wat",
+		"otel_watch.wat"}
 
 	if config.Quickjs {
 		files = append(files, "quickjs.wat")
@@ -111,22 +113,28 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 		})
 	}
 
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	watch_memory := false
+	if wfile.LookupImport("scale:watch") != -1 {
+		watch_memory = true
+		wfile.RedirectImport("scale", "watch", "$watch_add")
+	}
+
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	// Parse the dwarf stuff *here*
-	err = wfile.ParseDwarfLineNumbers()
+	err = wfile.Debug.ParseDwarfLineNumbers()
 	if err != nil {
 		return nil, err
 	}
 
-	err = wfile.ParseDwarfVariables()
+	err = wfile.Debug.ParseDwarfVariables(wfile)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get a list of available watch variables.
 	globalNames := "["
-	for n := range wfile.GlobalAddresses {
+	for n := range wfile.Debug.GlobalAddresses {
 		if globalNames != "[" {
 			globalNames = globalNames + ", "
 		}
@@ -135,19 +143,23 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	globalNames = globalNames + "]"
 
 	// Lookup any global watch variables we need
-	for _, n := range config.Watch_variables {
-		ginfo, ok := wfile.GlobalAddresses[n]
-		if !ok {
-			return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
-		} else {
-			fmt.Printf("Using watch variable %s at address %d size %d with type %s\n", n, ginfo.Address, ginfo.Size, ginfo.Type)
+	/*
+		for _, n := range config.Watch_variables {
+			ginfo, ok := wfile.GlobalAddresses[n]
+			if !ok {
+				return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
+			} else {
+				fmt.Printf("Using watch variable %s at address %d size %d with type %s\n", n, ginfo.Address, ginfo.Size, ginfo.Type)
+			}
 		}
-	}
+	*/
 
 	// Add the wasi error info
 	addWasiErrorInfo(wfile)
 	// Add function info
 	addFunctionInfo(wfile)
+
+	wfile.AddGlobal("$trace_enable", types.ValI32, "i32.const 1")
 
 	// Now do function adjustments
 	for idx, c := range wfile.Code {
@@ -163,7 +175,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 			}
 
 			functionIndex := idx + len(wfile.Import)
-			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
+			fidentifier := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 			match, err := regexp.MatchString(config.Func_regexp, fidentifier)
 			if err != nil {
@@ -181,7 +193,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 				local_index_local := len(t.Param)
 				local_index_mirrored_params := local_index_local + len(c.Locals)
 
-				new_locals := make([]wasmfile.ValType, 0)
+				new_locals := make([]types.ValType, 0)
 				new_locals = append(new_locals, c.Locals...)
 				for _, vt := range t.Param {
 					new_locals = append(new_locals, vt)
@@ -191,7 +203,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 				blockInstr := "block"
 				if len(t.Result) > 0 {
-					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
+					blockInstr = fmt.Sprintf("block (result %s)", types.ByteToValType[t.Result[0]])
 				}
 
 				startCode := fmt.Sprintf(`%s
@@ -239,9 +251,67 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						local_index_mirrored_params+4, // argc
 						local_index_mirrored_params+5) // args
 
+					local_scratch := len(t.Param) + len(c.Locals)
+					c.Locals = append(c.Locals, types.ValI64)
+
+					// Add any watch variables...
+					for i, n := range config.Watch_variables {
+						wfile.AddData(fmt.Sprintf("$_watch_expr_%d", i), append([]byte(n), 0))
+						wname := []byte(fmt.Sprintf("watch_%d", i))
+						fmt.Printf("Adding watch for %d - %s - %s\n", i, n, wname)
+
+						wfile.AddData(fmt.Sprintf("$_watch_expr_name_%d", i), append(wname, 0))
+
+						// NB We do the JS_Eval first, incase it does memory.grow and tracing data changes.
+						// TODO: Is the $_watch_expr_%d safe? What if memory.grow is called before it's read? Should we use JS_NewCString?
+
+						endCode = fmt.Sprintf(`%s
+								local.get %d
+								i32.const offset($_watch_expr_%d)
+								i32.const length($_watch_expr_%d)
+								i32.const 1
+								i32.sub
+								i32.const offset($_watch_expr_name_%d)
+								i32.const 0
+
+								i32.const 0
+								global.set $trace_enable
+								call $JS_Eval
+								i32.const 1
+								global.set $trace_enable
+								local.set %d
+
+								local.get %d
+
+								i32.const offset($_watch_expr_name_%d)
+								i32.const length($_watch_expr_name_%d)
+								i32.const 1
+								i32.sub
+								local.get %d
+								call $otel_quickjs_prop
+							`, endCode,
+							local_index_mirrored_params, // context
+							i,
+							i,
+							i,
+							local_scratch,
+							local_index_mirrored_params,
+							i,
+							i,
+							local_scratch)
+					}
+
 					endCode = fmt.Sprintf(`%s
 						i32.const %d
 						call $otel_exit_func_done`, endCode, functionIndex)
+
+					endCode = fmt.Sprintf(`
+						global.get $trace_enable
+						i32.eqz
+						br_if 0
+						%s
+						`, endCode)
+
 				} else {
 
 					endCode = fmt.Sprintf(`%s
@@ -255,8 +325,8 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						vname := ""
 						vtype := ""
 						if c.PCValid {
-							vname = wfile.GetLocalVarName(c.CodeSectionPtr, idx)
-							vtype = wfile.GetLocalVarType(c.CodeSectionPtr, idx)
+							vname = wfile.Debug.GetLocalVarName(c.CodeSectionPtr, idx)
+							vtype = wfile.Debug.GetLocalVarType(c.CodeSectionPtr, idx)
 						}
 
 						target_idx := local_index_mirrored_params + idx
@@ -278,12 +348,12 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 								idx,
 								functionIndex,
 								idx,
-								wasmfile.ByteToValType[vt])
+								types.ByteToValType[vt])
 
 							if vtype == "struct string" {
 								// Do a special log for the string value but only if the next param is also part of it
-								vname2 := wfile.GetLocalVarName(c.CodeSectionPtr, idx+1)
-								vtype2 := wfile.GetLocalVarType(c.CodeSectionPtr, idx+1)
+								vname2 := wfile.Debug.GetLocalVarName(c.CodeSectionPtr, idx+1)
+								vtype2 := wfile.Debug.GetLocalVarType(c.CodeSectionPtr, idx+1)
 
 								if vname2 == vname && vtype == vtype2 {
 									endCode = fmt.Sprintf(`%s
@@ -313,7 +383,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 								i32.const %d
 								i32.const %d
 								local.get %d
-								call $otel_exit_func_%s`, endCode, functionIndex, idx, target_idx, wasmfile.ByteToValType[vt])
+								call $otel_exit_func_%s`, endCode, functionIndex, idx, target_idx, types.ByteToValType[vt])
 						}
 					}
 
@@ -322,12 +392,15 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 						rt := t.Result[0]
 						endCode = fmt.Sprintf(`%s
 							i32.const %d
-							call $otel_exit_func_result_%s`, endCode, functionIndex, wasmfile.ByteToValType[rt])
+							call $otel_exit_func_result_%s`, endCode, functionIndex, types.ByteToValType[rt])
 					}
 
 					// Add any watch variables...
 					for i, n := range config.Watch_variables {
-						ginfo := wfile.GlobalAddresses[n]
+						ginfo, ok := wfile.Debug.GlobalAddresses[n]
+						if !ok {
+							return nil, fmt.Errorf("Watch variable %s not found. Options are %s\n", n, globalNames)
+						}
 						// We should add the name, and then call...
 
 						watch_name := fmt.Sprintf("watch_%s", n)
@@ -366,6 +439,116 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 				err = c.InsertFuncEnd(wfile, "end\n"+endCode)
 				if err != nil {
 					return nil, err
+				}
+
+				// Add memory logging code if they are importing `scale:watch`...
+				if watch_memory {
+					newCode := make([]*expression.Expression, 0)
+					for _, e := range c.Expression {
+						wcode := ""
+						debugPrefix := ""
+						if e.Opcode == expression.InstrToOpcode["i32.store"] {
+							debugPrefix = "i32.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store16"] {
+							debugPrefix = "i32.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store8"] {
+							debugPrefix = "i32.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if e.Opcode == expression.InstrToOpcode["i64.store"] {
+							debugPrefix = "i64.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 64
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store32"] {
+							debugPrefix = "i64.store32"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store16"] {
+							debugPrefix = "i64.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store8"] {
+							debugPrefix = "i64.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if wcode != "" {
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
+							mdebug := fmt.Sprintf(" %s %s:%x %s", debugPrefix, fidentifier, e.PC, linei)
+							wfile.AddData(fmt.Sprintf("$dd_memory_set_%d", e.PC), []byte(mdebug))
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+						}
+
+						/*
+							TODO Floats...
+							e.Opcode == InstrToOpcode["f32.store"] ||
+							e.Opcode == InstrToOpcode["f64.store"] ||
+						*/
+						newCode = append(newCode, e)
+					}
+					c.Expression = newCode
+
 				}
 
 			}
@@ -408,7 +591,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 
 	payload_size := (total_payload_data + 65535) >> 16
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	var buf bytes.Buffer
@@ -438,21 +621,21 @@ func wrapImports(wfile *wasmfile.WasmFile) map[int]string {
 		t := wfile.Type[i.Index]
 
 		// Load the params...
-		expr := make([]*wasmfile.Expression, 0)
+		expr := make([]*expression.Expression, 0)
 		for idx := range t.Param {
-			expr = append(expr, &wasmfile.Expression{
-				Opcode:     wasmfile.InstrToOpcode["local.get"],
+			expr = append(expr, &expression.Expression{
+				Opcode:     expression.InstrToOpcode["local.get"],
 				LocalIndex: idx,
 			})
 		}
 
-		expr = append(expr, &wasmfile.Expression{
-			Opcode:    wasmfile.InstrToOpcode["call"],
+		expr = append(expr, &expression.Expression{
+			Opcode:    expression.InstrToOpcode["call"],
 			FuncIndex: idx,
 		})
 
 		c := &wasmfile.CodeEntry{
-			Locals:     make([]wasmfile.ValType, 0),
+			Locals:     make([]types.ValType, 0),
 			Expression: expr,
 		}
 
@@ -466,12 +649,12 @@ func wrapImports(wfile *wasmfile.WasmFile) map[int]string {
 			wasi_functions[newidx] = i.Name
 			de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
 			if ok {
-				wfile.SetFunctionSignature(newidx, de)
+				wfile.Debug.SetFunctionSignature(newidx, de)
 			}
 		}
 
 		// Set the function name
-		wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name)
+		wfile.Debug.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name)
 
 		// Add the new function/code.
 		wfile.Function = append(wfile.Function, f)
@@ -521,12 +704,12 @@ func addFunctionInfo(wfile *wasmfile.WasmFile) {
 
 	for idx := 0; idx < num_functions; idx++ {
 		functionIndex := idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
-		signature := wfile.GetFunctionSignature(functionIndex)
+		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
+		signature := wfile.Debug.GetFunctionSignature(functionIndex)
 		debug := ""
 		if idx >= len(wfile.Import) {
 			c := wfile.Code[idx-len(wfile.Import)]
-			debug = wfile.GetLineNumberRange(c)
+			debug = wfile.Debug.GetLineNumberRange(c.CodeSectionPtr, c.CodeSectionPtr+c.CodeSectionLen)
 		}
 
 		data_function_names_locs = binary.LittleEndian.AppendUint32(data_function_names_locs, uint32(len(data_function_names)))
@@ -548,5 +731,5 @@ func addFunctionInfo(wfile *wasmfile.WasmFile) {
 	wfile.AddData("$wt_all_function_sigs_locs", []byte(data_function_sigs_locs))
 	wfile.AddData("$wt_all_function_srcs", []byte(data_function_srcs))
 	wfile.AddData("$wt_all_function_srcs_locs", []byte(data_function_srcs_locs))
-	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", num_functions))
+	wfile.SetGlobal("$wt_all_function_length", types.ValI32, fmt.Sprintf("i32.const %d", num_functions))
 }

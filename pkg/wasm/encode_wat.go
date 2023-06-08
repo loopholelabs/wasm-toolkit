@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 func (wf *WasmFile) EncodeWat(w io.Writer) error {
@@ -40,7 +42,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(t.Param) > 0 {
 			params = " (param"
 			for _, p := range t.Param {
-				params = params + " " + ByteToValType[p]
+				params = params + " " + types.ByteToValType[p]
 			}
 			params = params + ")"
 		}
@@ -48,7 +50,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(t.Result) > 0 {
 			results = " (result"
 			for _, p := range t.Result {
-				results = results + " " + ByteToValType[p]
+				results = results + " " + types.ByteToValType[p]
 			}
 			results = results + ")"
 		}
@@ -65,13 +67,13 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	// #### Write out Import
 	for index, t := range wf.Import {
 		exp := ""
-		if t.Type == ExportFunc {
-			exp = fmt.Sprintf("(func %s (type %d))", wf.GetFunctionIdentifier(index, true), t.Index)
-		} else if t.Type == ExportGlobal {
+		if t.Type == types.ExportFunc {
+			exp = fmt.Sprintf("(func %s (type %d))", wf.Debug.GetFunctionIdentifier(index, true), t.Index)
+		} else if t.Type == types.ExportGlobal {
 			exp = fmt.Sprintf("(global %d)", t.Index)
-		} else if t.Type == ExportMem {
+		} else if t.Type == types.ExportMem {
 			exp = fmt.Sprintf("(memory %d)", t.Index)
-		} else if t.Type == ExportTable {
+		} else if t.Type == types.ExportTable {
 			exp = fmt.Sprintf("(table %d)", t.Index)
 		}
 
@@ -84,20 +86,20 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	// #### Write out Global
 	for index, g := range wf.Global {
-		t := ByteToValType[g.Type]
+		t := types.ByteToValType[g.Type]
 		if g.Mut == 0x01 {
 			t = fmt.Sprintf("(mut %s)", t)
 		}
 
 		var buf bytes.Buffer
 		for _, ee := range g.Expression {
-			err := ee.EncodeWat(&buf, "", wf)
+			err := ee.EncodeWat(&buf, "", wf.Debug)
 			if err != nil {
 				return err
 			}
 		}
 
-		gname := wf.GetGlobalIdentifier(index, true)
+		gname := wf.Debug.GetGlobalIdentifier(index, true)
 
 		edata := fmt.Sprintf("    (global %s %s (%s))\n", gname, t, buf.Bytes())
 		_, err = wr.WriteString(edata)
@@ -148,27 +150,27 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 		if len(typedata.Param) > 0 {
 			for index, p := range typedata.Param {
 				comment := ""
-				vname := wf.GetLocalVarName(code.CodeSectionPtr, index)
+				vname := wf.Debug.GetLocalVarName(code.CodeSectionPtr, index)
 				if vname != "" {
 					comment = " ;; " + vname
 				}
 
-				params = fmt.Sprintf("%s\n        (param %s)%s", params, ByteToValType[p], comment)
+				params = fmt.Sprintf("%s\n        (param %s)%s", params, types.ByteToValType[p], comment)
 			}
 		}
 
 		if len(typedata.Result) > 0 {
 			results = "        (result"
 			for _, p := range typedata.Result {
-				results = results + " " + ByteToValType[p]
+				results = results + " " + types.ByteToValType[p]
 			}
 			results = results + ")\n"
 		}
 
-		f := wf.GetFunctionIdentifier(index+len(wf.Import), true)
+		f := wf.Debug.GetFunctionIdentifier(index+len(wf.Import), true)
 
 		// Encode it and send it out...
-		d := wf.GetFunctionDebug(index + len(wf.Import))
+		d := wf.Debug.GetFunctionDebug(index + len(wf.Import))
 		tdata := fmt.Sprintf("\n    (func %s (type %d) ;; function_index=%d\n%s%s\n%s", f, tindex, index, d, params, results)
 		_, err = wr.WriteString(tdata)
 		if err != nil {
@@ -177,7 +179,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		// Write out locals...
 		for _, l := range code.Locals {
-			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", ByteToValType[l]))
+			_, err = wr.WriteString(fmt.Sprintf("        (local %s)\n", types.ByteToValType[l]))
 			if err != nil {
 				return err
 			}
@@ -185,7 +187,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, e := range code.Expression {
-			err = e.EncodeWat(&buf, "        ", wf)
+			err = e.EncodeWat(&buf, "        ", wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -198,7 +200,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		// Bit of a special case here. We know the function ends with an END opcode...
 		lastAddr := code.CodeSectionPtr + code.CodeSectionLen - 1
-		lineNumberData := wf.GetLineNumberInfo(lastAddr)
+		lineNumberData := wf.Debug.GetLineNumberInfo(lastAddr)
 		comment := ""
 		if lineNumberData != "" {
 			comment = fmt.Sprintf(" ;; Src = %s", lineNumberData)
@@ -214,13 +216,13 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 	// #### Write out Export
 	for _, t := range wf.Export {
 		exp := ""
-		if t.Type == ExportFunc {
-			exp = fmt.Sprintf("(func %s)", wf.GetFunctionIdentifier(t.Index, false))
-		} else if t.Type == ExportGlobal {
+		if t.Type == types.ExportFunc {
+			exp = fmt.Sprintf("(func %s)", wf.Debug.GetFunctionIdentifier(t.Index, false))
+		} else if t.Type == types.ExportGlobal {
 			exp = fmt.Sprintf("(global %d)", t.Index)
-		} else if t.Type == ExportMem {
+		} else if t.Type == types.ExportMem {
 			exp = fmt.Sprintf("(memory %d)", t.Index)
-		} else if t.Type == ExportTable {
+		} else if t.Type == types.ExportTable {
 			exp = fmt.Sprintf("(table %d)", t.Index)
 		}
 
@@ -233,11 +235,11 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 	// #### Write out Data
 	for index, d := range wf.Data {
-		id := wf.GetDataIdentifier(index)
+		id := wf.Debug.GetDataIdentifier(index)
 
 		var buf bytes.Buffer
 		for _, ee := range d.Offset {
-			err := ee.EncodeWat(&buf, "", wf)
+			err := ee.EncodeWat(&buf, "", wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -257,7 +259,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		var buf bytes.Buffer
 		for _, ee := range e.Offset {
-			err := ee.EncodeWat(&buf, "", wf)
+			err := ee.EncodeWat(&buf, "", wf.Debug)
 			if err != nil {
 				return err
 			}
@@ -265,7 +267,7 @@ func (wf *WasmFile) EncodeWat(w io.Writer) error {
 
 		funcs := ""
 		for _, f := range e.Indexes {
-			fid := wf.GetFunctionIdentifier(int(f), false)
+			fid := wf.Debug.GetFunctionIdentifier(int(f), false)
 			funcs = funcs + " " + fid
 		}
 

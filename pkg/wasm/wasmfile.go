@@ -18,12 +18,16 @@ package wasmfile
 
 import (
 	"bytes"
-	"debug/dwarf"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 type WasmFile struct {
@@ -40,98 +44,19 @@ type WasmFile struct {
 	Data     []*DataEntry
 	Elem     []*ElemEntry
 
-	// dwarf debugging data
-	dwarfLoc    []byte
-	dwarfData   *dwarf.Data
-	lineNumbers map[uint64]LineInfo
-	// debug info derived from dwarf
-	functionDebug     map[int]string
-	functionSignature map[int]string
-	localNames        []*LocalNameData
-
-	GlobalAddresses map[string]*GlobalNameData
-
-	// custom names section data
-	FunctionNames map[int]string
-	globalNames   map[int]string
-	dataNames     map[int]string
+	Debug *debug.WasmDebug
 }
 
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
-
-type ValType byte
-
-const (
-	ValI32  ValType = 0x7f
-	ValI64  ValType = 0x7e
-	ValF32  ValType = 0x7d
-	ValF64  ValType = 0x7c
-	ValNone ValType = 0x40
-)
-
-var ValTypeToByte map[string]ValType
-var ByteToValType map[ValType]string
-
-func init() {
-	ValTypeToByte = make(map[string]ValType)
-	ValTypeToByte["i32"] = ValI32
-	ValTypeToByte["i64"] = ValI64
-	ValTypeToByte["f32"] = ValF32
-	ValTypeToByte["f64"] = ValF64
-	ValTypeToByte["none"] = ValNone
-
-	ByteToValType = make(map[ValType]string)
-	ByteToValType[ValI32] = "i32"
-	ByteToValType[ValI64] = "i64"
-	ByteToValType[ValF32] = "f32"
-	ByteToValType[ValF64] = "f64"
-	ByteToValType[ValNone] = "none"
-}
-
-const (
-	LimitTypeMin    byte = 0x00
-	LimitTypeMinMax byte = 0x01
-)
-
-type ExportType byte
-
-const (
-	ExportFunc   ExportType = 0
-	ExportTable  ExportType = 1
-	ExportMem    ExportType = 2
-	ExportGlobal ExportType = 3
-)
-
-const FuncTypePrefix byte = 0x60
-
-const TableTypeFuncref byte = 0x70
-
-type SectionId byte
-
-const (
-	SectionCustom    SectionId = 0
-	SectionType      SectionId = 1
-	SectionImport    SectionId = 2
-	SectionFunction  SectionId = 3
-	SectionTable     SectionId = 4
-	SectionMemory    SectionId = 5
-	SectionGlobal    SectionId = 6
-	SectionExport    SectionId = 7
-	SectionStart     SectionId = 8
-	SectionElem      SectionId = 9
-	SectionCode      SectionId = 10
-	SectionData      SectionId = 11
-	SectionDataCount SectionId = 12
-)
 
 type FunctionEntry struct {
 	TypeIndex int
 }
 
 type TypeEntry struct {
-	Param  []ValType
-	Result []ValType
+	Param  []types.ValType
+	Result []types.ValType
 }
 
 type CustomEntry struct {
@@ -141,14 +66,14 @@ type CustomEntry struct {
 
 type ExportEntry struct {
 	Name  string
-	Type  ExportType
+	Type  types.ExportType
 	Index int
 }
 
 type ImportEntry struct {
 	Module string
 	Name   string
-	Type   ExportType
+	Type   types.ExportType
 	Index  int
 }
 
@@ -159,9 +84,9 @@ type TableEntry struct {
 }
 
 type GlobalEntry struct {
-	Type       ValType
+	Type       types.ValType
 	Mut        byte
-	Expression []*Expression
+	Expression []*expression.Expression
 }
 
 type MemoryEntry struct {
@@ -170,29 +95,23 @@ type MemoryEntry struct {
 }
 
 type CodeEntry struct {
-	Locals         []ValType
+	Locals         []types.ValType
 	PCValid        bool
 	CodeSectionPtr uint64
 	CodeSectionLen uint64
-	Expression     []*Expression
+	Expression     []*expression.Expression
 }
 
 type DataEntry struct {
 	MemIndex int
-	Offset   []*Expression
+	Offset   []*expression.Expression
 	Data     []byte
 }
 
 type ElemEntry struct {
 	TableIndex int
-	Offset     []*Expression
+	Offset     []*expression.Expression
 	Indexes    []uint64
-}
-
-type LineInfo struct {
-	Filename   string
-	Linenumber int
-	Column     int
 }
 
 // Create a new WasmFile from a file
@@ -248,13 +167,30 @@ func (wf *WasmFile) LookupImport(n string) int {
 	return -1
 }
 
-func (wf *WasmFile) SetGlobal(name string, t ValType, expr string) {
-	ex := make([]*Expression, 0)
-	e := &Expression{}
-	e.DecodeWat(expr, wf, nil)
+func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
+	ex := make([]*expression.Expression, 0)
+	e := &expression.Expression{}
+	e.DecodeWat(expr, nil)
 	ex = append(ex, e)
 
-	idx := wf.LookupGlobalID(name)
+	idx := len(wf.Global)
+
+	wf.Debug.GlobalNames[idx] = name
+
+	wf.Global = append(wf.Global, &GlobalEntry{
+		Type:       t,
+		Expression: ex,
+		Mut:        1,
+	})
+}
+
+func (wf *WasmFile) SetGlobal(name string, t types.ValType, expr string) {
+	ex := make([]*expression.Expression, 0)
+	e := &expression.Expression{}
+	e.DecodeWat(expr, nil)
+	ex = append(ex, e)
+
+	idx := wf.Debug.LookupGlobalID(name)
 	if idx == -1 {
 		panic("Global not found")
 	}
@@ -276,11 +212,11 @@ func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
 func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 	ptr := addr
 	for idx, d := range wfSource.Data {
-		src_name := wfSource.GetDataIdentifier(idx)
+		src_name := wfSource.Debug.GetDataIdentifier(idx)
 		// Relocate the data
-		d.Offset = []*Expression{
+		d.Offset = []*expression.Expression{
 			{
-				Opcode:   InstrToOpcode["i32.const"],
+				Opcode:   expression.InstrToOpcode["i32.const"],
 				I32Value: ptr,
 			},
 		}
@@ -291,14 +227,14 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 		ptr += int32(len(d.Data))
 		ptr = (ptr + 7) & -8
 
-		for _, n := range wf.dataNames {
+		for _, n := range wf.Debug.DataNames {
 			if n == src_name {
 				panic(fmt.Sprintf("Data conflict for '%s'", src_name))
 			}
 		}
 
 		// Copy over the data name
-		wf.dataNames[newidx] = src_name
+		wf.Debug.DataNames[newidx] = src_name
 	}
 	return ptr
 }
@@ -316,15 +252,15 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 	idx := len(wf.Data)
 	wf.Data = append(wf.Data, &DataEntry{
 		MemIndex: 0,
-		Offset: []*Expression{
+		Offset: []*expression.Expression{
 			{
-				Opcode:   InstrToOpcode["i32.const"],
+				Opcode:   expression.InstrToOpcode["i32.const"],
 				I32Value: ptr,
 			},
 		},
 		Data: data,
 	})
-	wf.dataNames[idx] = name
+	wf.Debug.DataNames[idx] = name
 }
 
 func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap map[int]int)) {
@@ -333,9 +269,9 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 		newidx := len(wf.Global)
 		globalModification[idx] = newidx
 		wf.Global = append(wf.Global, g)
-		name := wfSource.GetGlobalIdentifier(idx, true)
+		name := wfSource.Debug.GetGlobalIdentifier(idx, true)
 		if name != "" {
-			wf.globalNames[newidx] = name
+			wf.Debug.GlobalNames[newidx] = name
 		}
 	}
 
@@ -355,8 +291,8 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 		}
 		if newidx != -1 {
 			// Add the name modification
-			fnFrom := wfSource.GetFunctionIdentifier(idx, false)
-			fnTo := wf.GetFunctionIdentifier(newidx, false)
+			fnFrom := wfSource.Debug.GetFunctionIdentifier(idx, false)
+			fnTo := wf.Debug.GetFunctionIdentifier(newidx, false)
 			importFuncModifications[fnFrom] = fnTo
 			callModification[idx] = newidx
 		} else {
@@ -380,15 +316,15 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 				}
 			}
 
-			wf.Renumber_functions(rmap)
-			name := wfSource.GetFunctionIdentifier(idx, true)
+			wf.Debug.RenumberFunctions(rmap)
+			name := wfSource.Debug.GetFunctionIdentifier(idx, true)
 			if name != "" {
-				wf.FunctionNames[newidx] = name
+				wf.Debug.FunctionNames[newidx] = name
 			}
 
 			// Modify any exports
 			for _, ex := range wf.Export {
-				if ex.Type == ExportFunc && ex.Index >= newidx {
+				if ex.Type == types.ExportFunc && ex.Index >= newidx {
 					ex.Index++
 				}
 			}
@@ -414,7 +350,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 
 	for idx, f := range wfSource.Function {
 		t := wfSource.Type[f.TypeIndex]
-		name := wfSource.GetFunctionIdentifier(len(wfSource.Import)+idx, true)
+		name := wfSource.Debug.GetFunctionIdentifier(len(wfSource.Import)+idx, true)
 
 		newidx := len(wf.Import) + len(wf.Function)
 
@@ -424,7 +360,7 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 
 		// Add the function name if there is one
 		if name != "" {
-			wf.FunctionNames[newidx] = name
+			wf.Debug.FunctionNames[newidx] = name
 		}
 
 		callModification[len(wfSource.Import)+idx] = newidx
@@ -454,7 +390,7 @@ func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
 
 func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
 	for _, e := range ce.Expression {
-		if e.Opcode == InstrToOpcode["call"] {
+		if e.Opcode == expression.InstrToOpcode["call"] {
 			newid, ok := m[e.FuncIndex]
 			if ok {
 				if e.FuncIndex != newid {
@@ -485,46 +421,25 @@ func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
 	}
 }
 
-func (wf *WasmFile) ExpressionFromWat(d string) ([]*Expression, error) {
-	newex := make([]*Expression, 0)
-	lines := strings.Split(d, "\n")
-	for _, toline := range lines {
-		cptr := strings.Index(toline, ";;")
-		if cptr != -1 {
-			toline = toline[:cptr]
-		}
-		toline = strings.Trim(toline, Whitespace)
-		if len(toline) > 0 {
-			newe := &Expression{}
-			err := newe.DecodeWat(toline, wf, nil)
-			if err != nil {
-				return newex, err
-			}
-			newex = append(newex, newe)
-		}
-	}
-	return newex, nil
-}
-
 func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.ExpressionFromWat(to)
 	if err != nil {
 		return err
 	}
 
 	// Now we need to find where to replace this code...
-	adjustedExpression := make([]*Expression, 0)
+	adjustedExpression := make([]*expression.Expression, 0)
 	for _, e := range ce.Expression {
 		var buf bytes.Buffer
-		e.EncodeWat(&buf, "", wf)
+		e.EncodeWat(&buf, "", wf.Debug)
 		cd := buf.String()
 		cend := strings.Index(cd, ";;")
 		if cend != -1 {
 			cd = cd[:cend]
 		}
 
-		if strings.Trim(cd, Whitespace) == from {
+		if strings.Trim(cd, encoding.Whitespace) == from {
 			// Replace it!
 			for _, ne := range newex {
 				adjustedExpression = append(adjustedExpression, ne)
@@ -538,31 +453,22 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 }
 
 func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.AddExpressionStart(ce.Expression, to)
 	if err != nil {
 		return err
 	}
 
-	// Now we need to find where to replace this code...
-	adjustedExpression := make([]*Expression, 0)
-	for _, e := range newex {
-		adjustedExpression = append(adjustedExpression, e)
-	}
-
-	for _, e := range ce.Expression {
-		adjustedExpression = append(adjustedExpression, e)
-	}
-	ce.Expression = adjustedExpression
+	ce.Expression = newex
 	return nil
 }
 
 func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.AddExpressionEnd(ce.Expression, to)
 	if err != nil {
 		return err
 	}
 
-	ce.Expression = append(ce.Expression, newex...)
+	ce.Expression = newex
 	return nil
 }
 
@@ -570,7 +476,7 @@ func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {
 	for _, e := range ce.Expression {
 		if e.GlobalNeedsLinking {
 			// Lookup the global and get the ID
-			gid := wf.LookupGlobalID(e.GlobalId)
+			gid := wf.Debug.LookupGlobalID(e.GlobalId)
 			if gid == -1 {
 				return fmt.Errorf("Global target not found (%s)", e.GlobalId)
 			}
@@ -597,7 +503,7 @@ func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
 func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 	for _, e := range ce.Expression {
 		if e.DataLengthNeedsLinking {
-			did := wf.LookupDataId(e.I32DataId)
+			did := wf.Debug.LookupDataId(e.I32DataId)
 			if did == -1 {
 				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
@@ -610,13 +516,13 @@ func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
 func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 	for _, e := range ce.Expression {
 		if e.DataOffsetNeedsLinking {
-			did := wf.LookupDataId(e.I32DataId)
+			did := wf.Debug.LookupDataId(e.I32DataId)
 			if did == -1 {
 				return fmt.Errorf("Data not found %s", e.I32DataId)
 			}
 
 			expr := wf.Data[did].Offset
-			if len(expr) != 1 || expr[0].Opcode != InstrToOpcode["i32.const"] {
+			if len(expr) != 1 || expr[0].Opcode != expression.InstrToOpcode["i32.const"] {
 				return errors.New("Can only deal with i32.const for now")
 			}
 
@@ -627,22 +533,12 @@ func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 }
 
 func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
-	newex, err := wf.ExpressionFromWat(to)
+	newex, err := expression.InsertAfterRelocating(ce.Expression, to)
 	if err != nil {
 		return err
 	}
 
-	// Now we need to find where to insert the code
-	adjustedExpression := make([]*Expression, 0)
-	for _, e := range ce.Expression {
-		adjustedExpression = append(adjustedExpression, e)
-		if e.DataOffsetNeedsLinking {
-			for _, ne := range newex {
-				adjustedExpression = append(adjustedExpression, ne)
-			}
-		}
-	}
-	ce.Expression = adjustedExpression
+	ce.Expression = newex
 	return nil
 }
 
@@ -661,29 +557,4 @@ func (te *TypeEntry) Equals(te2 *TypeEntry) bool {
 		}
 	}
 	return true
-}
-
-// Renumber functions using a remap
-func (wf *WasmFile) Renumber_functions(remap map[int]int) {
-	// This modifies FunctionNames, functionDebug, functionSignature
-	newFunctionNames := make(map[int]string)
-	newFunctionDebug := make(map[int]string)
-	newFunctionSignature := make(map[int]string)
-	for o, n := range remap {
-		v, ok := wf.FunctionNames[o]
-		if ok {
-			newFunctionNames[n] = v
-		}
-		v, ok = wf.functionDebug[o]
-		if ok {
-			newFunctionDebug[n] = v
-		}
-		v, ok = wf.functionSignature[o]
-		if ok {
-			newFunctionSignature[n] = v
-		}
-	}
-	wf.FunctionNames = newFunctionNames
-	wf.functionDebug = newFunctionDebug
-	wf.functionSignature = newFunctionSignature
 }

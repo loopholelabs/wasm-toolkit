@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 
-package wasmfile
+package debug
 
 import (
 	"encoding/binary"
@@ -30,15 +30,17 @@ const subsectionTypeNames = 4
 const subsectionTableNames = 5
 const subsectionMemoryNames = 6
 const subsectionGlobalNames = 7
-
 const subsectionDataNames = 9
 
-func (wf *WasmFile) ParseName() error {
-	wf.FunctionNames = make(map[int]string)
-	wf.globalNames = make(map[int]string)
-	wf.dataNames = make(map[int]string)
+/**
+ * Parse the custom name section from a wasm file
+ *
+ */
+func (wd *WasmDebug) ParseNameSectionData(nameData []byte) {
+	wd.FunctionNames = make(map[int]string)
+	wd.GlobalNames = make(map[int]string)
+	wd.DataNames = make(map[int]string)
 
-	nameData := wf.GetCustomSectionData("name")
 	ptr := 0
 
 	for {
@@ -74,7 +76,7 @@ func (wf *WasmFile) ParseName() error {
 						fname = fmt.Sprintf("%s_%d", fname, dupidx)
 					}
 					exists := false
-					for _, n := range wf.FunctionNames {
+					for _, n := range wd.FunctionNames {
 						if n == fname {
 							exists = true
 							break
@@ -82,7 +84,7 @@ func (wf *WasmFile) ParseName() error {
 					}
 
 					if !exists {
-						wf.FunctionNames[int(idx)] = fname
+						wd.FunctionNames[int(idx)] = fname
 						break
 					}
 					dupidx++
@@ -102,7 +104,7 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.globalNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
+				wd.GlobalNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
 			}
 		} else if subsectionID == subsectionDataNames {
 			nameVecLength, l := binary.Uvarint(data)
@@ -116,18 +118,17 @@ func (wf *WasmFile) ParseName() error {
 				nameValue := data[:nameLength]
 				data = data[nameLength:]
 
-				wf.dataNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
+				wd.DataNames[int(idx)] = fmt.Sprintf("$%s", string(nameValue))
 			}
-
 		} else {
-			fmt.Printf("TODO: Name %d - %d\n", subsectionID, subsectionLength)
+			//fmt.Printf("TODO: Name %d - %d\n", subsectionID, subsectionLength)
 		}
 	}
-	return nil
+
 }
 
-func (wf *WasmFile) GetFunctionIdentifier(fid int, defaultEmpty bool) string {
-	f, ok := wf.FunctionNames[fid]
+func (wd *WasmDebug) GetFunctionIdentifier(fid int, defaultEmpty bool) string {
+	f, ok := wd.FunctionNames[fid]
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
@@ -144,8 +145,8 @@ func (wf *WasmFile) GetFunctionIdentifier(fid int, defaultEmpty bool) string {
 	return fmt.Sprintf("%d", fid)
 }
 
-func (wf *WasmFile) GetGlobalIdentifier(gid int, defaultEmpty bool) string {
-	f, ok := wf.globalNames[gid]
+func (wd *WasmDebug) GetGlobalIdentifier(gid int, defaultEmpty bool) string {
+	f, ok := wd.GlobalNames[gid]
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
@@ -157,8 +158,8 @@ func (wf *WasmFile) GetGlobalIdentifier(gid int, defaultEmpty bool) string {
 	return fmt.Sprintf("%d", gid)
 }
 
-func (wf *WasmFile) GetDataIdentifier(did int) string {
-	f, ok := wf.dataNames[did]
+func (wd *WasmDebug) GetDataIdentifier(did int) string {
+	f, ok := wd.DataNames[did]
 	if ok {
 		f = strings.ReplaceAll(f, "(", "_")
 		f = strings.ReplaceAll(f, ")", "_")
@@ -167,8 +168,8 @@ func (wf *WasmFile) GetDataIdentifier(did int) string {
 	return ""
 }
 
-func (wf *WasmFile) LookupDataId(n string) int {
-	for idx, name := range wf.dataNames {
+func (wd *WasmDebug) LookupDataId(n string) int {
+	for idx, name := range wd.DataNames {
 		if n == name {
 			return idx
 		}
@@ -176,8 +177,8 @@ func (wf *WasmFile) LookupDataId(n string) int {
 	return -1
 }
 
-func (wf *WasmFile) LookupGlobalID(n string) int {
-	for idx, name := range wf.globalNames {
+func (wd *WasmDebug) LookupGlobalID(n string) int {
+	for idx, name := range wd.GlobalNames {
 		if n == name {
 			return idx
 		}

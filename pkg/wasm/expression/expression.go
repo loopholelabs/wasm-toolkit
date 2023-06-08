@@ -14,9 +14,11 @@
 	limitations under the License.
 */
 
-package wasmfile
+package expression
 
-import "bytes"
+import (
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+)
 
 type Opcode byte
 
@@ -28,37 +30,6 @@ type Opcode byte
 // "ref.is_null"						- 0xd1
 // "ref.func x"							- 0xd2
 // All vector instructions 	- 0xfd -
-
-func DecodeSleb128(b []byte) (s int64, n int) {
-	result := int64(0)
-	shift := 0
-	ptr := 0
-	for {
-		by := b[ptr]
-		ptr++
-		result = result | (int64(by&0x7f) << shift)
-		shift += 7
-		if (by & 0x80) == 0 {
-			if shift < 64 && (by&0x40) != 0 {
-				return result | (^0 << shift), ptr
-			}
-			return result, ptr
-		}
-	}
-}
-
-func AppendSleb128(buf []byte, val int64) []byte {
-	for {
-		b := val & 0x7f
-		val = val >> 7
-		if (val == 0 && b&0x40 == 0) ||
-			(val == -1 && b&0x40 != 0) {
-			buf = append(buf, byte(b))
-			return buf
-		}
-		buf = append(buf, byte(b|0x80))
-	}
-}
 
 const ExtendedOpcodeFC = Opcode(0xfc)
 
@@ -290,6 +261,7 @@ func init() {
 
 type Expression struct {
 	PC          uint64 // Program Counter (This is the byte offset into the Code section)
+	PCNext      uint64
 	Opcode      Opcode // Main opcode
 	OpcodeExt   int
 	I32Value    int32
@@ -303,12 +275,15 @@ type Expression struct {
 	TypeIndex   int
 	TableIndex  int
 	Labels      []int
-	Result      ValType
+	Result      types.ValType
 	MemAlign    int
 	MemOffset   int
 
 	// This is set if the instruction has as I32Value that needs resolving (offset)
 	DataOffsetNeedsLinking bool
+
+	// This is set if the instruction needs adjusting using a base memory pointer
+	DataOffsetNeedsAdjusting bool
 	// This is set if the instruction has an I32Value that needs resolving (length)
 	DataLengthNeedsLinking bool
 	I32DataId              string
@@ -494,29 +469,66 @@ func (e *Expression) HasMemoryArgs() bool {
 		e.Opcode == InstrToOpcode["i64.store32"]
 }
 
-// Check if two expressions are equal. Note that it encodes to binary and checks.
-func (e *Expression) Equals(f *Expression) (bool, error) {
-	var buf1 bytes.Buffer
-	var buf2 bytes.Buffer
-	err := e.EncodeBinary(&buf1)
-	if err != nil {
-		return false, err
+// Check if two expressions are equal.
+func (e *Expression) Equals(f *Expression) bool {
+	if e.Opcode != f.Opcode ||
+		e.OpcodeExt != f.OpcodeExt {
+		return false
 	}
-	err = f.EncodeBinary(&buf2)
-	if err != nil {
-		return false, err
-	}
-	bytes1 := buf1.Bytes()
-	bytes2 := buf2.Bytes()
 
-	if len(bytes1) != len(bytes2) {
-		return false, nil
+	if e.I32Value != f.I32Value ||
+		e.I64Value != f.I64Value ||
+		e.F32Value != f.F32Value ||
+		e.F64Value != f.F64Value {
+		return false
 	}
-	for i, b1 := range bytes1 {
-		b2 := bytes2[i]
-		if b1 != b2 {
-			return false, nil
+
+	if e.FuncIndex != f.FuncIndex ||
+		e.LocalIndex != f.LocalIndex ||
+		e.GlobalIndex != f.GlobalIndex ||
+		e.LabelIndex != f.LabelIndex ||
+		e.TypeIndex != f.TypeIndex ||
+		e.TableIndex != f.TableIndex {
+		return false
+	}
+
+	if e.MemAlign != f.MemAlign ||
+		e.MemOffset != f.MemOffset {
+		return false
+	}
+
+	if e.Result != f.Result {
+		return false
+	}
+
+	if e.Labels != nil && f.Labels != nil {
+		if len(e.Labels) != len(f.Labels) {
+			return false
+		}
+		for i, v := range e.Labels {
+			if f.Labels[i] != v {
+				return false
+			}
+		}
+	} else {
+		if e.Labels != nil || f.Labels != nil {
+			return false
 		}
 	}
-	return true, nil
+
+	if e.DataLengthNeedsLinking != f.DataLengthNeedsLinking ||
+		e.DataOffsetNeedsLinking != f.DataOffsetNeedsLinking ||
+		e.DataOffsetNeedsAdjusting != f.DataOffsetNeedsAdjusting ||
+		e.GlobalNeedsLinking != f.GlobalNeedsLinking ||
+		e.FunctionNeedsLinking != f.FunctionNeedsLinking {
+		return false
+	}
+
+	if e.I32DataId != f.I32DataId ||
+		e.GlobalId != f.GlobalId ||
+		e.FunctionId != f.FunctionId {
+		return false
+	}
+
+	return true
 }

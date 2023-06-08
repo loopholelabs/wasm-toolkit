@@ -21,6 +21,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
 /**
@@ -79,31 +82,31 @@ func (wf *WasmFile) DecodeBinary(data []byte) (err error) {
 
 		// Process each section
 
-		if sectionType == byte(SectionCustom) {
+		if sectionType == byte(types.SectionCustom) {
 			err = wf.ParseSectionCustom(sectionData)
-		} else if sectionType == byte(SectionType) {
+		} else if sectionType == byte(types.SectionType) {
 			err = wf.ParseSectionType(sectionData)
-		} else if sectionType == byte(SectionImport) {
+		} else if sectionType == byte(types.SectionImport) {
 			err = wf.ParseSectionImport(sectionData)
-		} else if sectionType == byte(SectionFunction) {
+		} else if sectionType == byte(types.SectionFunction) {
 			err = wf.ParseSectionFunction(sectionData)
-		} else if sectionType == byte(SectionTable) {
+		} else if sectionType == byte(types.SectionTable) {
 			err = wf.ParseSectionTable(sectionData)
-		} else if sectionType == byte(SectionMemory) {
+		} else if sectionType == byte(types.SectionMemory) {
 			err = wf.ParseSectionMemory(sectionData)
-		} else if sectionType == byte(SectionGlobal) {
+		} else if sectionType == byte(types.SectionGlobal) {
 			err = wf.ParseSectionGlobal(sectionData)
-		} else if sectionType == byte(SectionExport) {
+		} else if sectionType == byte(types.SectionExport) {
 			err = wf.ParseSectionExport(sectionData)
-		} else if sectionType == byte(SectionStart) {
+		} else if sectionType == byte(types.SectionStart) {
 			err = wf.ParseSectionStart(sectionData)
-		} else if sectionType == byte(SectionElem) {
+		} else if sectionType == byte(types.SectionElem) {
 			err = wf.ParseSectionElem(sectionData)
-		} else if sectionType == byte(SectionCode) {
+		} else if sectionType == byte(types.SectionCode) {
 			err = wf.ParseSectionCode(sectionData)
-		} else if sectionType == byte(SectionData) {
+		} else if sectionType == byte(types.SectionData) {
 			err = wf.ParseSectionData(sectionData)
-		} else if sectionType == byte(SectionDataCount) {
+		} else if sectionType == byte(types.SectionDataCount) {
 			err = wf.ParseSectionDataCount(sectionData)
 		} else {
 			return fmt.Errorf("Unknown section %d", sectionType)
@@ -154,7 +157,7 @@ func (wf *WasmFile) ParseSectionData(data []byte) error {
 			return fmt.Errorf("Error decoding SectionData memindex %x", getDataContext(data))
 		}
 		ptr += l
-		offset, l, err := NewExpression(data[ptr:], 0)
+		offset, l, err := expression.NewExpression(data[ptr:], 0)
 		if err != nil {
 			return err
 		}
@@ -207,7 +210,7 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 		code := data[ptr : ptr+int(clen)]
 		ptr += int(clen)
 
-		locals := make([]ValType, 0)
+		locals := make([]types.ValType, 0)
 
 		vclen, l := binary.Uvarint(code)
 		if l <= 0 {
@@ -225,11 +228,11 @@ func (wf *WasmFile) ParseSectionCode(data []byte) error {
 			locptr++
 
 			for lod := 0; lod < int(paramLen); lod++ {
-				locals = append(locals, ValType(ty))
+				locals = append(locals, types.ValType(ty))
 			}
 		}
 
-		expression, _, err := NewExpression(code[locptr:], codeptr+uint64(locptr))
+		expression, _, err := expression.NewExpression(code[locptr:], codeptr+uint64(locptr))
 		if err != nil {
 			return err
 		}
@@ -258,7 +261,7 @@ func (wf *WasmFile) ParseSectionElem(data []byte) error {
 	for i := 0; i < int(elemVecLength); i++ {
 		tableIndex, l := binary.Uvarint(data[ptr:])
 		ptr += l
-		offset, l, err := NewExpression(data[ptr:], 0)
+		offset, l, err := expression.NewExpression(data[ptr:], 0)
 		if err != nil {
 			return err
 		}
@@ -307,7 +310,7 @@ func (wf *WasmFile) ParseSectionImport(data []byte) error {
 		e := &ImportEntry{
 			Module: string(mod),
 			Name:   string(name),
-			Type:   ExportType(importType),
+			Type:   types.ExportType(importType),
 			Index:  int(importIndex),
 		}
 		wf.Import = append(wf.Import, e)
@@ -351,11 +354,11 @@ func (wf *WasmFile) ParseSectionTable(data []byte) error {
 		limitMax := uint64(0)
 		limitMin := uint64(0)
 		var l int
-		if data[ptr] == LimitTypeMin {
+		if data[ptr] == types.LimitTypeMin {
 			ptr++
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
-		} else if data[ptr] == LimitTypeMinMax {
+		} else if data[ptr] == types.LimitTypeMinMax {
 			ptr++
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
@@ -387,11 +390,11 @@ func (wf *WasmFile) ParseSectionMemory(data []byte) error {
 		limitMax := uint64(0)
 		limitMin := uint64(0)
 		var l int
-		if data[ptr] == LimitTypeMin {
+		if data[ptr] == types.LimitTypeMin {
 			ptr++
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
-		} else if data[ptr] == LimitTypeMinMax {
+		} else if data[ptr] == types.LimitTypeMinMax {
 			ptr++
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
@@ -424,7 +427,7 @@ func (wf *WasmFile) ParseSectionGlobal(data []byte) error {
 		valMut := data[ptr]
 		ptr++
 		// Read the init expression
-		expression, n, err := NewExpression(data[ptr:], 0)
+		expression, n, err := expression.NewExpression(data[ptr:], 0)
 		if err != nil {
 			return err
 		}
@@ -432,7 +435,7 @@ func (wf *WasmFile) ParseSectionGlobal(data []byte) error {
 		ptr += n
 
 		g := &GlobalEntry{
-			Type:       ValType(valType),
+			Type:       types.ValType(valType),
 			Mut:        valMut,
 			Expression: expression,
 		}
@@ -461,7 +464,7 @@ func (wf *WasmFile) ParseSectionExport(data []byte) error {
 		ptr += l
 		e := &ExportEntry{
 			Name:  string(name),
-			Type:  ExportType(exportType),
+			Type:  types.ExportType(exportType),
 			Index: int(exportIndex),
 		}
 		wf.Export = append(wf.Export, e)
@@ -510,24 +513,24 @@ func (wf *WasmFile) ParseSectionType(data []byte) error {
 
 	for i := 0; i < int(typeVecLength); i++ {
 		t := &TypeEntry{
-			Param:  make([]ValType, 0),
-			Result: make([]ValType, 0),
+			Param:  make([]types.ValType, 0),
+			Result: make([]types.ValType, 0),
 		}
 
 		// Read a functype
-		if data[ptr] == FuncTypePrefix {
+		if data[ptr] == types.FuncTypePrefix {
 			ptr++
 			// Now read param / result vectors
 			paramVecLength, l := binary.Uvarint(data[ptr:])
 			ptr += l
 			for p := 0; p < int(paramVecLength); p++ {
-				t.Param = append(t.Param, ValType(data[ptr]))
+				t.Param = append(t.Param, types.ValType(data[ptr]))
 				ptr++
 			}
 			resultVecLength, l := binary.Uvarint(data[ptr:])
 			ptr += l
 			for p := 0; p < int(resultVecLength); p++ {
-				t.Result = append(t.Result, ValType(data[ptr]))
+				t.Result = append(t.Result, types.ValType(data[ptr]))
 				ptr++
 			}
 			wf.Type = append(wf.Type, t)

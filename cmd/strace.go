@@ -22,10 +22,14 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	"github.com/loopholelabs/wasm-toolkit/wasmfile"
+	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 
 	"github.com/spf13/cobra"
 )
@@ -50,6 +54,13 @@ var cfg_color = false
 var watch_globals = ""
 var config_parse_dwarf = false
 
+// If true, then we'll hook access to globals / locals, and output debug info...
+var config_log_globals = false
+var config_log_locals = false
+var config_log_memory = false
+
+var config_log_mem_ranges = make([]string, 0)
+
 func init() {
 	rootCmd.AddCommand(cmdStrace)
 	cmdStrace.Flags().StringVarP(&func_regex, "func", "f", ".*", "Func name regexp")
@@ -65,6 +76,11 @@ func init() {
 
 	cmdStrace.Flags().StringVarP(&watch_globals, "watch", "w", "", "List of globals to watch (, separated)")
 
+	cmdStrace.Flags().BoolVar(&config_log_globals, "logglobals", false, "Log wasm global writes")
+	cmdStrace.Flags().BoolVar(&config_log_locals, "loglocals", false, "Log wasm local writes")
+	cmdStrace.Flags().BoolVar(&config_log_memory, "logmemory", false, "Log memory writes")
+
+	cmdStrace.Flags().StringSliceVar(&config_log_mem_ranges, "memory", []string{"memory=0-"}, "Memory ranges to watch 'tag=<min>-<max>' max is optional.")
 }
 
 func runStrace(ccmd *cobra.Command, args []string) {
@@ -79,13 +95,11 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Parsing custom name section...\n")
-	err = wfile.ParseName()
-	if err != nil {
-		panic(err)
-	}
+	wfile.Debug = &debug.WasmDebug{}
+	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
 	fmt.Printf("Parsing custom dwarf debug sections...\n")
-	err = wfile.ParseDwarf()
+	err = wfile.Debug.ParseDwarf(wfile)
 	if err != nil {
 		panic(err)
 	}
@@ -108,21 +122,21 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			t := wfile.Type[i.Index]
 
 			// Load the params...
-			expr := make([]*wasmfile.Expression, 0)
+			expr := make([]*expression.Expression, 0)
 			for idx := range t.Param {
-				expr = append(expr, &wasmfile.Expression{
-					Opcode:     wasmfile.InstrToOpcode["local.get"],
+				expr = append(expr, &expression.Expression{
+					Opcode:     expression.InstrToOpcode["local.get"],
 					LocalIndex: idx,
 				})
 			}
 
-			expr = append(expr, &wasmfile.Expression{
-				Opcode:    wasmfile.InstrToOpcode["call"],
+			expr = append(expr, &expression.Expression{
+				Opcode:    expression.InstrToOpcode["call"],
 				FuncIndex: idx,
 			})
 
 			c := &wasmfile.CodeEntry{
-				Locals:     make([]wasmfile.ValType, 0),
+				Locals:     make([]types.ValType, 0),
 				Expression: expr,
 			}
 
@@ -136,11 +150,11 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				wasi_functions[newidx] = i.Name
 				de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
 				if ok {
-					wfile.SetFunctionSignature(newidx, de)
+					wfile.Debug.SetFunctionSignature(newidx, de)
 				}
 			}
 
-			wfile.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name) //wfile.GetFunctionIdentifier(idx, false))
+			wfile.Debug.FunctionNames[newidx] = fmt.Sprintf("$IMPORT_%s_%s", i.Module, i.Name) //wfile.GetFunctionIdentifier(idx, false))
 
 			wfile.Function = append(wfile.Function, f)
 			wfile.Code = append(wfile.Code, c)
@@ -165,11 +179,6 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		data_wasi_err_ptrs = append(data_wasi_err_ptrs, []byte(m)...)
 	}
 
-	/*
-		datamap["$wasi_errors"] = we_data
-		datamap["$wasi_error_messages"] = er_data
-	*/
-
 	//Wasi_errors
 
 	// Load up the individual wat files, and add them in
@@ -179,6 +188,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		"strace.wat",
 		"color.wat",
 		"timings.wat",
+		"watch.wat",
 		"function_enter_exit.wat"}
 
 	ptr := int32(data_ptr)
@@ -212,19 +222,22 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	fmt.Printf("All wat code added...\n")
 
-	wfile.SetGlobal("$debug_start_mem", wasmfile.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
+	wfile.RedirectImport("scale", "watch", "$watch_add")
+	wfile.RedirectImport("scale", "unwatch", "$watch_del")
+
+	wfile.SetGlobal("$debug_start_mem", types.ValI32, fmt.Sprintf("i32.const %d", data_ptr))
 
 	if config_parse_dwarf {
 
 		// Parse the dwarf stuff *here* incase the above messed up function IDs
 		fmt.Printf("Parsing dwarf line numbers...\n")
-		err = wfile.ParseDwarfLineNumbers()
+		err = wfile.Debug.ParseDwarfLineNumbers()
 		if err != nil {
 			panic(err)
 		}
 
 		fmt.Printf("Parsing dwarf local variables...\n")
-		err = wfile.ParseDwarfVariables()
+		err = wfile.Debug.ParseDwarfVariables(wfile)
 		if err != nil {
 			panic(err)
 		}
@@ -236,11 +249,11 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	// Pass some config into wasm
 	if include_timings {
-		wfile.SetGlobal("$debug_do_timings", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
+		wfile.SetGlobal("$debug_do_timings", types.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	if cfg_color {
-		wfile.SetGlobal("$wt_color", wasmfile.ValI32, fmt.Sprintf("i32.const 1"))
+		wfile.SetGlobal("$wt_color", types.ValI32, fmt.Sprintf("i32.const 1"))
 	}
 
 	// Get a function name map, and add it as data...
@@ -249,7 +262,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	data_metrics_data := make([]byte, 0)
 	for idx := range wfile.Import {
 		functionIndex := idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
+		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
@@ -262,7 +275,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 	for idx := range wfile.Code {
 		functionIndex := len(wfile.Import) + idx
-		name := wfile.GetFunctionIdentifier(functionIndex, false)
+		name := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len(data_function_names)))
 		data_function_locs = binary.LittleEndian.AppendUint32(data_function_locs, uint32(len([]byte(name))))
@@ -281,13 +294,60 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	wfile.AddData("$wt_all_function_names", []byte(data_function_names))
 	wfile.AddData("$wt_all_function_names_locs", []byte(data_function_locs))
 	wfile.AddData("$metrics_data", []byte(data_metrics_data))
-	wfile.SetGlobal("$wt_all_function_length", wasmfile.ValI32, fmt.Sprintf("i32.const %d", len(wfile.Import)+len(wfile.Code)))
+	wfile.SetGlobal("$wt_all_function_length", types.ValI32, fmt.Sprintf("i32.const %d", len(wfile.Import)+len(wfile.Code)))
 
 	fmt.Printf("Patching functions matching regexp \"%s\"\n", func_regex)
+
+	// Add data for memory matching...
+	data_mem_ranges := make([]byte, 0)
+	data_mem_tags := make([]byte, 0)
+
+	if config_log_memory {
+
+		for _, r := range config_log_mem_ranges {
+			// eg "tag=<min>-<max> max is optional"
+			bits := strings.Split(r, "=")
+			name := bits[0]
+
+			// Parse the range...
+			vals := strings.Split(bits[1], "-")
+
+			memMin, err := strconv.ParseInt(vals[0], 0, 32)
+			if err != nil {
+				panic(err)
+			}
+			memMax := int64(0xffffffff)
+			if len(vals) == 2 && vals[1] != "" {
+				memMax, err = strconv.ParseInt(vals[1], 0, 32)
+				if err != nil {
+					panic(err)
+				}
+			}
+
+			fmt.Printf("Adding memory watch for %s from %d -> %d\n", name, memMin, memMax)
+
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(memMin))
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(memMax))
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(len(data_mem_tags)))
+			data_mem_ranges = binary.LittleEndian.AppendUint32(data_mem_ranges, uint32(len([]byte(name))))
+			data_mem_tags = append(data_mem_tags, []byte(name)...)
+
+		}
+
+		fmt.Printf("mem ranges %x\n", data_mem_ranges)
+
+	}
+
+	wfile.AddData("$wt_mem_ranges", []byte(data_mem_ranges))
+	wfile.AddData("$wt_mem_tags", []byte(data_mem_tags))
 
 	// Adjust any memory.size / memory.grow calls
 	for idx, c := range wfile.Code {
 		fmt.Printf("Processing functions [%d/%d]\n", idx, len(wfile.Code))
+
+		fn := wfile.Function[idx]
+		functionType := wfile.Type[fn.TypeIndex]
+
 		if idx < originalFunctionLength {
 			err = c.ReplaceInstr(wfile, "memory.grow", "call $debug_memory_grow")
 			if err != nil {
@@ -299,7 +359,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			}
 
 			functionIndex := idx + len(wfile.Import)
-			fidentifier := wfile.GetFunctionIdentifier(functionIndex, false)
+			fidentifier := wfile.Debug.GetFunctionIdentifier(functionIndex, false)
 
 			match, err := regexp.MatchString(func_regex, fidentifier)
 			if err != nil {
@@ -319,7 +379,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				f := wfile.Function[idx]
 				t := wfile.Type[f.TypeIndex]
 				if len(t.Result) > 0 {
-					blockInstr = fmt.Sprintf("block (result %s)", wasmfile.ByteToValType[t.Result[0]])
+					blockInstr = fmt.Sprintf("block (result %s)", types.ByteToValType[t.Result[0]])
 				}
 
 				startCode := fmt.Sprintf(`%s
@@ -338,7 +398,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					// NB This assumes CodeSectionPtr to be correct...
 					if include_all || include_param_names {
 						if c.PCValid {
-							vname := wfile.GetLocalVarName(c.CodeSectionPtr, paramIndex)
+							vname := wfile.Debug.GetLocalVarName(c.CodeSectionPtr, paramIndex)
 							if vname != "" {
 								wfile.AddData(fmt.Sprintf("$dd_param_name_%d_%d", functionIndex, paramIndex), []byte(vname))
 								startCode = fmt.Sprintf(`%s
@@ -354,7 +414,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					i32.const %d
 					local.get %d
 					call $debug_enter_%s
-					`, startCode, functionIndex, paramIndex, paramIndex, wasmfile.ByteToValType[pt])
+					`, startCode, functionIndex, paramIndex, paramIndex, types.ByteToValType[pt])
 				}
 
 				startCode = fmt.Sprintf(`%s
@@ -363,7 +423,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					`, startCode, functionIndex)
 
 				// Now add a bit of debug....
-				funcSig := wfile.GetFunctionSignature(functionIndex)
+				funcSig := wfile.Debug.GetFunctionSignature(functionIndex)
 				if funcSig != "" && (include_all || include_func_signatures) {
 					wfile.AddData(fmt.Sprintf("$dd_function_debug_sig_%d", functionIndex), []byte(funcSig))
 					startCode = fmt.Sprintf(`%s
@@ -372,7 +432,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					call $debug_func_context`, startCode, functionIndex, functionIndex)
 				}
 
-				lineRange := wfile.GetLineNumberRange(c)
+				lineRange := wfile.Debug.GetLineNumberRange(c.CodeSectionPtr, c.CodeSectionPtr+c.CodeSectionLen)
 				if lineRange != "" && (include_all || include_line_numbers) {
 					wfile.AddData(fmt.Sprintf("$dd_function_debug_lines_%d", functionIndex), []byte(lineRange))
 					startCode = fmt.Sprintf(`%s
@@ -404,7 +464,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					panic(err)
 				}
 
-				rt := wasmfile.ValNone
+				rt := types.ValNone
 				if len(t.Result) == 1 {
 					rt = t.Result[0]
 				}
@@ -422,7 +482,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 				i32.const %d
 				call $debug_exit_func`, endCode, functionIndex)
 
-				if is_wasi && rt == wasmfile.ValI32 {
+				if is_wasi && rt == types.ValI32 {
 					// We also want to output the error message
 					endCode = fmt.Sprintf(`%s
 					call $debug_exit_func_wasi
@@ -430,7 +490,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 				} else {
 					endCode = fmt.Sprintf(`%s
-					call $debug_exit_func_%s`, endCode, wasmfile.ByteToValType[rt])
+					call $debug_exit_func_%s`, endCode, types.ByteToValType[rt])
 				}
 
 				// Add any watches
@@ -449,6 +509,184 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					panic(err)
 				}
 
+				// Add local / global logging...
+				if config_log_globals || config_log_locals {
+					newCode := make([]*expression.Expression, 0)
+					for _, e := range c.Expression {
+						if config_log_globals &&
+							e.Opcode == expression.InstrToOpcode["global.set"] &&
+							!e.GlobalNeedsLinking {
+							g := wfile.Global[e.GlobalIndex]
+							gtype := types.ByteToValType[g.Type]
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
+							// Add some debug data for this global.set
+							gdebug := fmt.Sprintf("global.set %s:%x %s | %d", fidentifier, e.PC, linei, e.GlobalIndex)
+							wfile.AddData(fmt.Sprintf("$dd_global_set_%d", e.PC), []byte(gdebug))
+
+							wcode := fmt.Sprintf(`
+							global.get %d
+							i32.const offset($dd_global_set_%d)
+							i32.const length($dd_global_set_%d)
+							call $log_global_%s
+							`, e.GlobalIndex, e.PC, e.PC, gtype)
+
+							// $log_global_<TYPE> (new_value, current_value, ptr_debug, len_debug) => new_value
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+
+						} else if config_log_locals &&
+							(e.Opcode == expression.InstrToOpcode["local.set"] || e.Opcode == expression.InstrToOpcode["local.tee"]) {
+
+							vname := wfile.Debug.GetLocalVarName(e.PC, e.LocalIndex)
+
+							var ltype string
+							var debugPrefix string
+							if e.LocalIndex >= len(functionType.Param) {
+								l := c.Locals[e.LocalIndex-len(functionType.Param)]
+								ltype = types.ByteToValType[l]
+								debugPrefix = "local.set"
+							} else {
+								// Mutating/reusing params
+								l := functionType.Param[e.LocalIndex]
+								ltype = types.ByteToValType[l]
+								debugPrefix = "local.set(param)"
+							}
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
+							ldebug := fmt.Sprintf(" %s %s:%x %s | %d %s", debugPrefix, fidentifier, e.PC, linei, e.LocalIndex, vname)
+							wfile.AddData(fmt.Sprintf("$dd_local_set_%d", e.PC), []byte(ldebug))
+
+							wcode := fmt.Sprintf(`
+								local.get %d
+								i32.const offset($dd_local_set_%d)
+								i32.const length($dd_local_set_%d)
+								call $log_local_%s
+								`, e.LocalIndex, e.PC, e.PC, ltype)
+
+							// $log_local_<TYPE> (new_value, current_value, ptr_debug, len_debug) => new_value
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+
+						}
+						newCode = append(newCode, e)
+					}
+					c.Expression = newCode
+				}
+
+				// Add memory logging...
+				if config_log_memory {
+					newCode := make([]*expression.Expression, 0)
+					for _, e := range c.Expression {
+						wcode := ""
+						debugPrefix := ""
+						if e.Opcode == expression.InstrToOpcode["i32.store"] {
+							debugPrefix = "i32.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store16"] {
+							debugPrefix = "i32.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i32.store8"] {
+							debugPrefix = "i32.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i32
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i32.store
+								global.get $log_memory_value_i32
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if e.Opcode == expression.InstrToOpcode["i64.store"] {
+							debugPrefix = "i64.store"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 64
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store32"] {
+							debugPrefix = "i64.store32"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 32
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store16"] {
+							debugPrefix = "i64.store16"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 16
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						} else if e.Opcode == expression.InstrToOpcode["i64.store8"] {
+							debugPrefix = "i64.store8"
+							wcode = fmt.Sprintf(`
+								global.set $log_memory_value_i64
+								i32.const %d
+								i32.const 8
+								i32.const offset($dd_memory_set_%d)
+								i32.const length($dd_memory_set_%d)
+								call $log_mem_i64.store
+								global.get $log_memory_value_i64
+								`, e.MemOffset, e.PC, e.PC)
+						}
+
+						if wcode != "" {
+							linei := wfile.Debug.GetLineNumberBefore(c.CodeSectionPtr, e.PC)
+							mdebug := fmt.Sprintf(" %s %s:%x %s", debugPrefix, fidentifier, e.PC, linei)
+							wfile.AddData(fmt.Sprintf("$dd_memory_set_%d", e.PC), []byte(mdebug))
+
+							wcex, err := expression.ExpressionFromWat(wcode)
+							if err != nil {
+								panic(err)
+							}
+							newCode = append(newCode, wcex...)
+						}
+
+						/*
+							e.Opcode == InstrToOpcode["f32.store"] ||
+							e.Opcode == InstrToOpcode["f64.store"] ||
+						*/
+						newCode = append(newCode, e)
+					}
+					c.Expression = newCode
+				}
 			}
 		}
 
@@ -489,7 +727,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	payload_size := (total_payload_data + 65535) >> 16
 	fmt.Printf("Payload data of %d (%d pages)\n", total_payload_data, payload_size)
 
-	wfile.SetGlobal("$debug_mem_size", wasmfile.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
+	wfile.SetGlobal("$debug_mem_size", types.ValI32, fmt.Sprintf("i32.const %d", payload_size)) // The size of our addition in 64k pages
 	wfile.Memory[0].LimitMin = wfile.Memory[0].LimitMin + payload_size
 
 	fmt.Printf("Writing wasm out to %s...\n", Output)
@@ -538,10 +776,10 @@ func GetWatchCode(wf *wasmfile.WasmFile) string {
 	watches := strings.Split(watch_globals, ",")
 	for widx, w := range watches {
 		// Lookup the address...
-		ginfo, ok := wf.GlobalAddresses[w]
+		ginfo, ok := wf.Debug.GlobalAddresses[w]
 		if !ok {
 			fmt.Printf("WARNING: I can't find the global %s\n", w)
-			for n := range wf.GlobalAddresses {
+			for n := range wf.Debug.GlobalAddresses {
 				fmt.Printf(" - Global %s\n", n)
 			}
 			panic("Global name not found")
