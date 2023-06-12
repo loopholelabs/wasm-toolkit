@@ -73,6 +73,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 		"memory.wat",
 		"stdout.wat",
 		"otel.wat",
+		"watch_dynamic.wat",
 		"otel_watch.wat"}
 
 	if config.Quickjs {

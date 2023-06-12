@@ -189,6 +189,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 		"color.wat",
 		"timings.wat",
 		"watch.wat",
+		"watch_dynamic.wat",
 		"function_enter_exit.wat"}
 
 	ptr := int32(data_ptr)

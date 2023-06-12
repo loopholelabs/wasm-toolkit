@@ -3,6 +3,7 @@
   (import "wasi_snapshot_preview1" "clock_time_get" (func $debug_clock_time_get (type 0)))
 
   (func $debug_gettime (result i64)
+    ;; 0 - WASI_CLOCK_MONOTONIC
     i32.const 0
     i64.const 1000
     i32.const offset($debug_clock_loc)

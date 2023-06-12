@@ -77,13 +77,21 @@ func exampleFunction(x_value int32, y_value int32) int32 {
 	if y_value == 0 {
 		return -2 + jm_boob
 	}
+
+	unwatch(1)
+
 	jm_boob++
+
+	watch(1, uint32(uintptr(unsafe.Pointer(&jm_boob))), 4)
+
 	if x_value > 44 {
 		zoobs = 1
 		jm_boob++
 	}
 
 	anotherFunction(&jm_boob)
+
+	another_global = 0x2222
 
 	//unwatch(0)
 
