@@ -114,6 +114,12 @@ type ElemEntry struct {
 	Indexes    []uint64
 }
 
+func NewEmpty() *WasmFile {
+	return &WasmFile{
+		Debug: debug.NewEmpty(),
+	}
+}
+
 // Create a new WasmFile from a file
 func New(filename string) (*WasmFile, error) {
 	data, err := ioutil.ReadFile(filename)
@@ -165,6 +171,32 @@ func (wf *WasmFile) LookupImport(n string) int {
 		}
 	}
 	return -1
+}
+
+func (wf *WasmFile) AddExports(wfsource *WasmFile) {
+	for _, e := range wfsource.Export {
+		// TODO: Support other types
+		if e.Type != types.ExportFunc {
+			panic("Cannot deal with non func export yet")
+		} else {
+			fname := wf.Debug.GetFunctionIdentifier(e.Index, true)
+			if fname == "" {
+				panic("Function not found")
+			} else {
+				nfid := wf.LookupFunctionID(fname)
+				if nfid == -1 {
+					panic("Function not found in output")
+				} else {
+					// Now put it in the new wf...
+					wf.Export = append(wf.Export, &ExportEntry{
+						Type:  e.Type,
+						Name:  e.Name,
+						Index: nfid,
+					})
+				}
+			}
+		}
+	}
 }
 
 func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
