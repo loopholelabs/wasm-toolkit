@@ -103,9 +103,7 @@ func (wd *WasmDebug) ParseDwarfGlobals() {
 					}
 				} else if field.Attr == dwarf.AttrType {
 					offset := field.Val.(dwarf.Offset)
-					fmt.Printf("Calling Type %v\n", offset)
 					ty, err := wd.DwarfData.Type(offset)
-					fmt.Printf("Got type %v %v\n", ty, err)
 					if err == nil {
 						vsize = ty.Size()
 						vtype = ty.String()
@@ -218,9 +216,7 @@ func (wd *WasmDebug) ParseDwarfVariables(wf FunctionFinder) error {
 							switch field.Val.(type) {
 							case dwarf.Offset:
 								t := field.Val.(dwarf.Offset)
-								fmt.Printf("Reading type %v\n", t)
 								ty, err := wd.DwarfData.Type(t)
-								fmt.Printf("Type is %v %v\n", ty, err)
 								if err == nil {
 									vtype = ty.String()
 								}

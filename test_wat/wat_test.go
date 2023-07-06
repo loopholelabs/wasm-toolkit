@@ -55,8 +55,17 @@ func TestWatStdout(t *testing.T) {
 	}
 
 	// Sort out memory...
+	maxMem := 0
+	for _, d := range wfile.Data {
+		o := int(d.Offset[0].I32Value) + len(d.Data)
+		if o > maxMem {
+			maxMem = o
+		}
+	}
 
-	wfile.Memory = append(wfile.Memory, &wasmfile.MemoryEntry{LimitMin: 2, LimitMax: 2})
+	pages := (maxMem + 65535) >> 16
+
+	wfile.Memory = append(wfile.Memory, &wasmfile.MemoryEntry{LimitMin: pages, LimitMax: pages})
 	wfile.Export = append(wfile.Export, &wasmfile.ExportEntry{
 		Type:  types.ExportMem,
 		Name:  "memory",
@@ -70,13 +79,7 @@ func TestWatStdout(t *testing.T) {
 
 	fmt.Printf("Got wasm file %d\n", len(wasmData))
 
-	for _, e := range wfile.Export {
-		fmt.Printf("Export %s %v %v\n", e.Name, e.Type, e.Index)
-	}
-
 	ctx := context.TODO()
-
-	// TODO: Load up some wat files and test them.
 
 	r := wazero.NewRuntime(ctx)
 	defer r.Close(ctx)
@@ -108,5 +111,5 @@ func TestWatStdout(t *testing.T) {
 	_, err = f.Call(ctx)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "Hello world", output)
+	assert.Equal(t, "Hello world12345678123456789abcdef06162636465666768", output)
 }

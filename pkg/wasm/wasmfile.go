@@ -50,26 +50,31 @@ type WasmFile struct {
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
 
+// FunctionEntry
 type FunctionEntry struct {
 	TypeIndex int
 }
 
+// TypeEntry
 type TypeEntry struct {
 	Param  []types.ValType
 	Result []types.ValType
 }
 
+// CustomEntry
 type CustomEntry struct {
 	Name string
 	Data []byte
 }
 
+// ExportEntry
 type ExportEntry struct {
 	Name  string
 	Type  types.ExportType
 	Index int
 }
 
+// ImportEntry
 type ImportEntry struct {
 	Module string
 	Name   string
@@ -77,23 +82,27 @@ type ImportEntry struct {
 	Index  int
 }
 
+// TableEntry
 type TableEntry struct {
 	TableType byte
 	LimitMin  int
 	LimitMax  int
 }
 
+// GlobalEntry
 type GlobalEntry struct {
 	Type       types.ValType
 	Mut        byte
 	Expression []*expression.Expression
 }
 
+// MemoryEntry
 type MemoryEntry struct {
 	LimitMin int
 	LimitMax int
 }
 
+// CodeEntry
 type CodeEntry struct {
 	Locals         []types.ValType
 	PCValid        bool
@@ -102,12 +111,14 @@ type CodeEntry struct {
 	Expression     []*expression.Expression
 }
 
+// DataEntry
 type DataEntry struct {
 	MemIndex int
 	Offset   []*expression.Expression
 	Data     []byte
 }
 
+// ElemEntry
 type ElemEntry struct {
 	TableIndex int
 	Offset     []*expression.Expression

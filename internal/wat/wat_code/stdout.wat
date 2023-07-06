@@ -2,7 +2,7 @@
   (type (func (param i32 i32 i32 i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_write" (func $debug_fd_write (type 0)))
 
-;; $wt_print - Print a string
+;; $wt_print - Print a string to stdout
   (func $wt_print (param $ptr i32) (param $len i32)
     (local $iovp i32)
 
