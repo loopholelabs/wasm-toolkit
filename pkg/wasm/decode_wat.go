@@ -28,15 +28,6 @@ import (
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
-func (wf *WasmFile) LookupFunctionID(n string) int {
-	for idx, name := range wf.Debug.FunctionNames {
-		if n == name {
-			return idx
-		}
-	}
-	return -1
-}
-
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
 	idx := len(wf.Debug.FunctionNames)
 	wf.Debug.FunctionNames[idx] = n
@@ -638,7 +629,7 @@ func (e *ExportEntry) DecodeWat(d string, wf *WasmFile) error {
 		e.Type = types.ExportFunc
 		if strings.HasPrefix(erest, "$") {
 			fname, _ := encoding.ReadToken(erest)
-			fid := wf.LookupFunctionID(fname)
+			fid := wf.Debug.LookupFunctionID(fname)
 			if fid == -1 {
 				return fmt.Errorf("Function %s not found in export", fname)
 			}
@@ -691,7 +682,7 @@ func (e *ElemEntry) DecodeWat(d string, wf *WasmFile) error {
 			var findex int
 			fid, s = encoding.ReadToken(s)
 			if strings.HasPrefix(fid, "$") {
-				findex = wf.LookupFunctionID(fid)
+				findex = wf.Debug.LookupFunctionID(fid)
 				if findex == -1 {
 					return fmt.Errorf("Function not found %s", fid)
 				}

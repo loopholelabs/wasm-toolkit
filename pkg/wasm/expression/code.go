@@ -17,10 +17,17 @@
 package expression
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 )
+
+type WasmLookupContext interface {
+	LookupGlobalID(id string) int
+	LookupFunctionID(id string) int
+}
 
 /**
  * Create an Expression from some wat source.
@@ -99,4 +106,77 @@ func InsertAfterRelocating(exp []*Expression, to string) ([]*Expression, error) 
 		}
 	}
 	return adjustedExpression, nil
+}
+
+/**
+ * Modify (remap) some GlobalIndexes
+ *
+ */
+func ModifyAllGlobalIndexes(exp []*Expression, m map[int]int) {
+	for _, e := range exp {
+		newid, ok := m[e.GlobalIndex]
+		if ok {
+			e.GlobalIndex = newid
+		}
+	}
+}
+
+func ModifyAllFunctionIndexes(exp []*Expression, m map[int]int) {
+	for _, e := range exp {
+		if e.Opcode == InstrToOpcode["call"] {
+			newid, ok := m[e.FuncIndex]
+			if ok {
+				e.FuncIndex = newid
+			}
+		}
+	}
+}
+
+func ModifyUnresolvedFunctions(exp []*Expression, m map[string]string) error {
+	for _, e := range exp {
+		if e.FunctionNeedsLinking {
+			newid, ok := m[e.FunctionId]
+			if ok {
+				e.FunctionId = newid
+				// Special case (The target is simply an ID. We should link it here.)
+				if !strings.HasPrefix(newid, "$") {
+					fid, err := strconv.Atoi(newid)
+					if err != nil {
+						return err
+					}
+					e.FunctionNeedsLinking = false
+					e.FuncIndex = fid
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func ResolveGlobals(exp []*Expression, wd WasmLookupContext) error {
+	for _, e := range exp {
+		if e.GlobalNeedsLinking {
+			// Lookup the global and get the ID
+			gid := wd.LookupGlobalID(e.GlobalId)
+			if gid == -1 {
+				return fmt.Errorf("Global target not found (%s)", e.GlobalId)
+			}
+			e.GlobalIndex = gid
+		}
+	}
+	return nil
+}
+
+func ResolveFunctions(exp []*Expression, wd WasmLookupContext) error {
+	for _, e := range exp {
+		if e.FunctionNeedsLinking {
+			// Lookup the function and get the ID
+			fid := wd.LookupFunctionID(e.FunctionId)
+			if fid == -1 {
+				return fmt.Errorf("Function target not found (%s)", e.FunctionId)
+			}
+			e.FuncIndex = fid
+		}
+	}
+	return nil
 }

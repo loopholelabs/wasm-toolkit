@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"strconv"
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
@@ -194,7 +193,7 @@ func (wf *WasmFile) AddExports(wfsource *WasmFile) {
 			if fname == "" {
 				panic("Function not found")
 			} else {
-				nfid := wf.LookupFunctionID(fname)
+				nfid := wf.Debug.LookupFunctionID(fname)
 				if nfid == -1 {
 					panic("Function not found in output")
 				} else {
@@ -242,6 +241,10 @@ func (wf *WasmFile) SetGlobal(name string, t types.ValType, expr string) {
 	wf.Global[idx].Expression = ex
 }
 
+/**
+ * AddTypeMaybe adds a type unless the exact type is already there.
+ *
+ */
 func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
 	for idx, t := range wf.Type {
 		if t.Equals(te) {
@@ -251,6 +254,8 @@ func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
 	wf.Type = append(wf.Type, te)
 	return len(wf.Type) - 1
 }
+
+const ALIGN_DATA = 8
 
 func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 	ptr := addr
@@ -268,7 +273,7 @@ func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
 
 		wf.Data = append(wf.Data, d)
 		ptr += int32(len(d.Data))
-		ptr = (ptr + 7) & -8
+		ptr = (ptr + ALIGN_DATA - 1) & -ALIGN_DATA
 
 		for _, n := range wf.Debug.DataNames {
 			if n == src_name {
@@ -289,8 +294,8 @@ func (wf *WasmFile) AddData(name string, data []byte) {
 		ptr = prev.Offset[0].I32Value + int32(len(prev.Data))
 	}
 
-	// Align things...
-	ptr = (ptr + 7) & -8
+	// Align data items...
+	ptr = (ptr + ALIGN_DATA - 1) & -ALIGN_DATA
 
 	idx := len(wf.Data)
 	wf.Data = append(wf.Data, &DataEntry{
@@ -423,45 +428,46 @@ func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap m
 }
 
 func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
-	for _, e := range ce.Expression {
-		newid, ok := m[e.GlobalIndex]
-		if ok {
-			e.GlobalIndex = newid
-		}
-	}
+	expression.ModifyAllGlobalIndexes(ce.Expression, m)
 }
 
 func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
-	for _, e := range ce.Expression {
-		if e.Opcode == expression.InstrToOpcode["call"] {
-			newid, ok := m[e.FuncIndex]
-			if ok {
-				if e.FuncIndex != newid {
-					e.FuncIndex = newid
-				}
-			}
-		}
-	}
+	expression.ModifyAllFunctionIndexes(ce.Expression, m)
 }
 
 func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
-	for _, e := range ce.Expression {
-		if e.FunctionNeedsLinking {
-			newid, ok := m[e.FunctionId]
-			if ok {
-				e.FunctionId = newid
-				// Special case
-				if !strings.HasPrefix(newid, "$") {
-					fid, err := strconv.Atoi(newid)
-					if err != nil {
-						panic(err)
-					}
-					e.FunctionNeedsLinking = false
-					e.FuncIndex = fid
-				}
-			}
-		}
+	err := expression.ModifyUnresolvedFunctions(ce.Expression, m)
+	if err != nil {
+		panic(err)
 	}
+}
+
+func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
+	newex, err := expression.AddExpressionStart(ce.Expression, to)
+	if err != nil {
+		return err
+	}
+	ce.Expression = newex
+	return nil
+}
+
+func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
+	newex, err := expression.AddExpressionEnd(ce.Expression, to)
+	if err != nil {
+		return err
+	}
+	ce.Expression = newex
+	return nil
+}
+
+func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {
+	err := expression.ResolveGlobals(ce.Expression, wf.Debug)
+	return err
+}
+
+func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
+	err := expression.ResolveFunctions(ce.Expression, wf.Debug)
+	return err
 }
 
 func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
@@ -492,54 +498,6 @@ func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
 		}
 	}
 	ce.Expression = adjustedExpression
-	return nil
-}
-
-func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
-	newex, err := expression.AddExpressionStart(ce.Expression, to)
-	if err != nil {
-		return err
-	}
-
-	ce.Expression = newex
-	return nil
-}
-
-func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
-	newex, err := expression.AddExpressionEnd(ce.Expression, to)
-	if err != nil {
-		return err
-	}
-
-	ce.Expression = newex
-	return nil
-}
-
-func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {
-	for _, e := range ce.Expression {
-		if e.GlobalNeedsLinking {
-			// Lookup the global and get the ID
-			gid := wf.Debug.LookupGlobalID(e.GlobalId)
-			if gid == -1 {
-				return fmt.Errorf("Global target not found (%s)", e.GlobalId)
-			}
-			e.GlobalIndex = gid
-		}
-	}
-	return nil
-}
-
-func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
-	for _, e := range ce.Expression {
-		if e.FunctionNeedsLinking {
-			// Lookup the function and get the ID
-			fid := wf.LookupFunctionID(e.FunctionId)
-			if fid == -1 {
-				return fmt.Errorf("Function target not found (%s)", e.FunctionId)
-			}
-			e.FuncIndex = fid
-		}
-	}
 	return nil
 }
 
@@ -576,13 +534,9 @@ func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
 }
 
 func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
-	newex, err := expression.InsertAfterRelocating(ce.Expression, to)
-	if err != nil {
-		return err
-	}
-
-	ce.Expression = newex
-	return nil
+	var err error
+	ce.Expression, err = expression.InsertAfterRelocating(ce.Expression, to)
+	return err
 }
 
 func (te *TypeEntry) Equals(te2 *TypeEntry) bool {

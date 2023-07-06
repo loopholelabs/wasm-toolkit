@@ -25,7 +25,7 @@ import "github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
  */
 func (wf *WasmFile) RedirectImport(fromModule string, from string, to string) {
 
-	fid := wf.LookupFunctionID(to)
+	fid := wf.Debug.LookupFunctionID(to)
 
 	if fid == -1 {
 		panic("Target function not found!")

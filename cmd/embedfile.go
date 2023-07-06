@@ -136,7 +136,7 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 
 	for from, to := range import_redirect_map {
 		fromId := wfile.LookupImport(from)
-		toId := wfile.LookupFunctionID(to)
+		toId := wfile.Debug.LookupFunctionID(to)
 
 		fmt.Printf("Redirecting code from %d to %d\n", fromId, toId)
 

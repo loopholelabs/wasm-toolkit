@@ -185,3 +185,12 @@ func (wd *WasmDebug) LookupGlobalID(n string) int {
 	}
 	return -1
 }
+
+func (wd *WasmDebug) LookupFunctionID(n string) int {
+	for idx, name := range wd.FunctionNames {
+		if n == name {
+			return idx
+		}
+	}
+	return -1
+}
