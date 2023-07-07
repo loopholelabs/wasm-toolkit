@@ -443,21 +443,15 @@ func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
 }
 
 func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
-	newex, err := expression.AddExpressionStart(ce.Expression, to)
-	if err != nil {
-		return err
-	}
-	ce.Expression = newex
-	return nil
+	var err error
+	ce.Expression, err = expression.AddExpressionStart(ce.Expression, to)
+	return err
 }
 
 func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
-	newex, err := expression.AddExpressionEnd(ce.Expression, to)
-	if err != nil {
-		return err
-	}
-	ce.Expression = newex
-	return nil
+	var err error
+	ce.Expression, err = expression.AddExpressionEnd(ce.Expression, to)
+	return err
 }
 
 func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {

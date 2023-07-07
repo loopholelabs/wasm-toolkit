@@ -26,10 +26,11 @@ import (
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/wasmfile"
 
 	"github.com/spf13/cobra"
 )
@@ -148,7 +149,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 			// If they're wasi calls. Add function signatures etc
 			if i.Module == "wasi_snapshot_preview1" {
 				wasi_functions[newidx] = i.Name
-				de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
+				de, ok := wasm.Debug_wasi_snapshot_preview1[i.Name]
 				if ok {
 					wfile.Debug.SetFunctionSignature(newidx, de)
 				}
@@ -169,7 +170,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 	data_wasi_err_ptrs := make([]byte, 0)
 
 	errors_by_id := make([]string, 77)
-	for m, v := range wasmfile.Wasi_errors {
+	for m, v := range wasm.Wasi_errors {
 		errors_by_id[v] = m
 	}
 
@@ -445,7 +446,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 
 				// Add some code to show function parameter values...
 				startCode = fmt.Sprintf(`%s
-					%s`, startCode, wasmfile.GetWasiParamCodeEnter(wasi_name))
+					%s`, startCode, wasm.GetWasiParamCodeEnter(wasi_name))
 
 				if include_timings {
 					startCode = fmt.Sprintf(`%s
@@ -487,7 +488,7 @@ func runStrace(ccmd *cobra.Command, args []string) {
 					// We also want to output the error message
 					endCode = fmt.Sprintf(`%s
 					call $debug_exit_func_wasi
-					%s`, endCode, wasmfile.GetWasiParamCodeExit(wasi_name))
+					%s`, endCode, wasm.GetWasiParamCodeExit(wasi_name))
 
 				} else {
 					endCode = fmt.Sprintf(`%s

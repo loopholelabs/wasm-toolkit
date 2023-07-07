@@ -22,9 +22,9 @@ import (
 	"path"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/wasmfile"
 
 	"github.com/spf13/cobra"
 )

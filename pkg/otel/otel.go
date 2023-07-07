@@ -25,10 +25,11 @@ import (
 	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/wasmfile"
 )
 
 type Otel_config struct {
@@ -648,7 +649,7 @@ func wrapImports(wfile *wasmfile.WasmFile) map[int]string {
 		// If they're wasi calls. Add function signatures etc
 		if i.Module == "wasi_snapshot_preview1" {
 			wasi_functions[newidx] = i.Name
-			de, ok := wasmfile.Debug_wasi_snapshot_preview1[i.Name]
+			de, ok := wasm.Debug_wasi_snapshot_preview1[i.Name]
 			if ok {
 				wfile.Debug.SetFunctionSignature(newidx, de)
 			}
@@ -674,7 +675,7 @@ func addWasiErrorInfo(wfile *wasmfile.WasmFile) {
 	data_wasi_err_ptrs := make([]byte, 0)
 
 	errors_by_id := make([]string, 77)
-	for m, v := range wasmfile.Wasi_errors {
+	for m, v := range wasm.Wasi_errors {
 		errors_by_id[v] = m
 	}
 

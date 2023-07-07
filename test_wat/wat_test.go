@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/wasmfile"
 	"github.com/stretchr/testify/assert"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"

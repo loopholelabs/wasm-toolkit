@@ -1,4 +1,4 @@
-package wasmfile
+package wasm
 
 var Debug_wasi_snapshot_preview1 = map[string]string{
 	"args_get":               "args_get(argv, argv_buf)",

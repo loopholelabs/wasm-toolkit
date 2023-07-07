@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/wasmfile"
 
 	"github.com/spf13/cobra"
 )
