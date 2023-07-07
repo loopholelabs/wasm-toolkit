@@ -19,6 +19,7 @@ package wasmfile
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,18 @@ import (
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
+
+// Create a new WasmFile from a file
+func NewFromWat(filename string) (*WasmFile, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	wf := &WasmFile{}
+	err = wf.DecodeWat(data)
+	return wf, err
+}
 
 func (wf *WasmFile) RegisterNextFunctionName(n string) {
 	idx := len(wf.Debug.FunctionNames)

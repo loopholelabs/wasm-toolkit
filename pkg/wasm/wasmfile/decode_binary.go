@@ -21,10 +21,23 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
+
+// Create a new WasmFile from a file
+func New(filename string) (*WasmFile, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	wf := &WasmFile{}
+	err = wf.DecodeBinary(data)
+	return wf, err
+}
 
 /**
  * Decode a wasm binary into a WasmFile

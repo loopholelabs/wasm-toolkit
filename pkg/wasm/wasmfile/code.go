@@ -16,7 +16,16 @@
 
 package wasmfile
 
-import "github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+)
 
 /**
  * This will redirect all calls for an imported function to another function.
@@ -79,4 +88,371 @@ func (wf *WasmFile) RedirectImport(fromModule string, from string, to string) {
 	}
 
 	wf.Debug.RenumberFunctions(remap)
+}
+
+func (wf *WasmFile) AddExports(wfsource *WasmFile) {
+	for _, e := range wfsource.Export {
+		// TODO: Support other types
+		if e.Type != types.ExportFunc {
+			panic("Cannot deal with non func export yet")
+		} else {
+			fname := wf.Debug.GetFunctionIdentifier(e.Index, true)
+			if fname == "" {
+				panic("Function not found")
+			} else {
+				nfid := wf.Debug.LookupFunctionID(fname)
+				if nfid == -1 {
+					panic("Function not found in output")
+				} else {
+					// Now put it in the new wf...
+					wf.Export = append(wf.Export, &ExportEntry{
+						Type:  e.Type,
+						Name:  e.Name,
+						Index: nfid,
+					})
+				}
+			}
+		}
+	}
+}
+
+func (wf *WasmFile) AddGlobal(name string, t types.ValType, expr string) {
+	ex := make([]*expression.Expression, 0)
+	e := &expression.Expression{}
+	e.DecodeWat(expr, nil)
+	ex = append(ex, e)
+
+	idx := len(wf.Global)
+
+	wf.Debug.GlobalNames[idx] = name
+
+	wf.Global = append(wf.Global, &GlobalEntry{
+		Type:       t,
+		Expression: ex,
+		Mut:        1,
+	})
+}
+
+func (wf *WasmFile) SetGlobal(name string, t types.ValType, expr string) {
+	ex := make([]*expression.Expression, 0)
+	e := &expression.Expression{}
+	e.DecodeWat(expr, nil)
+	ex = append(ex, e)
+
+	idx := wf.Debug.LookupGlobalID(name)
+	if idx == -1 {
+		panic("Global not found")
+	}
+
+	wf.Global[idx].Type = t
+	wf.Global[idx].Expression = ex
+}
+
+/**
+ * AddTypeMaybe adds a type unless the exact type is already there.
+ *
+ */
+func (wf *WasmFile) AddTypeMaybe(te *TypeEntry) int {
+	for idx, t := range wf.Type {
+		if t.Equals(te) {
+			return idx
+		}
+	}
+	wf.Type = append(wf.Type, te)
+	return len(wf.Type) - 1
+}
+
+const ALIGN_DATA = 8
+
+func (wf *WasmFile) AddDataFrom(addr int32, wfSource *WasmFile) int32 {
+	ptr := addr
+	for idx, d := range wfSource.Data {
+		src_name := wfSource.Debug.GetDataIdentifier(idx)
+		// Relocate the data
+		d.Offset = []*expression.Expression{
+			{
+				Opcode:   expression.InstrToOpcode["i32.const"],
+				I32Value: ptr,
+			},
+		}
+
+		newidx := len(wf.Data)
+
+		wf.Data = append(wf.Data, d)
+		ptr += int32(len(d.Data))
+		ptr = (ptr + ALIGN_DATA - 1) & -ALIGN_DATA
+
+		for _, n := range wf.Debug.DataNames {
+			if n == src_name {
+				panic(fmt.Sprintf("Data conflict for '%s'", src_name))
+			}
+		}
+
+		// Copy over the data name
+		wf.Debug.DataNames[newidx] = src_name
+	}
+	return ptr
+}
+
+func (wf *WasmFile) AddData(name string, data []byte) {
+	ptr := int32(0)
+	if len(wf.Data) > 0 {
+		prev := wf.Data[len(wf.Data)-1]
+		ptr = prev.Offset[0].I32Value + int32(len(prev.Data))
+	}
+
+	// Align data items...
+	ptr = (ptr + ALIGN_DATA - 1) & -ALIGN_DATA
+
+	idx := len(wf.Data)
+	wf.Data = append(wf.Data, &DataEntry{
+		MemIndex: 0,
+		Offset: []*expression.Expression{
+			{
+				Opcode:   expression.InstrToOpcode["i32.const"],
+				I32Value: ptr,
+			},
+		},
+		Data: data,
+	})
+	wf.Debug.DataNames[idx] = name
+}
+
+func (wf *WasmFile) AddFuncsFrom(wfSource *WasmFile, remap_callback func(remap map[int]int)) {
+	globalModification := make(map[int]int)
+	for idx, g := range wfSource.Global {
+		newidx := len(wf.Global)
+		globalModification[idx] = newidx
+		wf.Global = append(wf.Global, g)
+		name := wfSource.Debug.GetGlobalIdentifier(idx, true)
+		if name != "" {
+			wf.Debug.GlobalNames[newidx] = name
+		}
+	}
+
+	callModification := make(map[int]int) // old fid -> new fid
+
+	importFuncModifications := make(map[string]string) // old name -> new name
+
+	// Deal with any imports
+	for idx, i := range wfSource.Import {
+		// Check if it's already being imported as something else...
+		var newidx = -1
+		for nidx, i2 := range wf.Import {
+			if i.Module == i2.Module && i.Name == i2.Name {
+				newidx = nidx
+				break
+			}
+		}
+		if newidx != -1 {
+			// Add the name modification
+			fnFrom := wfSource.Debug.GetFunctionIdentifier(idx, false)
+			fnTo := wf.Debug.GetFunctionIdentifier(newidx, false)
+			importFuncModifications[fnFrom] = fnTo
+			callModification[idx] = newidx
+		} else {
+			// Need to add a new import then... (This means relocating every call as well)
+			callModification[idx] = len(wf.Import)
+			newidx := len(wf.Import)
+
+			// Might need to add a type if there isn't one already
+			t := wfSource.Type[i.Index]
+			i.Index = wf.AddTypeMaybe(t)
+
+			wf.Import = append(wf.Import, i)
+
+			rmap := make(map[int]int)
+			for i := 0; i < len(wf.Code)+len(wf.Import); i++ {
+				// Relocate everything at or above newidx
+				if i >= newidx {
+					rmap[i] = i + 1
+				} else {
+					rmap[i] = i
+				}
+			}
+
+			wf.Debug.RenumberFunctions(rmap)
+			name := wfSource.Debug.GetFunctionIdentifier(idx, true)
+			if name != "" {
+				wf.Debug.FunctionNames[newidx] = name
+			}
+
+			// Modify any exports
+			for _, ex := range wf.Export {
+				if ex.Type == types.ExportFunc && ex.Index >= newidx {
+					ex.Index++
+				}
+			}
+
+			for _, ce := range wf.Code {
+				ce.ModifyAllCalls(rmap)
+			}
+
+			// We also need to fixup any Elems sections
+			for _, el := range wf.Elem {
+				for idx, funcidx := range el.Indexes {
+					newidx, ok := rmap[int(funcidx)]
+					if ok {
+						el.Indexes[idx] = uint64(newidx)
+					}
+				}
+			}
+
+			// Do some callbacks
+			remap_callback(rmap)
+		}
+	}
+
+	for idx, f := range wfSource.Function {
+		t := wfSource.Type[f.TypeIndex]
+		name := wfSource.Debug.GetFunctionIdentifier(len(wfSource.Import)+idx, true)
+
+		newidx := len(wf.Import) + len(wf.Function)
+
+		// Add the functions in, copying the type if needed...
+		wf.Function = append(wf.Function, f)
+		f.TypeIndex = wf.AddTypeMaybe(t)
+
+		// Add the function name if there is one
+		if name != "" {
+			wf.Debug.FunctionNames[newidx] = name
+		}
+
+		callModification[len(wfSource.Import)+idx] = newidx
+	}
+
+	// Now add the code
+	for _, c := range wfSource.Code {
+
+		c.ModifyAllCalls(callModification)
+		c.ModifyAllGlobals(globalModification)
+
+		c.ModifyUnresolvedFunctions(importFuncModifications)
+
+		wf.Code = append(wf.Code, c)
+	}
+
+}
+
+func (ce *CodeEntry) ModifyAllGlobals(m map[int]int) {
+	expression.ModifyAllGlobalIndexes(ce.Expression, m)
+}
+
+func (ce *CodeEntry) ModifyAllCalls(m map[int]int) {
+	expression.ModifyAllFunctionIndexes(ce.Expression, m)
+}
+
+func (ce *CodeEntry) ModifyUnresolvedFunctions(m map[string]string) {
+	err := expression.ModifyUnresolvedFunctions(ce.Expression, m)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (ce *CodeEntry) InsertFuncStart(wf *WasmFile, to string) error {
+	var err error
+	ce.Expression, err = expression.AddExpressionStart(ce.Expression, to)
+	return err
+}
+
+func (ce *CodeEntry) InsertFuncEnd(wf *WasmFile, to string) error {
+	var err error
+	ce.Expression, err = expression.AddExpressionEnd(ce.Expression, to)
+	return err
+}
+
+func (ce *CodeEntry) ResolveGlobals(wf *WasmFile) error {
+	err := expression.ResolveGlobals(ce.Expression, wf.Debug)
+	return err
+}
+
+func (ce *CodeEntry) ResolveFunctions(wf *WasmFile) error {
+	err := expression.ResolveFunctions(ce.Expression, wf.Debug)
+	return err
+}
+
+func (ce *CodeEntry) ReplaceInstr(wf *WasmFile, from string, to string) error {
+
+	newex, err := expression.ExpressionFromWat(to)
+	if err != nil {
+		return err
+	}
+
+	// Now we need to find where to replace this code...
+	adjustedExpression := make([]*expression.Expression, 0)
+	for _, e := range ce.Expression {
+		var buf bytes.Buffer
+		e.EncodeWat(&buf, "", wf.Debug)
+		cd := buf.String()
+		cend := strings.Index(cd, ";;")
+		if cend != -1 {
+			cd = cd[:cend]
+		}
+
+		if strings.Trim(cd, encoding.Whitespace) == from {
+			// Replace it!
+			for _, ne := range newex {
+				adjustedExpression = append(adjustedExpression, ne)
+			}
+		} else {
+			adjustedExpression = append(adjustedExpression, e)
+		}
+	}
+	ce.Expression = adjustedExpression
+	return nil
+}
+
+func (ce *CodeEntry) ResolveLengths(wf *WasmFile) error {
+	for _, e := range ce.Expression {
+		if e.DataLengthNeedsLinking {
+			did := wf.Debug.LookupDataId(e.I32DataId)
+			if did == -1 {
+				return fmt.Errorf("Data not found %s", e.I32DataId)
+			}
+			e.I32Value = int32(len(wf.Data[did].Data))
+		}
+	}
+	return nil
+}
+
+func (ce *CodeEntry) ResolveRelocations(wf *WasmFile, base_pointer int) error {
+	for _, e := range ce.Expression {
+		if e.DataOffsetNeedsLinking {
+			did := wf.Debug.LookupDataId(e.I32DataId)
+			if did == -1 {
+				return fmt.Errorf("Data not found %s", e.I32DataId)
+			}
+
+			expr := wf.Data[did].Offset
+			if len(expr) != 1 || expr[0].Opcode != expression.InstrToOpcode["i32.const"] {
+				return errors.New("Can only deal with i32.const for now")
+			}
+
+			e.I32Value = expr[0].I32Value - int32(base_pointer)
+		}
+	}
+	return nil
+}
+
+func (ce *CodeEntry) InsertAfterRelocating(wf *WasmFile, to string) error {
+	var err error
+	ce.Expression, err = expression.InsertAfterRelocating(ce.Expression, to)
+	return err
+}
+
+func (te *TypeEntry) Equals(te2 *TypeEntry) bool {
+	if len(te.Param) != len(te2.Param) || len(te.Result) != len(te2.Result) {
+		return false
+	}
+	for idx, v := range te.Param {
+		if v != te2.Param[idx] {
+			return false
+		}
+	}
+	for idx, v := range te.Result {
+		if v != te2.Result[idx] {
+			return false
+		}
+	}
+	return true
 }
