@@ -153,3 +153,17 @@ func (wf *WasmFile) LookupImport(n string) int {
 	}
 	return -1
 }
+
+func (t *TypeEntry) Clone() *TypeEntry {
+	newType := &TypeEntry{
+		Param:  make([]types.ValType, 0),
+		Result: make([]types.ValType, 0),
+	}
+	for _, v := range t.Result {
+		newType.Result = append(newType.Result, v)
+	}
+	for _, v := range t.Param {
+		newType.Param = append(newType.Param, v)
+	}
+	return newType
+}
