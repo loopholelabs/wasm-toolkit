@@ -1,7 +1,10 @@
 package customs
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
@@ -23,10 +26,76 @@ type RemapMuxExport struct {
 	Mapper map[uint64]string
 }
 
+const DEF_SEPARATOR = ","
+const ID_SEPARATOR = ":"
+const MODULE_SEPARATOR = "/"
+
+func ParseRemapMuxExport(e string) (*RemapMuxExport, error) {
+	// eg "hello,0:zero,1:one,2:two"
+
+	eBits := strings.Split(e, DEF_SEPARATOR)
+	eDef := &RemapMuxExport{Mapper: map[uint64]string{}}
+	for i, v := range eBits {
+		if i == 0 {
+			eDef.Source = v
+		} else {
+			// Split on :
+			vals := strings.Split(v, ID_SEPARATOR)
+			if len(vals) != 2 {
+				return nil, errors.New("Invalid definition")
+			}
+			id, err := strconv.ParseUint(vals[0], 10, 64)
+			if err != nil {
+				return nil, errors.New("Invalid definition")
+			}
+			eDef.Mapper[id] = vals[1]
+		}
+	}
+	return eDef, nil
+}
+
+func ParseRemapMuxImport(e string) (*RemapMuxImport, error) {
+	// eg "env/hello,0:env/zero,1:env/one,2:env/two"
+
+	eBits := strings.Split(e, DEF_SEPARATOR)
+	eDef := &RemapMuxImport{Mapper: map[uint64]Import{}}
+	for i, v := range eBits {
+		if i == 0 {
+			b := strings.Split(v, MODULE_SEPARATOR)
+			if len(b) != 2 {
+				return nil, errors.New("Invalid definition")
+			}
+			eDef.Source = Import{
+				Module: b[0],
+				Name:   b[1],
+			}
+		} else {
+			// Split on :
+			vals := strings.Split(v, ID_SEPARATOR)
+			if len(vals) != 2 {
+				return nil, errors.New("Invalid definition")
+			}
+			id, err := strconv.ParseUint(vals[0], 10, 64)
+			if err != nil {
+				return nil, errors.New("Invalid definition")
+			}
+			b := strings.Split(vals[1], MODULE_SEPARATOR)
+			if len(b) != 2 {
+				return nil, errors.New("Invalid definition")
+			}
+			eDef.Mapper[id] = Import{
+				Module: b[0],
+				Name:   b[1],
+			}
+		}
+	}
+	return eDef, nil
+}
+
 /**
  *
  */
-func MuxExport(wfile *wasmfile.WasmFile, c RemapMuxExport) {
+func MuxExport(wfile *wasmfile.WasmFile, c RemapMuxExport) error {
 	// For each item in the map we need to add a new function, and an export.
 
 	var sourceType *wasmfile.TypeEntry = nil
@@ -39,18 +108,27 @@ func MuxExport(wfile *wasmfile.WasmFile, c RemapMuxExport) {
 			// Now look up the function
 			sourceFunctionId = e.Index
 			p := e.Index - len(wfile.Import)
+			if p >= len(wfile.Function) {
+				return errors.New("Invalid wasm file")
+			}
 			sourceTypeId = wfile.Function[p].TypeIndex
+			if sourceTypeId >= len(wfile.Type) {
+				return errors.New("Invalid wasm file")
+			}
 			sourceType = wfile.Type[sourceTypeId]
 		} else {
 			newExports = append(newExports, e)
 		}
 	}
 	if sourceType == nil {
-		panic("Invalid wasm file")
+		return errors.New("Source function not found")
 	}
 
 	// Now create a new type without the mux uint64 id
 	newType := sourceType.Clone()
+	if len(newType.Param) < 1 || newType.Param[0] != types.ValI64 {
+		return errors.New("First param of mux must be i64")
+	}
 	// Remove the uint64 ID
 	newType.Param = newType.Param[1:]
 
@@ -96,17 +174,19 @@ func MuxExport(wfile *wasmfile.WasmFile, c RemapMuxExport) {
 			Expression:     exp,
 		}
 
+		newFunctionId := len(wfile.Import) + len(wfile.Code)
 		wfile.Code = append(wfile.Code, cod)
 
 		newExports = append(newExports, &wasmfile.ExportEntry{
 			Type:  types.ExportFunc,
 			Name:  nname,
-			Index: 0, // TODO: Point to the new function we just created
+			Index: newFunctionId,
 		})
 	}
 
 	// Update the exports...
 	wfile.Export = newExports
+	return nil
 }
 
 /**
@@ -121,7 +201,7 @@ func MuxExport(wfile *wasmfile.WasmFile, c RemapMuxExport) {
  * would get replaced with
  *   callImportONE(...); callImportTWO(...);
  */
-func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) {
+func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 
 	// Make sure there's a type
 	var sourceType *wasmfile.TypeEntry = nil
@@ -129,14 +209,20 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) {
 	for _, i := range wfile.Import {
 		if i.Module == c.Source.Module && i.Name == c.Source.Name {
 			sourceTypeId = i.Index
+			if i.Index >= len(wfile.Type) {
+				return errors.New("Invalid wasm file")
+			}
 			sourceType = wfile.Type[i.Index]
 		}
 	}
 	if sourceType == nil {
-		panic("Source type not found")
+		return errors.New("Source function not found")
 	}
 	// Now create a new type without the mux uint64 id
 	newType := sourceType.Clone()
+	if len(newType.Param) < 1 || newType.Param[0] != types.ValI64 {
+		return errors.New("First param of mux must be i64")
+	}
 	// Remove the uint64 ID
 	newType.Param = newType.Param[1:]
 
@@ -151,7 +237,7 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) {
 	for id, i := range wfile.Import {
 		if i.Module == c.Source.Module && i.Name == c.Source.Name {
 			// Remove
-			remap[id] = 0 // TODO: Remap to the new mux function
+			remap[id] = 0 // This gets set later
 			sourceId = id // We'll update this in a bit
 		} else {
 			newImports = append(newImports, i)
@@ -196,7 +282,6 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) {
 	// Write the code here to call the correct function
 
 	for mid, re := range c.Mapper {
-
 		exp = append(exp,
 			&expression.Expression{
 				Opcode: expression.InstrToOpcode["block"],
@@ -274,7 +359,7 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) {
 	// Resolve the functions
 	err := cod.ResolveFunctions(wfile)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	wfile.Code = append(wfile.Code, cod)
 
@@ -283,10 +368,10 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) {
 		if ee.Type == types.ExportFunc {
 			newid, ok := remap[ee.Index]
 			if !ok {
-				panic("Remap failed for some odd reason")
+				return errors.New("Invalid wasm file")
 			}
 			ee.Index = newid
 		}
 	}
-
+	return nil
 }

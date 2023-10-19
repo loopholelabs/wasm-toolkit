@@ -37,11 +37,19 @@ var (
 	}
 )
 
+var muxDefImport = ""
+var muxDefExport = ""
+
 func init() {
 	rootCmd.AddCommand(cmdCustoms)
 
-	//cmdCustoms.Flags().StringVar(&source_file, "filename", "", "Source filename")
+	cmdCustoms.Flags().StringVar(&muxDefImport, "muximport", "", "Definition for mux import")
+	cmdCustoms.Flags().StringVar(&muxDefExport, "muxexport", "", "Definition for mux export")
 }
+
+// Example:
+//	--muximport "env/hello,0:env/zero,1:env/one,2:env/two"
+//	--muxexport "resize,0:resize_zero,1:resize_one,2:resize_two"
 
 func runCustoms(ccmd *cobra.Command, args []string) {
 	if Input == "" {
@@ -58,41 +66,27 @@ func runCustoms(ccmd *cobra.Command, args []string) {
 	wfile.Debug = &debug.WasmDebug{}
 	wfile.Debug.ParseNameSectionData(wfile.GetCustomSectionData("name"))
 
-	c := customs.RemapMuxImport{
-		Source: customs.Import{
-			Module: "env", Name: "hello",
-		},
-		Mapper: map[uint64]customs.Import{
-			0: {
-				Module: "env", Name: "zero",
-			},
-			1: {
-				Module: "env", Name: "one",
-			},
-			2: {
-				Module: "env", Name: "two",
-			},
-		},
+	if muxDefImport != "" {
+		ci, err := customs.ParseRemapMuxImport(muxDefImport)
+		if err != nil {
+			panic(err)
+		}
+		err = customs.MuxImport(wfile, *ci)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	fmt.Printf("Remap %v\n", c)
-
-	customs.MuxImport(wfile, c)
-
-	ce := customs.RemapMuxExport{
-		Source: "resize",
-		Mapper: map[uint64]string{
-			0: "resize_zero",
-			1: "resize_one",
-			2: "resize_two",
-		},
+	if muxDefExport != "" {
+		ci, err := customs.ParseRemapMuxExport(muxDefExport)
+		if err != nil {
+			panic(err)
+		}
+		err = customs.MuxExport(wfile, *ci)
+		if err != nil {
+			panic(err)
+		}
 	}
-
-	fmt.Printf("Remap %v\n", ce)
-
-	customs.MuxExport(wfile, ce)
-
-	// DONE DONE DONE...
 
 	fmt.Printf("Writing wasm out to %s...\n", Output)
 	f, err := os.Create(Output)
