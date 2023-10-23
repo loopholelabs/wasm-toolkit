@@ -309,7 +309,7 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 			exp = append(exp,
 				&expression.Expression{
 					Opcode:     expression.InstrToOpcode["local.get"],
-					LocalIndex: pid,
+					LocalIndex: pid + 1,
 				},
 			)
 		}
