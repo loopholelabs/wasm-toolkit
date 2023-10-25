@@ -3,6 +3,7 @@ package customs
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -240,8 +241,8 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 			remap[id] = 0 // This gets set later
 			sourceId = id // We'll update this in a bit
 		} else {
-			newImports = append(newImports, i)
 			remap[id] = len(newImports)
+			newImports = append(newImports, i)
 		}
 	}
 
@@ -261,10 +262,33 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 		remap[len(wfile.Import)+n] = len(newImports) + n
 	}
 
-	wfile.Import = newImports
+	fmt.Printf("Imports %d -> %d\n", len(wfile.Import), len(newImports))
 
+	for iid, ii := range wfile.Import {
+		fmt.Printf("OLD IMPORT %d %v\n", iid, ii)
+	}
+	for iid, ii := range newImports {
+		fmt.Printf("NEW IMPORT %d %v\n", iid, ii)
+	}
+
+	fmt.Printf("sourceId is %d\n", sourceId)
 	// Adjust to our new function (Added soon)
-	remap[sourceId] = len(wfile.Import) + len(wfile.Code)
+	remap[sourceId] = len(newImports) + len(wfile.Code)
+
+	keys := make([]int, 0)
+	for k, _ := range remap {
+		keys = append(keys, k)
+	}
+
+	sort.Ints(keys)
+	for _, oid := range keys {
+		nid := remap[oid]
+		if oid != nid {
+			fmt.Printf("Remap %d -> %d\n", oid, nid)
+		}
+	}
+
+	wfile.Import = newImports
 
 	for _, c := range wfile.Code {
 		c.ModifyAllCalls(remap)
@@ -274,7 +298,28 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 
 	// Add debug name for the new imports
 	for id, ii := range newFunctions {
-		wfile.Debug.FunctionNames[id] = fmt.Sprintf("mux_%s_%s", ii.Module, ii.Name)
+		wfile.Debug.FunctionNames[id] = fmt.Sprintf("$mux_%s_%s", ii.Module, ii.Name)
+	}
+
+	// Remap elem
+	// We also need to fixup any Elems sections
+	for _, el := range wfile.Elem {
+		for idx, funcidx := range el.Indexes {
+			newidx, ok := remap[int(funcidx)]
+			if ok {
+				el.Indexes[idx] = uint64(newidx)
+			}
+		}
+	}
+
+	// Fixup exports
+	for _, ex := range wfile.Export {
+		if ex.Type == types.ExportFunc {
+			newidx, ok := remap[ex.Index]
+			if ok {
+				ex.Index = newidx
+			}
+		}
 	}
 
 	exp := make([]*expression.Expression, 0)
@@ -317,7 +362,7 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 		exp = append(exp,
 			&expression.Expression{
 				Opcode:               expression.InstrToOpcode["call"],
-				FunctionId:           fmt.Sprintf("mux_%s_%s", re.Module, re.Name),
+				FunctionId:           fmt.Sprintf("$mux_%s_%s", re.Module, re.Name),
 				FunctionNeedsLinking: true,
 			},
 			&expression.Expression{
@@ -363,15 +408,5 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 	}
 	wfile.Code = append(wfile.Code, cod)
 
-	// Remap exports
-	for _, ee := range wfile.Export {
-		if ee.Type == types.ExportFunc {
-			newid, ok := remap[ee.Index]
-			if !ok {
-				return errors.New("Invalid wasm file")
-			}
-			ee.Index = newid
-		}
-	}
 	return nil
 }

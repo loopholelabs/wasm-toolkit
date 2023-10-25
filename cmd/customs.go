@@ -103,24 +103,24 @@ func runCustoms(ccmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	/*
-	   fmt.Printf("Writing debug.wat\n")
-	   f2, err := os.Create("debug.wat")
 
-	   	if err != nil {
-	   		panic(err)
-	   	}
+	fmt.Printf("Writing debug.wat\n")
+	f2, err := os.Create("debug.wat")
 
-	   err = wfile.EncodeWat(f2)
+	if err != nil {
+		panic(err)
+	}
 
-	   	if err != nil {
-	   		panic(err)
-	   	}
+	err = wfile.EncodeWat(f2)
 
-	   err = f2.Close()
+	if err != nil {
+		panic(err)
+	}
 
-	   	if err != nil {
-	   		panic(err)
-	   	}
-	*/
+	err = f2.Close()
+
+	if err != nil {
+		panic(err)
+	}
+
 }
