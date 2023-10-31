@@ -3,7 +3,6 @@ package customs
 import (
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -262,31 +261,35 @@ func MuxImport(wfile *wasmfile.WasmFile, c RemapMuxImport) error {
 		remap[len(wfile.Import)+n] = len(newImports) + n
 	}
 
-	fmt.Printf("Imports %d -> %d\n", len(wfile.Import), len(newImports))
+	/*
+		fmt.Printf("Imports %d -> %d\n", len(wfile.Import), len(newImports))
 
-	for iid, ii := range wfile.Import {
-		fmt.Printf("OLD IMPORT %d %v\n", iid, ii)
-	}
-	for iid, ii := range newImports {
-		fmt.Printf("NEW IMPORT %d %v\n", iid, ii)
-	}
+		for iid, ii := range wfile.Import {
+			fmt.Printf("OLD IMPORT %d %v\n", iid, ii)
+		}
+		for iid, ii := range newImports {
+			fmt.Printf("NEW IMPORT %d %v\n", iid, ii)
+		}
 
-	fmt.Printf("sourceId is %d\n", sourceId)
+		fmt.Printf("sourceId is %d\n", sourceId)
+	*/
 	// Adjust to our new function (Added soon)
 	remap[sourceId] = len(newImports) + len(wfile.Code)
 
-	keys := make([]int, 0)
-	for k, _ := range remap {
-		keys = append(keys, k)
-	}
-
-	sort.Ints(keys)
-	for _, oid := range keys {
-		nid := remap[oid]
-		if oid != nid {
-			fmt.Printf("Remap %d -> %d\n", oid, nid)
+	/*
+		keys := make([]int, 0)
+		for k, _ := range remap {
+			keys = append(keys, k)
 		}
-	}
+
+		sort.Ints(keys)
+		for _, oid := range keys {
+			nid := remap[oid]
+			if oid != nid {
+				fmt.Printf("Remap %d -> %d\n", oid, nid)
+			}
+		}
+	*/
 
 	wfile.Import = newImports
 
