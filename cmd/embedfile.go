@@ -22,9 +22,9 @@ import (
 	"path"
 
 	"github.com/loopholelabs/wasm-toolkit/internal/wat"
-	wasmfile "github.com/loopholelabs/wasm-toolkit/pkg/wasm"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/wasmfile"
 
 	"github.com/spf13/cobra"
 )
@@ -136,7 +136,7 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 
 	for from, to := range import_redirect_map {
 		fromId := wfile.LookupImport(from)
-		toId := wfile.LookupFunctionID(to)
+		toId := wfile.Debug.LookupFunctionID(to)
 
 		fmt.Printf("Redirecting code from %d to %d\n", fromId, toId)
 

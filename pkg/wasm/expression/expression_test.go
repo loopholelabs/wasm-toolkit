@@ -3,33 +3,11 @@ package expression
 import (
 	"bytes"
 
-	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 	"github.com/stretchr/testify/assert"
 
 	"testing"
 )
-
-func TestExpressionSleb(t *testing.T) {
-	numbers := []int64{
-		100, 1000, 1000000, -100, 27381092,
-	}
-
-	// Encode the numbers
-	b := make([]byte, 0)
-	for _, n := range numbers {
-		b = encoding.AppendSleb128(b, n)
-	}
-
-	// Now decode them and assert they're as expected
-	for _, expected := range numbers {
-		n, l := encoding.DecodeSleb128(b)
-		assert.Equal(t, n, expected)
-		b = b[l:]
-	}
-
-	assert.Equal(t, len(b), 0)
-}
 
 func verifyEncodeDecode(t *testing.T, expr *Expression) *Expression {
 	var buf bytes.Buffer

@@ -21,10 +21,32 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
+
+// Create a new WasmFile from a file
+func New(filename string) (*WasmFile, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	wf := &WasmFile{}
+	err = wf.DecodeBinary(data)
+	if err != nil {
+		return wf, err
+	}
+	wf.Debug = &debug.WasmDebug{}
+	nameData := wf.GetCustomSectionData("name")
+	if nameData != nil {
+		wf.Debug.ParseNameSectionData(nameData)
+	}
+	return wf, err
+}
 
 /**
  * Decode a wasm binary into a WasmFile

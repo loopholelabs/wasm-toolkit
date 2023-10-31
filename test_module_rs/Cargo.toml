@@ -3,6 +3,7 @@ name = "hello-world"
 version = "0.0.1"
 
 [profile.release]
+opt-level = 0
 debug = true
 
 [[bin]]

@@ -41,6 +41,10 @@ func (wd *WasmDebug) ParseNameSectionData(nameData []byte) {
 	wd.GlobalNames = make(map[int]string)
 	wd.DataNames = make(map[int]string)
 
+	if nameData == nil {
+		return // Nothing to do.
+	}
+
 	ptr := 0
 
 	for {
@@ -179,6 +183,15 @@ func (wd *WasmDebug) LookupDataId(n string) int {
 
 func (wd *WasmDebug) LookupGlobalID(n string) int {
 	for idx, name := range wd.GlobalNames {
+		if n == name {
+			return idx
+		}
+	}
+	return -1
+}
+
+func (wd *WasmDebug) LookupFunctionID(n string) int {
+	for idx, name := range wd.FunctionNames {
 		if n == name {
 			return idx
 		}

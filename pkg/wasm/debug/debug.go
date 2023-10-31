@@ -38,6 +38,21 @@ type WasmDebug struct {
 	GlobalAddresses map[string]*GlobalNameData
 }
 
+func NewEmpty() *WasmDebug {
+	wd := &WasmDebug{}
+	wd.FunctionNames = make(map[int]string)
+	wd.GlobalNames = make(map[int]string)
+	wd.DataNames = make(map[int]string)
+
+	wd.LineNumbers = make(map[uint64]LineInfo)
+	wd.FunctionDebug = make(map[int]string)
+	wd.FunctionSignature = make(map[int]string)
+	wd.LocalNames = make([]*LocalNameData, 0)
+	wd.GlobalAddresses = make(map[string]*GlobalNameData)
+
+	return wd
+}
+
 type LocalNameData struct {
 	StartPC uint64
 	EndPC   uint64

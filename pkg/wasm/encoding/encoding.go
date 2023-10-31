@@ -24,37 +24,6 @@ import (
 	"strings"
 )
 
-func DecodeSleb128(b []byte) (s int64, n int) {
-	result := int64(0)
-	shift := 0
-	ptr := 0
-	for {
-		by := b[ptr]
-		ptr++
-		result = result | (int64(by&0x7f) << shift)
-		shift += 7
-		if (by & 0x80) == 0 {
-			if shift < 64 && (by&0x40) != 0 {
-				return result | (^0 << shift), ptr
-			}
-			return result, ptr
-		}
-	}
-}
-
-func AppendSleb128(buf []byte, val int64) []byte {
-	for {
-		b := val & 0x7f
-		val = val >> 7
-		if (val == 0 && b&0x40 == 0) ||
-			(val == -1 && b&0x40 != 0) {
-			buf = append(buf, byte(b))
-			return buf
-		}
-		buf = append(buf, byte(b|0x80))
-	}
-}
-
 func WriteString(w io.Writer, s string) error {
 	data := []byte(s)
 	err := WriteUvarint(w, uint64(len(data)))
