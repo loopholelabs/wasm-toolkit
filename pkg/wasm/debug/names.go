@@ -41,6 +41,10 @@ func (wd *WasmDebug) ParseNameSectionData(nameData []byte) {
 	wd.GlobalNames = make(map[int]string)
 	wd.DataNames = make(map[int]string)
 
+	if nameData == nil {
+		return // Nothing to do.
+	}
+
 	ptr := 0
 
 	for {

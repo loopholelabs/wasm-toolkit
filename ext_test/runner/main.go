@@ -59,8 +59,12 @@ func main() {
 		panic(err)
 	}
 
+	f := os.Args[1]
+
+	fmt.Printf("Using wasm [%s]\n", f)
+
 	// Replace the function
-	wasm, err := os.ReadFile("module.wasm")
+	wasm, err := os.ReadFile(f)
 	if err != nil {
 		panic(err)
 	}
@@ -112,5 +116,11 @@ func testfn(fn *scalefunc.Schema) {
 	}
 
 	fmt.Printf("Data[%s] from scaleFunction: %s\n", fn.Language, sigctx.Context.MyString)
+
+	b = polyglot.NewBuffer()
+	sigctx.Context.Encode(b)
+	src = b.Bytes()
+	h = hex.EncodeToString(src)
+	fmt.Printf("OUTPUT IS %s\n", h)
 
 }
