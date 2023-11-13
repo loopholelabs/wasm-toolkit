@@ -141,6 +141,13 @@ func (e *Expression) EncodeWat(w io.Writer, prefix string, wd WasmDebugContext) 
 		globalTarget := fmt.Sprintf(" %s", g)
 		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], globalTarget, comment))
 		return err
+	} else if e.Opcode == InstrToOpcode["table.get"] ||
+		e.Opcode == InstrToOpcode["table.set"] {
+		//g := wd.GetGlobalIdentifier(e.GlobalIndex, false)
+		// TODO: Use table refs if we have them.
+		tableTarget := fmt.Sprintf(" %d", e.TableIndex)
+		_, err := wr.WriteString(fmt.Sprintf("%s%s%s%s\n", prefix, opcodeToInstr[e.Opcode], tableTarget, comment))
+		return err
 	} else if e.Opcode == InstrToOpcode["call"] {
 		f := wd.GetFunctionIdentifier(e.FuncIndex, false)
 		callTarget := fmt.Sprintf(" %s", f)

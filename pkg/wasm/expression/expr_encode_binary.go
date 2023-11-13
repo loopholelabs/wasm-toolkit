@@ -123,6 +123,13 @@ func (e *Expression) EncodeBinary(w io.Writer) error {
 			return err
 		}
 		return encoding.WriteUvarint(w, uint64(e.GlobalIndex))
+	} else if e.Opcode == InstrToOpcode["table.get"] ||
+		e.Opcode == InstrToOpcode["table.set"] {
+		_, err := w.Write([]byte{byte(e.Opcode)})
+		if err != nil {
+			return err
+		}
+		return encoding.WriteUvarint(w, uint64(e.TableIndex))
 	} else if e.Opcode == InstrToOpcode["call"] {
 		_, err := w.Write([]byte{byte(e.Opcode)})
 		if err != nil {

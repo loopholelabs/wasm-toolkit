@@ -23,8 +23,6 @@ import (
 type Opcode byte
 
 // TODO
-// "table.get"							- 0x25
-// "table.set"							- 0x26
 // "select <t*>"						- 0x1c
 // "ref.null t"							- 0xd0
 // "ref.is_null"						- 0xd1
@@ -80,6 +78,10 @@ var InstrToOpcode = map[string]Opcode{
 	"local.tee":  Opcode(0x22),
 	"global.get": Opcode(0x23),
 	"global.set": Opcode(0x24),
+
+	// Table
+	"table.get": Opcode(0x25),
+	"table.set": Opcode(0x26),
 
 	// Memory
 	"i32.load":     Opcode(0x28),

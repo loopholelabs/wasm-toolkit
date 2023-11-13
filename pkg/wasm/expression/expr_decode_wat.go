@@ -427,6 +427,25 @@ func (e *Expression) DecodeWat(s string, localNames map[string]int) error {
 			e.GlobalIndex = gid
 			return nil
 		}
+	} else if opcode == "table.get" ||
+		opcode == "table.set" {
+		e.Opcode = InstrToOpcode[opcode]
+		var target string
+		var tid int
+		var err error
+		target, s = encoding.ReadToken(s)
+		if target[0] == '$' {
+			//e.GlobalNeedsLinking = true
+			//e.GlobalId = target
+			return errors.New("TODO: Table refs")
+		} else {
+			tid, err = strconv.Atoi(target)
+			if err != nil {
+				return err
+			}
+			e.TableIndex = tid
+			return nil
+		}
 	} else if opcode == "call" {
 		e.Opcode = InstrToOpcode[opcode]
 		var target string

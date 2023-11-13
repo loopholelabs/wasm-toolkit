@@ -122,6 +122,11 @@ func NewExpression(data []byte, pc uint64) ([]*Expression, int, error) {
 			val, l := binary.Uvarint(data[ptr:])
 			ptr += l
 			expr.GlobalIndex = int(val)
+		} else if Opcode(opcode) == InstrToOpcode["table.get"] ||
+			Opcode(opcode) == InstrToOpcode["table.set"] {
+			val, l := binary.Uvarint(data[ptr:])
+			ptr += l
+			expr.TableIndex = int(val)
 		} else if Opcode(opcode) == InstrToOpcode["call"] {
 			val, l := binary.Uvarint(data[ptr:])
 			ptr += l
