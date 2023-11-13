@@ -60,13 +60,13 @@ You can also compile wasm-toolkit to wasm and add tracing to it :)
 
 ## Embed file (POC)
 
-![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/embed.png)
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/embed.png)
 
 ## Example output
 
 On the left is an strace like output. On the right is a wat output with debugging info.
 
-![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/output.png)
+![alt text](https://raw.githubusercontent.com/loopholelabs/wasm-toolkit/master/screenshots/output.png)
 
 ## TODO
 
