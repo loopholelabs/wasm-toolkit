@@ -2,6 +2,12 @@
 
 * TODO: Not everything is implemented yet. Wasm compatibility is 99%. You may be the 1%.
 
+## Overview
+
+* Wasm-toolkit enables encoding and decoding both from wasm binaries, and from wat assembly.
+* This makes it easy to manipulate wasm files.
+
+
 ## Features
 
 * Encoding and decoding from `.wasm` binary (99% done)

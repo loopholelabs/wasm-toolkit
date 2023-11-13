@@ -20,6 +20,12 @@ import (
 	"debug/dwarf"
 )
 
+/**
+ * WasmDebug encapsulates all debugging information for a wasm. This includes custom name sections, and dwarf debug info.
+ *
+ *
+ */
+
 type WasmDebug struct {
 	// These come from the 'name' custom section
 	FunctionNames map[int]string
@@ -49,7 +55,6 @@ func NewEmpty() *WasmDebug {
 	wd.FunctionSignature = make(map[int]string)
 	wd.LocalNames = make([]*LocalNameData, 0)
 	wd.GlobalAddresses = make(map[string]*GlobalNameData)
-
 	return wd
 }
 

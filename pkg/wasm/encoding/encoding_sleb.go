@@ -16,6 +16,10 @@
 
 package encoding
 
+/**
+ * Decode a single sleb128 encoded value from a byte array.
+ *
+ */
 func DecodeSleb128(b []byte) (s int64, n int) {
 	result := int64(0)
 	shift := 0
@@ -34,6 +38,10 @@ func DecodeSleb128(b []byte) (s int64, n int) {
 	}
 }
 
+/**
+ * Append an sleb128 encoded value to the end of a byte array.
+ *
+ */
 func AppendSleb128(buf []byte, val int64) []byte {
 	for {
 		b := val & 0x7f

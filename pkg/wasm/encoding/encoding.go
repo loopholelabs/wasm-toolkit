@@ -89,6 +89,11 @@ func ReadToken(text string) (string, string) {
 func ReadString(text string) (string, string) {
 	text = SkipComment(text)
 
+	// Special case - doesn't start with a ". Return empty.
+	if text[0] != '"' {
+		return "", text
+	}
+
 	token := ""
 	r := bufio.NewReader(strings.NewReader(text))
 	for {
@@ -113,11 +118,16 @@ func ReadString(text string) (string, string) {
 // This reads an element enclosed with parenthesis.
 // It also keeps track of speechmarks
 func ReadElement(text string) (string, string) {
+	// Skip any comment
 	text = SkipComment(text)
+
+	// Special case - does not start with a bracket. Return empty.
+	if text[0] != '(' {
+		return "", text
+	}
 
 	bracketCount := 0
 	inString := false
-	//	el := ""
 
 	current := 0
 
@@ -139,7 +149,7 @@ func ReadElement(text string) (string, string) {
 			inString = !inString
 		}
 
-		// Only care about bracks not inside a string.
+		// Only care about brackets not inside a string.
 		if !inString {
 			if ch == '(' {
 				bracketCount++
