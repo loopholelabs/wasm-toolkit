@@ -340,13 +340,16 @@ func (wf *WasmFile) ParseSectionTable(data []byte) error {
 		ptr++
 		limitMax := uint64(0)
 		limitMin := uint64(0)
+		var limitType types.LimitType
 		var l int
-		if data[ptr] == types.LimitTypeMin {
+		if types.LimitType(data[ptr]) == types.LimitTypeMin {
 			ptr++
+			limitType = types.LimitTypeMin
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
-		} else if data[ptr] == types.LimitTypeMinMax {
+		} else if types.LimitType(data[ptr]) == types.LimitTypeMinMax {
 			ptr++
+			limitType = types.LimitTypeMinMax
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
 			limitMax, l = binary.Uvarint(data[ptr:])
@@ -356,6 +359,7 @@ func (wf *WasmFile) ParseSectionTable(data []byte) error {
 		}
 		t := &TableEntry{
 			TableType: tableType,
+			LimitType: limitType,
 			LimitMin:  int(limitMin),
 			LimitMax:  int(limitMax),
 		}
@@ -377,12 +381,15 @@ func (wf *WasmFile) ParseSectionMemory(data []byte) error {
 		limitMax := uint64(0)
 		limitMin := uint64(0)
 		var l int
-		if data[ptr] == types.LimitTypeMin {
+		var limitType types.LimitType
+		if types.LimitType(data[ptr]) == types.LimitTypeMin {
 			ptr++
+			limitType = types.LimitTypeMin
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
-		} else if data[ptr] == types.LimitTypeMinMax {
+		} else if types.LimitType(data[ptr]) == types.LimitTypeMinMax {
 			ptr++
+			limitType = types.LimitTypeMinMax
 			limitMin, l = binary.Uvarint(data[ptr:])
 			ptr += l
 			limitMax, l = binary.Uvarint(data[ptr:])
@@ -391,8 +398,9 @@ func (wf *WasmFile) ParseSectionMemory(data []byte) error {
 			return fmt.Errorf("Invalid limit type in MemorySection %d", data[ptr])
 		}
 		m := &MemoryEntry{
-			LimitMin: int(limitMin),
-			LimitMax: int(limitMax),
+			LimitType: limitType,
+			LimitMin:  int(limitMin),
+			LimitMax:  int(limitMax),
 		}
 		wf.Memory = append(wf.Memory, m)
 	}
@@ -499,25 +507,27 @@ func (wf *WasmFile) ParseSectionType(data []byte) error {
 	ptr += l
 
 	for i := 0; i < int(typeVecLength); i++ {
-		t := &TypeEntry{
-			Param:  make([]types.ValType, 0),
-			Result: make([]types.ValType, 0),
-		}
-
 		// Read a functype
 		if data[ptr] == types.FuncTypePrefix {
 			ptr++
-			// Now read param / result vectors
+
+			t := &TypeEntry{}
+
+			// Read param vector
 			paramVecLength, l := binary.Uvarint(data[ptr:])
 			ptr += l
+			t.Param = make([]types.ValType, paramVecLength)
 			for p := 0; p < int(paramVecLength); p++ {
-				t.Param = append(t.Param, types.ValType(data[ptr]))
+				t.Param[p] = types.ValType(data[ptr])
 				ptr++
 			}
+
+			// Read result vectors
 			resultVecLength, l := binary.Uvarint(data[ptr:])
 			ptr += l
+			t.Result = make([]types.ValType, resultVecLength)
 			for p := 0; p < int(resultVecLength); p++ {
-				t.Result = append(t.Result, types.ValType(data[ptr]))
+				t.Result[p] = types.ValType(data[ptr])
 				ptr++
 			}
 			wf.Type = append(wf.Type, t)

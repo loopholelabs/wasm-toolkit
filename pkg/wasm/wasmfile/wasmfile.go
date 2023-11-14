@@ -83,6 +83,7 @@ type ImportEntry struct {
 // TableEntry
 type TableEntry struct {
 	TableType byte
+	LimitType types.LimitType
 	LimitMin  int
 	LimitMax  int
 }
@@ -96,8 +97,9 @@ type GlobalEntry struct {
 
 // MemoryEntry
 type MemoryEntry struct {
-	LimitMin int
-	LimitMax int
+	LimitType types.LimitType
+	LimitMin  int
+	LimitMax  int
 }
 
 // CodeEntry

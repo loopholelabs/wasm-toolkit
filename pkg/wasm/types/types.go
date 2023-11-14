@@ -63,9 +63,11 @@ const (
 )
 
 // Limit types
+type LimitType byte
+
 const (
-	LimitTypeMin    byte = 0x00
-	LimitTypeMinMax byte = 0x01
+	LimitTypeMin    LimitType = 0x00
+	LimitTypeMinMax LimitType = 0x01
 )
 
 // Export type

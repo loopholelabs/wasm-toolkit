@@ -19,6 +19,7 @@ package wasmfile
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/encoding"
@@ -355,13 +356,15 @@ func (c *TableEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
 	buf.WriteByte(c.TableType)
-	if c.LimitMax == 0 { // TODO: Fixme. This should be explicit
-		buf.WriteByte(types.LimitTypeMin)
+	if c.LimitType == types.LimitTypeMin {
+		buf.WriteByte(byte(types.LimitTypeMin))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
-	} else {
-		buf.WriteByte(types.LimitTypeMinMax)
+	} else if c.LimitType == types.LimitTypeMinMax {
+		buf.WriteByte(byte(types.LimitTypeMinMax))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMax))
+	} else {
+		return errors.New("Invalid limit type")
 	}
 
 	_, err := w.Write(buf.Bytes())
@@ -375,13 +378,15 @@ func (c *TableEntry) EncodeBinary(w io.Writer) error {
 func (c *MemoryEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
-	if c.LimitMax == 0 { // TODO: Fixme. This should be explicit
-		buf.WriteByte(types.LimitTypeMin)
+	if c.LimitType == types.LimitTypeMin {
+		buf.WriteByte(byte(types.LimitTypeMin))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
-	} else {
-		buf.WriteByte(types.LimitTypeMinMax)
+	} else if c.LimitType == types.LimitTypeMinMax {
+		buf.WriteByte(byte(types.LimitTypeMinMax))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMax))
+	} else {
+		return errors.New("Invalid limit type")
 	}
 
 	_, err := w.Write(buf.Bytes())
