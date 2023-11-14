@@ -25,6 +25,10 @@ import (
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
 
+/**
+ * Write a single section header into the wasm binary
+ *
+ */
 func writeSectionHeader(w io.Writer, s byte, length int) error {
 	sectionHeadBuffer := make([]byte, 10)
 	sectionHeadBuffer[0] = s
@@ -33,6 +37,12 @@ func writeSectionHeader(w io.Writer, s byte, length int) error {
 	return err
 }
 
+/**
+ * Encode the WasmFile, and write out to a writer.
+ * The wasmfile is encoded section by section and should be in the correct order.
+ * A DataSection count is also written.
+ *
+ */
 func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	header := make([]byte, 8)
 	binary.LittleEndian.PutUint32(header, WasmHeader)
@@ -269,6 +279,10 @@ func (wf *WasmFile) EncodeBinary(w io.Writer) error {
 	return nil
 }
 
+/**
+ * Encode an ImportEntry
+ *
+ */
 func (ie *ImportEntry) EncodeBinary(w io.Writer) error {
 	err := encoding.WriteString(w, ie.Module)
 	if err != nil {
@@ -278,21 +292,20 @@ func (ie *ImportEntry) EncodeBinary(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	exportType := make([]byte, 1)
-	exportType[0] = byte(ie.Type)
-	_, err = w.Write(exportType)
+	_, err = w.Write([]byte{byte(ie.Type)})
 	if err != nil {
 		return err
 	}
-
 	return encoding.WriteUvarint(w, uint64(ie.Index))
 }
 
+/**
+ * Encode a TypeEntry
+ *
+ */
 func (te *TypeEntry) EncodeBinary(w io.Writer) error {
 	// Write out funcTypePrefix (only thing it supports atm)
-	typePrefix := make([]byte, 1)
-	typePrefix[0] = types.FuncTypePrefix
-	_, err := w.Write(typePrefix)
+	_, err := w.Write([]byte{types.FuncTypePrefix})
 	if err != nil {
 		return err
 	}
@@ -325,16 +338,24 @@ func (te *TypeEntry) EncodeBinary(w io.Writer) error {
 	return err
 }
 
+/**
+ * Encode a FunctionEntry
+ *
+ */
 func (f *FunctionEntry) EncodeBinary(w io.Writer) error {
 	err := encoding.WriteUvarint(w, uint64(f.TypeIndex))
 	return err
 }
 
+/**
+ * Encode a TableEntry
+ *
+ */
 func (c *TableEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
 	buf.WriteByte(c.TableType)
-	if c.LimitMax == 0 { // TODO: Fixme
+	if c.LimitMax == 0 { // TODO: Fixme. This should be explicit
 		buf.WriteByte(types.LimitTypeMin)
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 	} else {
@@ -347,23 +368,30 @@ func (c *TableEntry) EncodeBinary(w io.Writer) error {
 	return err
 }
 
+/**
+ * Encode a MemoryEntry
+ *
+ */
 func (c *MemoryEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
-	if c.LimitMax == 0 { // TODO: Fixme
+	if c.LimitMax == 0 { // TODO: Fixme. This should be explicit
 		buf.WriteByte(types.LimitTypeMin)
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 	} else {
 		buf.WriteByte(types.LimitTypeMinMax)
 		encoding.WriteUvarint(&buf, uint64(c.LimitMin))
 		encoding.WriteUvarint(&buf, uint64(c.LimitMax))
-
 	}
 
 	_, err := w.Write(buf.Bytes())
 	return err
 }
 
+/**
+ * Encode a GlobalEntry
+ *
+ */
 func (c *GlobalEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
@@ -379,6 +407,10 @@ func (c *GlobalEntry) EncodeBinary(w io.Writer) error {
 	return err
 }
 
+/**
+ * Encode an ExportEntry
+ *
+ */
 func (c *ExportEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
@@ -390,6 +422,10 @@ func (c *ExportEntry) EncodeBinary(w io.Writer) error {
 	return err
 }
 
+/**
+ * Encode a CodeEntry
+ *
+ */
 func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
@@ -415,6 +451,10 @@ func (c *CodeEntry) EncodeBinary(w io.Writer) error {
 	return err
 }
 
+/**
+ * Encode an ElemEntry
+ *
+ */
 func (c *ElemEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 
@@ -446,6 +486,10 @@ func (c *ElemEntry) EncodeBinary(w io.Writer) error {
 	return nil
 }
 
+/**
+ * Encode DataEntry section.
+ *
+ */
 func (c *DataEntry) EncodeBinary(w io.Writer) error {
 	var buf bytes.Buffer
 

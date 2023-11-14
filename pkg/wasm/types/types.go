@@ -16,35 +16,34 @@
 
 package types
 
+// Value types
 type ValType byte
 
 const (
-	ValI32  ValType = 0x7f
-	ValI64  ValType = 0x7e
-	ValF32  ValType = 0x7d
-	ValF64  ValType = 0x7c
 	ValNone ValType = 0x40
+	ValF64  ValType = 0x7c
+	ValF32  ValType = 0x7d
+	ValI64  ValType = 0x7e
+	ValI32  ValType = 0x7f
 )
 
-var ValTypeToByte map[string]ValType
-var ByteToValType map[ValType]string
-
-func init() {
-	ValTypeToByte = make(map[string]ValType)
-	ValTypeToByte["i32"] = ValI32
-	ValTypeToByte["i64"] = ValI64
-	ValTypeToByte["f32"] = ValF32
-	ValTypeToByte["f64"] = ValF64
-	ValTypeToByte["none"] = ValNone
-
-	ByteToValType = make(map[ValType]string)
-	ByteToValType[ValI32] = "i32"
-	ByteToValType[ValI64] = "i64"
-	ByteToValType[ValF32] = "f32"
-	ByteToValType[ValF64] = "f64"
-	ByteToValType[ValNone] = "none"
+var ValTypeToByte map[string]ValType = map[string]ValType{
+	"i32":  ValI32,
+	"i64":  ValI64,
+	"f32":  ValF32,
+	"f64":  ValF64,
+	"none": ValNone,
 }
 
+var ByteToValType map[ValType]string = map[ValType]string{
+	ValI32:  "i32",
+	ValI64:  "i64",
+	ValF32:  "f32",
+	ValF64:  "f64",
+	ValNone: "none",
+}
+
+// Section IDs
 type SectionId byte
 
 const (
@@ -63,11 +62,13 @@ const (
 	SectionDataCount SectionId = 12
 )
 
+// Limit types
 const (
 	LimitTypeMin    byte = 0x00
 	LimitTypeMinMax byte = 0x01
 )
 
+// Export type
 type ExportType byte
 
 const (
@@ -77,6 +78,7 @@ const (
 	ExportGlobal ExportType = 3
 )
 
+// Other
 const FuncTypePrefix byte = 0x60
 
 const TableTypeFuncref byte = 0x70

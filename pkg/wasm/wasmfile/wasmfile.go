@@ -17,6 +17,8 @@
 package wasmfile
 
 import (
+	"os"
+
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
@@ -41,6 +43,10 @@ type WasmFile struct {
 
 const WasmHeader uint32 = 0x6d736100
 const WasmVersion uint32 = 0x00000001
+
+var WasmHeaderAndVersion []byte = []byte{
+	0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+}
 
 // FunctionEntry
 type FunctionEntry struct {
@@ -123,8 +129,39 @@ type ElemEntry struct {
  */
 func NewEmpty() *WasmFile {
 	return &WasmFile{
-		Debug: debug.NewEmpty(),
+		Debug:    debug.NewEmpty(),
+		Function: []*FunctionEntry{},
+		Type:     []*TypeEntry{},
+		Custom:   []*CustomEntry{},
+		Export:   []*ExportEntry{},
+		Import:   []*ImportEntry{},
+		Table:    []*TableEntry{},
+		Global:   []*GlobalEntry{},
+		Memory:   []*MemoryEntry{},
+		Code:     []*CodeEntry{},
+		Data:     []*DataEntry{},
+		Elem:     []*ElemEntry{},
 	}
+}
+
+// Create a new WasmFile from a file
+func New(filename string) (*WasmFile, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	wf := &WasmFile{}
+	err = wf.DecodeBinary(data)
+	if err != nil {
+		return wf, err
+	}
+	wf.Debug = &debug.WasmDebug{}
+	nameData := wf.GetCustomSectionData("name")
+	if nameData != nil {
+		wf.Debug.ParseNameSectionData(nameData)
+	}
+	return wf, err
 }
 
 /**

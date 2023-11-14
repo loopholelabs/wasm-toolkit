@@ -21,53 +21,16 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 
-	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
 )
-
-// Create a new WasmFile from a file
-func New(filename string) (*WasmFile, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	wf := &WasmFile{}
-	err = wf.DecodeBinary(data)
-	if err != nil {
-		return wf, err
-	}
-	wf.Debug = &debug.WasmDebug{}
-	nameData := wf.GetCustomSectionData("name")
-	if nameData != nil {
-		wf.Debug.ParseNameSectionData(nameData)
-	}
-	return wf, err
-}
 
 /**
  * Decode a wasm binary into a WasmFile
  *
  */
 func (wf *WasmFile) DecodeBinary(data []byte) (err error) {
-	/*
-		defer func() {
-			r := recover()
-			if r != nil {
-				switch x := r.(type) {
-				case string:
-					err = errors.New(x)
-				case error:
-					err = x
-				default:
-					err = errors.New("unknown panic")
-				}
-			}
-		}()
-	*/
 	hd := binary.LittleEndian.Uint32(data)
 	vr := binary.LittleEndian.Uint32(data[4:])
 
@@ -103,36 +66,37 @@ func (wf *WasmFile) DecodeBinary(data []byte) (err error) {
 		}
 
 		// Process each section
-
-		if sectionType == byte(types.SectionCustom) {
+		switch types.SectionId(sectionType) {
+		case types.SectionCustom:
 			err = wf.ParseSectionCustom(sectionData)
-		} else if sectionType == byte(types.SectionType) {
+		case types.SectionType:
 			err = wf.ParseSectionType(sectionData)
-		} else if sectionType == byte(types.SectionImport) {
+		case types.SectionImport:
 			err = wf.ParseSectionImport(sectionData)
-		} else if sectionType == byte(types.SectionFunction) {
+		case types.SectionFunction:
 			err = wf.ParseSectionFunction(sectionData)
-		} else if sectionType == byte(types.SectionTable) {
+		case types.SectionTable:
 			err = wf.ParseSectionTable(sectionData)
-		} else if sectionType == byte(types.SectionMemory) {
+		case types.SectionMemory:
 			err = wf.ParseSectionMemory(sectionData)
-		} else if sectionType == byte(types.SectionGlobal) {
+		case types.SectionGlobal:
 			err = wf.ParseSectionGlobal(sectionData)
-		} else if sectionType == byte(types.SectionExport) {
+		case types.SectionExport:
 			err = wf.ParseSectionExport(sectionData)
-		} else if sectionType == byte(types.SectionStart) {
+		case types.SectionStart:
 			err = wf.ParseSectionStart(sectionData)
-		} else if sectionType == byte(types.SectionElem) {
+		case types.SectionElem:
 			err = wf.ParseSectionElem(sectionData)
-		} else if sectionType == byte(types.SectionCode) {
+		case types.SectionCode:
 			err = wf.ParseSectionCode(sectionData)
-		} else if sectionType == byte(types.SectionData) {
+		case types.SectionData:
 			err = wf.ParseSectionData(sectionData)
-		} else if sectionType == byte(types.SectionDataCount) {
+		case types.SectionDataCount:
 			err = wf.ParseSectionDataCount(sectionData)
-		} else {
+		default:
 			return fmt.Errorf("Unknown section %d", sectionType)
 		}
+
 		if err != nil {
 			return err
 		}
@@ -153,6 +117,7 @@ func (wf *WasmFile) ParseSectionDataCount(data []byte) error {
 	return nil
 }
 
+// Get a snipet of data for useful errors
 func getDataContext(data []byte) []byte {
 	l := len(data)
 	if l > 16 {
@@ -496,7 +461,7 @@ func (wf *WasmFile) ParseSectionExport(data []byte) error {
 
 /**
  * Parse a Start section
- *
+ * TODO
  */
 func (wf *WasmFile) ParseSectionStart(data []byte) error {
 	return nil
