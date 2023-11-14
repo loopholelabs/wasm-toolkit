@@ -116,7 +116,7 @@ func AddOtel(wasmInput []byte, config Otel_config) ([]byte, error) {
 	}
 
 	watch_memory := false
-	if wfile.LookupImport("scale:watch") != -1 {
+	if wfile.LookupImport("scale", "watch") != -1 {
 		watch_memory = true
 		wfile.RedirectImport("scale", "watch", "$watch_add")
 	}

@@ -129,13 +129,13 @@ func runEmbedFile(ccmd *cobra.Command, args []string) {
 
 	// Redirect some imports...
 	import_redirect_map := map[string]string{
-		"wasi_snapshot_preview1:fd_prestat_get": "$wrap_fd_prestat_get",
-		"wasi_snapshot_preview1:path_open":      "$wrap_path_open",
-		"wasi_snapshot_preview1:fd_read":        "$wrap_fd_read",
+		"fd_prestat_get": "$wrap_fd_prestat_get",
+		"path_open":      "$wrap_path_open",
+		"fd_read":        "$wrap_fd_read",
 	}
 
 	for from, to := range import_redirect_map {
-		fromId := wfile.LookupImport(from)
+		fromId := wfile.LookupImport("wasi_snapshot_preview1", from)
 		toId := wfile.Debug.LookupFunctionID(to)
 
 		fmt.Printf("Redirecting code from %d to %d\n", fromId, toId)

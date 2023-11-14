@@ -17,8 +17,6 @@
 package wasmfile
 
 import (
-	"fmt"
-
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/debug"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/expression"
 	"github.com/loopholelabs/wasm-toolkit/pkg/wasm/types"
@@ -119,12 +117,20 @@ type ElemEntry struct {
 	Indexes    []uint64
 }
 
+/**
+ * Create a new, empty wasmfile
+ *
+ */
 func NewEmpty() *WasmFile {
 	return &WasmFile{
 		Debug: debug.NewEmpty(),
 	}
 }
 
+/**
+ * Helper to get a specific custom section by name, or nil if not found.
+ *
+ */
 func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 	for _, c := range wf.Custom {
 		if c.Name == name {
@@ -134,6 +140,10 @@ func (wf *WasmFile) GetCustomSectionData(name string) []byte {
 	return nil
 }
 
+/**
+ * Given a PC, find which function it falls inside of.
+ *
+ */
 func (wf *WasmFile) FindFunction(pc uint64) int {
 	for index, c := range wf.Code {
 
@@ -144,16 +154,23 @@ func (wf *WasmFile) FindFunction(pc uint64) int {
 	return -1
 }
 
-func (wf *WasmFile) LookupImport(n string) int {
+/**
+ * Lookup an import by module and name
+ * Returns -1 if not found, or the import index.
+ */
+func (wf *WasmFile) LookupImport(module string, name string) int {
 	for idx, i := range wf.Import {
-		iname := fmt.Sprintf("%s:%s", i.Module, i.Name)
-		if iname == n {
+		if module == i.Module && name == i.Name {
 			return idx
 		}
 	}
 	return -1
 }
 
+/**
+ * Clone a TypeEntry
+ *
+ */
 func (t *TypeEntry) Clone() *TypeEntry {
 	newType := &TypeEntry{
 		Param:  make([]types.ValType, 0),
