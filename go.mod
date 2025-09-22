@@ -1,11 +1,11 @@
 module github.com/loopholelabs/wasm-toolkit
 
-go 1.20
+go 1.22.0
 
 require (
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.10.0
-	github.com/tetratelabs/wazero v1.7.3
+	github.com/tetratelabs/wazero v1.9.0
 )
 
 require (
